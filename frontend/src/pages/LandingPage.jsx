@@ -332,31 +332,31 @@ export const LandingPage = () => {
             className="text-center mb-16"
           >
             <h2 className="text-5xl font-bold text-white mb-4">
-              Tu Seguridad es <span className="text-[#10b981]">Nuestra Prioridad</span>
+              Confianza y <span className="text-[#10b981]">Compromiso</span>
             </h2>
             <p className="text-white/70 text-lg max-w-2xl mx-auto">
-              Protegemos tu información con los más altos estándares de seguridad de la industria
+              Trabajamos para ti con profesionalismo, experiencia y dedicación
             </p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                icon: Lock,
-                title: 'Cifrado de Grado Bancario',
-                description: 'Tus datos están protegidos con cifrado AES-256, el mismo estándar usado por instituciones financieras.',
+                icon: Award,
+                title: 'Trayectoria Comprobada',
+                description: 'Más de una década conectando clientes con los mejores abogados especializados en múltiples áreas del derecho.',
                 color: '#3b82f6'
               },
               {
-                icon: Shield,
-                title: 'Cumplimiento GDPR',
-                description: 'Cumplimos con todas las regulaciones de protección de datos y privacidad internacionales.',
+                icon: Users,
+                title: 'Trabajamos Para Ti',
+                description: 'Tu caso es nuestra prioridad. Cada cliente recibe atención personalizada y seguimiento constante de principio a fin.',
                 color: '#f97316'
               },
               {
-                icon: CheckCircle,
-                title: 'Auditorías Continuas',
-                description: 'Realizamos pruebas de seguridad y auditorías constantes para garantizar la máxima protección.',
+                icon: Shield,
+                title: 'Red de Confianza',
+                description: 'Solo trabajamos con abogados certificados y verificados. Tu tranquilidad es nuestro compromiso diario.',
                 color: '#10b981'
               }
             ].map((item, index) => (
