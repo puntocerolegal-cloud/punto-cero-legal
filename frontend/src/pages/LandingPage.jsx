@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Shield, Lock, Users, Award, CheckCircle, ArrowRight, Scale, FileText, Clock,
-  Briefcase, Calendar, FolderKanban, BookOpen, Video, Brain, Menu, X
+  Briefcase, Calendar, FolderKanban, BookOpen, Video, Brain, Menu, X,
+  Mail, MessageCircle, Instagram, Facebook
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -40,9 +41,9 @@ export const LandingPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a]">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#0f172a]/80 border-b border-white/10">
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#0f172a]/80 border-b border-white/10" role="banner">
         <div className="container mx-auto px-6 py-4">
-          <nav className="flex items-center justify-between">
+          <nav className="flex items-center justify-between" aria-label="Navegación principal">
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -60,7 +61,7 @@ export const LandingPage = () => {
             >
               <a href="#servicios" className="text-white/80 hover:text-[#3b82f6] transition-colors">Servicios</a>
               <a href="#modulos" className="text-white/80 hover:text-[#3b82f6] transition-colors">Módulos</a>
-              <a href="#equipo" className="text-white/80 hover:text-[#3b82f6] transition-colors">Equipo</a>
+              <a href="#planes" className="text-white/80 hover:text-[#3b82f6] transition-colors">Planes</a>
               <a href="#abogados" className="text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
               <Button variant="outline" className="border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all">
                 Iniciar Sesión
@@ -82,7 +83,7 @@ export const LandingPage = () => {
             >
               <a href="#servicios" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Servicios</a>
               <a href="#modulos" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Módulos</a>
-              <a href="#equipo" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Equipo</a>
+              <a href="#planes" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Planes</a>
               <a href="#abogados" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
             </motion.div>
           )}
@@ -114,15 +115,19 @@ export const LandingPage = () => {
               </span>
               
               <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight">
-                La asesoría legal que necesita,
+                <span className="text-white">¿Cansado de que tus problemas legales no reciban</span>
                 <br />
                 <span className="bg-gradient-to-r from-[#3b82f6] via-[#f97316] to-[#10b981] bg-clip-text text-transparent">
-                  sin complicaciones.
+                  la atención que merecen?
                 </span>
               </h1>
               
-              <p className="text-xl text-white/70 mb-8 leading-relaxed">
-                Reciba orientación jurídica profesional de abogados certificados en áreas civiles, migratorias, corporativas y documentales. Atención rápida, confidencial y personalizada.
+              <p className="text-xl text-white/70 mb-4 leading-relaxed">
+                <strong className="text-white">Tenemos la asesoría legal que necesitas, sin complicaciones.</strong>
+              </p>
+              
+              <p className="text-lg text-white/60 mb-8 leading-relaxed">
+                Reciba orientación jurídica profesional de abogados certificados en todas las áreas del derecho. Atención rápida, confidencial y personalizada.
               </p>
               
               <div className="flex flex-wrap gap-4 mb-12">
@@ -152,8 +157,8 @@ export const LandingPage = () => {
                   <div className="text-white/60 text-sm uppercase tracking-wide mt-1">Abogados Aliados</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold text-[#f97316]">18</div>
-                  <div className="text-white/60 text-sm uppercase tracking-wide mt-1">Países</div>
+                  <div className="text-2xl lg:text-3xl font-bold text-[#f97316]">Presencia Digital</div>
+                  <div className="text-white/60 text-sm uppercase tracking-wide mt-1">LATAM</div>
                 </div>
                 <div>
                   <div className="text-4xl font-bold text-[#10b981]">98%</div>
@@ -219,7 +224,7 @@ export const LandingPage = () => {
                     type="submit"
                     className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6 transition-all"
                   >
-                    Solicitar evaluación vía WhatsApp
+                    Enviar Caso
                   </Button>
                 </form>
               </div>
@@ -265,7 +270,7 @@ export const LandingPage = () => {
               {
                 icon: BookOpen,
                 title: 'Directorio Legal',
-                description: 'Acceda a una red de +168 abogados aliados especializados en 18 países.',
+                description: 'Acceda a una red de +168 abogados aliados con presencia digital en LATAM.',
                 color: '#10b981',
                 image: 'https://images.unsplash.com/photo-1568992687947-868a62a9f521'
               },
@@ -452,8 +457,8 @@ export const LandingPage = () => {
                   <div className="text-white/60 text-xs uppercase tracking-wide mt-1">Casos Mensuales</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold text-[#3b82f6]">18</div>
-                  <div className="text-white/60 text-xs uppercase tracking-wide mt-1">Países</div>
+                  <div className="text-2xl lg:text-3xl font-bold text-[#3b82f6]">Presencia Digital</div>
+                  <div className="text-white/60 text-xs uppercase tracking-wide mt-1">LATAM</div>
                 </div>
                 <div>
                   <div className="text-4xl font-bold text-[#10b981]">168+</div>
@@ -573,45 +578,119 @@ export const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 backdrop-blur-md bg-[#0f172a]/70 py-12 px-6">
+      <footer className="border-t border-white/10 backdrop-blur-md bg-[#0f172a]/70 py-12 px-6" role="contentinfo">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+            {/* Brand Section */}
+            <section aria-labelledby="footer-brand">
               <div className="flex items-center gap-2 mb-4">
-                <Scale className="w-6 h-6 text-[#f97316]" />
-                <span className="text-xl font-bold text-white">Punto Cero Legal</span>
+                <Scale className="w-6 h-6 text-[#f97316]" aria-hidden="true" />
+                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO LEGAL</h3>
               </div>
-              <p className="text-white/60 text-sm">
-                Transformando la experiencia legal con tecnología de vanguardia.
+              <p className="text-[#f97316] text-sm font-semibold mb-2">Inversiones y Variedades DJGG 2013</p>
+              <p className="text-white/60 text-sm leading-relaxed">
+                Oficina jurídica virtual presente en 18 países de LATAM. Soluciones legales profesionales con tecnología avanzada.
               </p>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Producto</h4>
+            </section>
+
+            {/* Contact Section */}
+            <section aria-labelledby="footer-contact">
+              <h3 id="footer-contact" className="text-white font-semibold mb-4 uppercase tracking-wider text-sm">Contacto</h3>
+              <address className="not-italic space-y-3 text-white/60 text-sm">
+                <a 
+                  href="mailto:puntocerolegal@gmail.com" 
+                  className="flex items-center gap-2 hover:text-[#3b82f6] transition-colors"
+                  aria-label="Enviar correo a puntocerolegal@gmail.com"
+                >
+                  <Mail className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                  <span>puntocerolegal@gmail.com</span>
+                </a>
+                <a 
+                  href="https://wa.me/573028322083" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-[#10b981] transition-colors"
+                  aria-label="WhatsApp Colombia +57 302 832 2083"
+                >
+                  <MessageCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                  <span>WhatsApp Colombia: +57 3028322083</span>
+                </a>
+                <a 
+                  href="https://wa.me/584246487378" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-[#10b981] transition-colors"
+                  aria-label="WhatsApp Venezuela +58 0424 648 7378"
+                >
+                  <MessageCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                  <span>WhatsApp Venezuela: +58 04246487378</span>
+                </a>
+              </address>
+            </section>
+
+            {/* Legal Section */}
+            <nav aria-labelledby="footer-legal">
+              <h3 id="footer-legal" className="text-white font-semibold mb-4 uppercase tracking-wider text-sm">Legal</h3>
               <ul className="space-y-2 text-white/60 text-sm">
-                <li><a href="#modulos" className="hover:text-[#3b82f6] transition-colors">Características</a></li>
-                <li><a href="#" className="hover:text-[#3b82f6] transition-colors">Precios</a></li>
-                <li><a href="#" className="hover:text-[#3b82f6] transition-colors">Demo</a></li>
+                <li>
+                  <a href="#privacidad" className="hover:text-[#3b82f6] transition-colors" aria-label="Política de Privacidad">
+                    Política de Privacidad
+                  </a>
+                </li>
+                <li>
+                  <a href="#cookies" className="hover:text-[#3b82f6] transition-colors" aria-label="Política de Cookies">
+                    Política de Cookies
+                  </a>
+                </li>
+                <li>
+                  <a href="#terminos" className="hover:text-[#3b82f6] transition-colors" aria-label="Términos y Condiciones">
+                    Términos y Condiciones
+                  </a>
+                </li>
               </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Compañía</h4>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li><a href="#equipo" className="hover:text-[#3b82f6] transition-colors">Sobre Nosotros</a></li>
-                <li><a href="#equipo" className="hover:text-[#3b82f6] transition-colors">Equipo</a></li>
-                <li><a href="https://wa.me/573028322083" className="hover:text-[#3b82f6] transition-colors">Contacto</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li><a href="#" className="hover:text-[#3b82f6] transition-colors">Privacidad</a></li>
-                <li><a href="#" className="hover:text-[#3b82f6] transition-colors">Términos</a></li>
-                <li><a href="#" className="hover:text-[#3b82f6] transition-colors">Cookies</a></li>
-              </ul>
-            </div>
+            </nav>
+
+            {/* Social Media Section */}
+            <section aria-labelledby="footer-social">
+              <h3 id="footer-social" className="text-white font-semibold mb-4 uppercase tracking-wider text-sm">Síguenos</h3>
+              <div className="flex gap-3 flex-wrap">
+                <a 
+                  href="https://www.instagram.com/puntoceroconsultores/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Síguenos en Instagram"
+                  className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f97316] via-[#ec4899] to-[#8b5cf6] flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all duration-300"
+                >
+                  <Instagram className="w-5 h-5 text-white" aria-hidden="true" />
+                </a>
+                <a 
+                  href="https://www.facebook.com/Punto7Cero7/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Síguenos en Facebook"
+                  className="w-11 h-11 rounded-xl bg-[#1877f2] flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(24,119,242,0.5)] transition-all duration-300"
+                >
+                  <Facebook className="w-5 h-5 text-white" aria-hidden="true" />
+                </a>
+                <a 
+                  href="https://www.tiktok.com/@puntoceroconsultores" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Síguenos en TikTok"
+                  className="w-11 h-11 rounded-xl bg-black border border-white/20 flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all duration-300 relative overflow-hidden group"
+                >
+                  <svg className="w-5 h-5 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.1z"/>
+                  </svg>
+                </a>
+              </div>
+              <p className="text-white/40 text-xs mt-4">@puntoceroconsultores</p>
+            </section>
           </div>
-          <div className="border-t border-white/10 pt-8 text-center text-white/60 text-sm">
-            <p>&copy; 2025 Punto Cero Legal. Todos los derechos reservados.</p>
+
+          <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white/60 text-sm">
+            <p>&copy; 2025 PUNTO CERO LEGAL · Inversiones y Variedades DJGG 2013. Todos los derechos reservados.</p>
+            <p className="text-white/40 text-xs">Hecho con dedicación para LATAM</p>
           </div>
         </div>
       </footer>
