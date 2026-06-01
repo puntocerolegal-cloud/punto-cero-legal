@@ -2,14 +2,14 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.case import CaseCreate, Case, CaseUpdate
-from ..utils.case_number_generator import generate_case_number
+from models.case import CaseCreate, Case, CaseUpdate
+from utils.case_number_generator import generate_case_number
 from bson import ObjectId
 
 router = APIRouter(prefix="/cases", tags=["Case Management"])
 
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)

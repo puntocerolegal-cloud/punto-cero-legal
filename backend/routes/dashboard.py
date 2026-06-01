@@ -7,7 +7,7 @@ from bson import ObjectId
 router = APIRouter(prefix="/dashboard", tags=["Dashboard & KPIs"])
 
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.get("/kpis/{lawyer_id}", response_model=dict)

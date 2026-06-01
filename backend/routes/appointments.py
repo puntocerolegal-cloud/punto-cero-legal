@@ -2,13 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from datetime import datetime, date
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.appointment import AppointmentCreate, Appointment
+from models.appointment import AppointmentCreate, Appointment
 from bson import ObjectId
 
 router = APIRouter(prefix="/appointments", tags=["Legal Agenda"])
 
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.post("/", response_model=dict)

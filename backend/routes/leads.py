@@ -2,13 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.lead import LeadCreate, Lead, LeadUpdate
+from models.lead import LeadCreate, Lead, LeadUpdate
 from bson import ObjectId
 
 router = APIRouter(prefix="/leads", tags=["CRM - Leads"])
 
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -68,7 +68,7 @@ async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(
     INTEGRACIÓN CRÍTICA: CRM → Gestión de Casos
     Convierte un lead en un caso automáticamente
     """
-    from ..utils.case_number_generator import generate_case_number
+    from utils.case_number_generator import generate_case_number
     from datetime import date
     
     # Get lead

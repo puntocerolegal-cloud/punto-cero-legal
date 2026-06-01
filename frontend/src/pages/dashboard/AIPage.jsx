@@ -1,0 +1,196 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import axios from 'axios';
+import { Brain, Send, Sparkles, Gavel, Shield, FileText, Mail, Search, User, Loader2, Copy, RotateCcw } from 'lucide-react';
+import DashboardLayout from '../../components/DashboardLayout';
+import { Button } from '../../components/ui/button';
+import { Textarea } from '../../components/ui/textarea';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const templates = [
+  { id: 'general', name: 'Consulta General', description: 'Asistente jurídico general', icon: Brain, color: '#3b82f6' },
+  { id: 'demanda', name: 'Redactar Demanda', description: 'Genera demandas completas', icon: Gavel, color: '#ef4444' },
+  { id: 'tutela', name: 'Acción de Tutela', description: 'Amparo constitucional', icon: Shield, color: '#f97316' },
+  { id: 'contrato', name: 'Redactar Contrato', description: 'Contratos profesionales', icon: FileText, color: '#10b981' },
+  { id: 'peticion', name: 'Derecho de Petición', description: 'Solicitudes formales', icon: Mail, color: '#8b5cf6' },
+  { id: 'analisis', name: 'Análisis Jurídico', description: 'Análisis de casos', icon: Search, color: '#ec4899' },
+];
+
+export const AIPage = () => {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [template, setTemplate] = useState('general');
+  const [sessionId, setSessionId] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const { data } = await axios.post(`${API}/ai/chat`, {
+        message: input,
+        session_id: sessionId,
+        template: template
+      });
+      setSessionId(data.session_id);
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error al conectar con el asistente. Verifique la configuración.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setSessionId(null);
+  };
+
+  const selectTemplate = (id) => {
+    setTemplate(id);
+    handleNewChat();
+  };
+
+  const currentTemplate = templates.find(t => t.id === template);
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6 pt-12 lg:pt-0 h-[calc(100vh-3rem)] lg:h-screen flex flex-col -m-6 lg:-m-10 p-6 lg:p-10">
+        <div className="flex items-center justify-between flex-shrink-0">
+          <div>
+            <h1 className="text-3xl font-bold mb-1 flex items-center gap-2">
+              IA Jurídica <Sparkles className="w-6 h-6 text-[#f97316]" />
+            </h1>
+            <p className="text-white/60">Tu asistente legal inteligente potenciado por IA avanzada</p>
+          </div>
+          <Button onClick={handleNewChat} variant="outline" className="border-white/20 text-white hover:bg-white/10" data-testid="new-chat-button">
+            <RotateCcw className="w-4 h-4 mr-2" /> Nueva Consulta
+          </Button>
+        </div>
+
+        <div className="grid lg:grid-cols-4 gap-6 flex-1 min-h-0">
+          {/* Templates Sidebar */}
+          <div className="space-y-2 lg:max-h-full lg:overflow-y-auto">
+            <div className="text-xs uppercase tracking-wider text-white/40 mb-2 px-2">Plantillas</div>
+            {templates.map(t => (
+              <button
+                key={t.id}
+                onClick={() => selectTemplate(t.id)}
+                className={`w-full text-left p-3 rounded-xl border transition-all ${template === t.id ? 'border-[#f97316]/40 bg-[#f97316]/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                data-testid={`template-${t.id}`}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${t.color}20` }}>
+                    <t.icon className="w-4 h-4" style={{ color: t.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm">{t.name}</div>
+                    <div className="text-xs text-white/50 mt-0.5">{t.description}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Chat Area */}
+          <div className="lg:col-span-3 backdrop-blur-xl bg-white/5 rounded-2xl border border-white/10 flex flex-col overflow-hidden">
+            {/* Active Template Bar */}
+            <div className="px-6 py-3 border-b border-white/10 flex items-center gap-3 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${currentTemplate.color}20` }}>
+                <currentTemplate.icon className="w-5 h-5" style={{ color: currentTemplate.color }} />
+              </div>
+              <div>
+                <div className="font-semibold">{currentTemplate.name}</div>
+                <div className="text-xs text-white/50">{currentTemplate.description}</div>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              {messages.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#f97316] to-[#ec4899] flex items-center justify-center">
+                    <Brain className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">¿En qué puedo ayudarte hoy?</h3>
+                  <p className="text-white/60 max-w-md mx-auto">Pregúntame sobre cualquier tema jurídico. Puedo redactar documentos, analizar casos y brindar asesoría especializada.</p>
+                  <div className="grid sm:grid-cols-2 gap-2 max-w-lg mx-auto mt-6">
+                    {['Redacta una demanda por incumplimiento contractual', 'Resume jurisprudencia sobre tutela laboral', 'Genera un contrato de prestación de servicios', 'Analiza riesgos en este caso'].map((suggestion, i) => (
+                      <button key={i} onClick={() => setInput(suggestion)} className="p-3 text-left text-sm rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {messages.map((msg, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6]' : 'bg-gradient-to-br from-[#f97316] to-[#ec4899]'}`}>
+                    {msg.role === 'user' ? <User className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
+                  </div>
+                  <div className={`flex-1 max-w-[80%] ${msg.role === 'user' ? 'flex flex-col items-end' : ''}`}>
+                    <div className={`p-4 rounded-2xl ${msg.role === 'user' ? 'bg-gradient-to-br from-[#3b82f6]/20 to-[#8b5cf6]/20 border border-[#3b82f6]/30' : 'bg-white/5 border border-white/10'}`}>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                    </div>
+                    {msg.role === 'assistant' && (
+                      <button onClick={() => navigator.clipboard.writeText(msg.content)} className="mt-2 text-xs text-white/40 hover:text-white/80 flex items-center gap-1">
+                        <Copy className="w-3 h-3" /> Copiar
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+
+              {loading && (
+                <div className="flex gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#f97316] to-[#ec4899] flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="text-sm text-white/60">Pensando...</div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="border-t border-white/10 p-4 flex-shrink-0">
+              <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder={`Escriba su consulta de ${currentTemplate.name.toLowerCase()}...`}
+                  className="flex-1 bg-white/10 border-white/20 text-white resize-none min-h-[60px]"
+                  data-testid="ai-input"
+                />
+                <Button type="submit" disabled={loading || !input.trim()} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white self-end" data-testid="ai-send">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default AIPage;

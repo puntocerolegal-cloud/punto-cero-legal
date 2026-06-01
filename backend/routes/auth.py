@@ -2,15 +2,15 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.user import UserCreate, User, UserLogin, UserResponse
-from ..utils.auth import get_password_hash, verify_password, create_access_token
+from models.user import UserCreate, User, UserLogin, UserResponse
+from utils.auth import get_password_hash, verify_password, create_access_token
 from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # Dependency to get database
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)

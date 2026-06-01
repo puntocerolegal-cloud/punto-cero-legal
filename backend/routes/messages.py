@@ -2,13 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.message import MessageCreate, Message
+from models.message import MessageCreate, Message
 from bson import ObjectId
 
 router = APIRouter(prefix="/messages", tags=["Message Center"])
 
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.post("/", response_model=dict)

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -40,6 +40,7 @@ api_router.include_router(meetings.router)
 api_router.include_router(appointments.router)
 api_router.include_router(messages.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(ai.router)
 
 # Include the router in the main app
 app.include_router(api_router)

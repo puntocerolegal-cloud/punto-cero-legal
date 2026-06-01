@@ -2,13 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.meeting import MeetingCreate, Meeting, MeetingUpdate
+from models.meeting import MeetingCreate, Meeting, MeetingUpdate
 from bson import ObjectId
 
 router = APIRouter(prefix="/meetings", tags=["Conference Room"])
 
 async def get_db():
-    from ..server import db
+    from server import db
     return db
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
