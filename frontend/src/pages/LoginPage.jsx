@@ -18,8 +18,12 @@ export const LoginPage = () => {
     setError('');
     setLoading(true);
     try {
-      await login(credentials.email, credentials.password);
-      navigate('/dashboard');
+      const userData = await login(credentials.email, credentials.password);
+      if (['admin', 'admin_general', 'socio_comercial'].includes(userData.role)) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al iniciar sesión');
     } finally {

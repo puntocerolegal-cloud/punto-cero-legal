@@ -21,7 +21,7 @@ class PyObjectId(ObjectId):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: Literal["admin", "lawyer", "client"]
+    role: Literal["admin", "admin_general", "socio_comercial", "lawyer", "client"]
     phone: Optional[str] = None
     country: Optional[str] = None
     specialty: Optional[str] = None

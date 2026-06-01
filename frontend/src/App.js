@@ -16,6 +16,7 @@ import MeetingsPage from './pages/dashboard/MeetingsPage';
 import InvoicesPage from './pages/dashboard/InvoicesPage';
 import DocumentsPage from './pages/dashboard/DocumentsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
+import AdminPanel from './pages/AdminPanel';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
             <Route path="/dashboard/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
             <Route path="/dashboard/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
