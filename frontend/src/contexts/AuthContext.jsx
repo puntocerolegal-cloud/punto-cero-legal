@@ -49,8 +49,22 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Re-consulta el estado del usuario desde el backend (fuente de verdad).
+  // Útil para detectar que un admin acaba de aprobar la cuenta.
+  const refreshUser = async () => {
+    try {
+      const res = await axios.get(`${API}/auth/me`);
+      const fresh = res.data;
+      localStorage.setItem('pcl_user', JSON.stringify(fresh));
+      setUser(fresh);
+      return fresh;
+    } catch (e) {
+      return null;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

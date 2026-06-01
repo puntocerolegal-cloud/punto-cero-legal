@@ -23,9 +23,17 @@ export const LandingPage = () => {
       navigate('/login');
     } else if (['admin', 'admin_general', 'socio_comercial'].includes(user?.role)) {
       navigate('/admin');
+    } else if (user?.is_verified === false || user?.status === 'PENDING_VERIFICATION') {
+      navigate('/verificacion-pendiente');
     } else {
       navigate('/dashboard');
     }
+  };
+
+  const getAccessLabel = () => {
+    if (!isAuthenticated) return 'Iniciar Sesión';
+    if (['admin', 'admin_general', 'socio_comercial'].includes(user?.role)) return 'Centro de Gestión';
+    return 'Mi Oficina Jurídica';
   };
   const [formData, setFormData] = useState({
     name: '',
@@ -79,7 +87,7 @@ export const LandingPage = () => {
               <a href="#planes" className="text-white/80 hover:text-[#3b82f6] transition-colors">Planes</a>
               <a href="#abogados" className="text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
               <Button onClick={handleAccess} variant="outline" className="border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all" data-testid="navbar-access-btn">
-                {isAuthenticated ? 'Mi Dashboard' : 'Iniciar Sesión'}
+                {getAccessLabel()}
               </Button>
             </motion.div>
 
@@ -576,6 +584,50 @@ export const LandingPage = () => {
             <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> Mercado Pago / PayPal</div>
             <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> Programa de referidos: 1 mes gratis por amigo</div>
           </div>
+
+          {/* === MÉTODOS DE PAGO SEGUROS === */}
+          <motion.aside
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-12 max-w-3xl mx-auto"
+            aria-labelledby="payment-methods-heading"
+            data-testid="payment-methods-section"
+          >
+            <div className="backdrop-blur-2xl bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 md:p-7">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Lock className="w-4 h-4 text-[#f97316]" aria-hidden="true" />
+                <h3 id="payment-methods-heading" className="text-sm uppercase tracking-[0.25em] text-white/70 font-semibold">
+                  Métodos de pago seguros
+                </h3>
+              </div>
+              <p className="text-center text-white/40 text-xs mb-5">
+                Pasarelas integradas con cifrado bancario · Pagos en moneda local LATAM
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4">
+                {/* MercadoPago (monocromo) */}
+                <div className="group flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-[#f97316]/40 hover:bg-white/[0.06] transition-all">
+                  <svg viewBox="0 0 48 32" className="h-7 w-auto text-white/80 group-hover:text-white transition-colors" fill="currentColor" aria-hidden="true">
+                    <ellipse cx="24" cy="16" rx="22" ry="10" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M9 16 q5 -6 10 0 q5 6 10 0 q5 -6 10 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <span className="font-semibold tracking-tight text-white/85 text-sm">Mercado Pago</span>
+                </div>
+
+                {/* PayPal (monocromo) */}
+                <div className="group flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/10 hover:border-[#3b82f6]/40 hover:bg-white/[0.06] transition-all">
+                  <svg viewBox="0 0 24 24" className="h-7 w-auto text-white/80 group-hover:text-white transition-colors" fill="currentColor" aria-hidden="true">
+                    <path d="M7.4 21l.3-1.7H4.2l2-12.5c0-.2.1-.3.3-.3h5.7c1.9 0 3.2.4 3.9 1.2.4.4.6.9.7 1.4.1.6.1 1.2-.1 2v.1l.1.1c.4.2.7.4.9.6.3.3.5.7.6 1.1.1.5.1 1 0 1.7-.2.7-.5 1.3-.9 1.8-.4.5-.9.9-1.5 1.2-.5.3-1.2.5-1.9.6-.7.1-1.4.2-2.2.2H11c-.4 0-.7.1-.9.4-.2.2-.4.5-.4.9l-.1.4-.5 2.8v.1c0 .1 0 .1-.1.1l-1.6.1z"/>
+                    <path d="M16.9 8.9c0 .1-.1.2-.1.3-.4 2.1-1.8 2.8-3.5 2.8h-.9c-.2 0-.4.2-.4.4l-.5 3-.1.8H10c-.2 0-.3-.1-.3-.3 0-.1 0-.2.1-.3l1.4-9c.1-.3.4-.6.7-.6h2.4c1.3 0 2.3.3 2.9.8.3.3.4.6.5 1 .1.3.1.7.1 1.1z" opacity=".55"/>
+                  </svg>
+                  <span className="font-semibold tracking-tight text-white/85 text-sm">PayPal</span>
+                </div>
+              </div>
+              <p className="text-center text-[11px] text-white/30 mt-5">
+                * Las pasarelas están integradas en la arquitectura. El procesamiento de cobros se activará en fase comercial.
+              </p>
+            </div>
+          </motion.aside>
         </div>
       </section>
       <section id="abogados" className="py-20 px-6 relative overflow-hidden">
@@ -771,9 +823,11 @@ export const LandingPage = () => {
             <section aria-labelledby="footer-brand">
               <div className="flex items-center gap-2 mb-4">
                 <Scale className="w-6 h-6 text-[#f97316]" aria-hidden="true" />
-                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO LEGAL</h3>
+                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO</h3>
               </div>
-              <p className="text-[#f97316] text-sm font-semibold mb-2">Inversiones y Variedades DJGG 2013</p>
+              <p className="text-white/40 text-[11px] mb-3 italic leading-relaxed">
+                Bajo la firma comercial Inversiones y Variedades DJGG 2013
+              </p>
               <p className="text-white/60 text-sm leading-relaxed">
                 Oficina jurídica virtual presente en 18 países de LATAM. Soluciones legales profesionales con tecnología avanzada.
               </p>
@@ -862,15 +916,31 @@ export const LandingPage = () => {
                   href="https://www.tiktok.com/@puntoceroconsultores" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  aria-label="Síguenos en TikTok"
+                  aria-label="TikTok Punto Cero Consultores"
+                  title="@Puntoceroconsultores"
                   className="w-11 h-11 rounded-xl bg-black border border-white/20 flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all duration-300 relative overflow-hidden group"
                 >
                   <svg className="w-5 h-5 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.1z"/>
                   </svg>
                 </a>
+                <a 
+                  href="https://www.tiktok.com/@puntoceromultiservicioslatam" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="TikTok Punto Cero Multiservicios LATAM"
+                  title="@PuntoceromultiserviciosLATAM"
+                  className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f97316] to-black border border-[#f97316]/40 flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] transition-all duration-300 relative overflow-hidden group"
+                >
+                  <svg className="w-5 h-5 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.1z"/>
+                  </svg>
+                </a>
               </div>
-              <p className="text-white/40 text-xs mt-4">@puntoceroconsultores</p>
+              <p className="text-white/40 text-xs mt-4 leading-relaxed">
+                @Puntoceroconsultores<br />
+                @PuntoceromultiserviciosLATAM
+              </p>
             </section>
           </div>
 

@@ -26,7 +26,10 @@ class UserBase(BaseModel):
     country: Optional[str] = None
     specialty: Optional[str] = None
     bar_number: Optional[str] = None
-    status: Literal["active", "inactive", "suspended"] = "active"
+    firm_name: Optional[str] = None
+    id_document: Optional[str] = None
+    status: Literal["active", "inactive", "suspended", "PENDING_VERIFICATION", "ACTIVE"] = "PENDING_VERIFICATION"
+    is_verified: bool = False
 
 class UserCreate(UserBase):
     password: str

@@ -178,6 +178,36 @@ export const AdminPanel = () => {
 // ============== ADMIN GENERAL ==============
 const AdminGeneralView = ({ data }) => {
   const { kpis, countries, system_health, audit_logs } = data;
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [loadingPending, setLoadingPending] = useState(true);
+
+  useEffect(() => {
+    loadPending();
+  }, []);
+
+  const loadPending = async () => {
+    setLoadingPending(true);
+    try {
+      const res = await axios.get(`${API}/admin/access-audit/pending`);
+      setPendingUsers(res.data.users || []);
+    } catch (e) { console.error(e); }
+    finally { setLoadingPending(false); }
+  };
+
+  const approveUser = async (userId) => {
+    try {
+      await axios.post(`${API}/admin/access-audit/${userId}/approve`);
+      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
+    } catch (e) { alert('Error al aprobar'); }
+  };
+
+  const rejectUser = async (userId) => {
+    if (!window.confirm('¿Rechazar este acceso?')) return;
+    try {
+      await axios.post(`${API}/admin/access-audit/${userId}/reject`);
+      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
+    } catch (e) { alert('Error al rechazar'); }
+  };
 
   return (
     <div className="space-y-8">
@@ -299,6 +329,92 @@ const AdminGeneralView = ({ data }) => {
           </div>
         </div>
       </section>
+
+      {/* ============ AUDITORÍA DE ACCESO ============ */}
+      <section className="backdrop-blur-xl bg-gradient-to-br from-[#f97316]/[0.04] to-white/[0.02] rounded-2xl p-6 border border-[#f97316]/30">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Shield className="w-5 h-5 text-[#f97316]" /> Auditoría de Acceso · Compliance
+          </h3>
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1 rounded-full bg-[#f97316]/20 text-[#f97316] text-xs font-bold">
+              {pendingUsers.length} pendiente(s)
+            </span>
+            <button onClick={loadPending} className="p-2 rounded-lg hover:bg-white/10" title="Refrescar">
+              <RefreshCw className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
+        </div>
+
+        {loadingPending ? (
+          <div className="text-center py-8 text-white/40">Cargando solicitudes...</div>
+        ) : pendingUsers.length === 0 ? (
+          <div className="text-center py-8">
+            <CheckCircle2 className="w-12 h-12 text-[#10b981] mx-auto mb-3 opacity-60" />
+            <p className="text-white/60">No hay solicitudes pendientes de verificación</p>
+            <p className="text-xs text-white/30 mt-1">Todo al día con compliance</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingUsers.map(u => (
+              <motion.div key={u.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                className="backdrop-blur-md bg-white/[0.03] rounded-xl p-4 border border-white/10 hover:border-[#f97316]/30 transition-all">
+                <div className="grid lg:grid-cols-12 gap-4 items-center">
+                  {/* Avatar + Nombre */}
+                  <div className="lg:col-span-3 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f97316] to-[#fb923c] flex items-center justify-center font-bold flex-shrink-0">
+                      {(u.full_name || 'AB').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{u.full_name}</div>
+                      <div className="text-xs text-white/40 truncate">{u.email}</div>
+                    </div>
+                  </div>
+
+                  {/* Datos profesionales */}
+                  <div className="lg:col-span-6 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <div className="text-white/40 uppercase text-[10px]">Tarjeta Prof.</div>
+                      <div className="font-mono text-[#f97316]">{u.bar_number || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-white/40 uppercase text-[10px]">Cédula</div>
+                      <div className="font-mono">{u.id_document || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-white/40 uppercase text-[10px]">Firma</div>
+                      <div className="truncate">{u.firm_name || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-white/40 uppercase text-[10px]">País · Especialidad</div>
+                      <div className="truncate">{u.country} · {u.specialty}</div>
+                    </div>
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="lg:col-span-3 flex gap-2 justify-end">
+                    <button
+                      onClick={() => rejectUser(u.id)}
+                      className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
+                      data-testid={`reject-${u.id}`}
+                    >
+                      Rechazar
+                    </button>
+                    <button
+                      onClick={() => approveUser(u.id)}
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#10b981] to-[#059669] text-white text-xs font-bold hover:shadow-[0_5px_15px_rgba(16,185,129,0.4)] transition-all flex items-center gap-1"
+                      data-testid={`approve-${u.id}`}
+                    >
+                      <CheckCircle2 className="w-3 h-3" /> Aprobar Acceso
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </section>
+
     </div>
   );
 };

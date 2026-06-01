@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends, Header, status
+from typing import List, Optional
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.user import UserCreate, User, UserLogin, UserResponse
-from utils.auth import get_password_hash, verify_password, create_access_token
+from utils.auth import get_password_hash, verify_password, create_access_token, decode_token
 from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -12,6 +12,43 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 async def get_db():
     from server import db
     return db
+
+
+async def get_current_user(
+    authorization: Optional[str] = Header(None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Resuelve el usuario autenticado desde el JWT Bearer token."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="No autenticado")
+    token = authorization.replace("Bearer ", "")
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    user = await db.users.find_one({"email": payload["sub"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return user
+
+@router.get("/me")
+async def get_me(current = Depends(get_current_user)):
+    """Devuelve el estado actual del usuario autenticado (fuente de verdad).
+    Útil para sincronizar is_verified tras la aprobación admin."""
+    return {
+        "id": str(current["_id"]),
+        "email": current["email"],
+        "full_name": current.get("full_name"),
+        "role": current["role"],
+        "status": current.get("status", "PENDING_VERIFICATION"),
+        "is_verified": bool(current.get("is_verified", False)),
+        "country": current.get("country"),
+        "specialty": current.get("specialty"),
+        "phone": current.get("phone"),
+        "bar_number": current.get("bar_number"),
+        "firm_name": current.get("firm_name"),
+        "id_document": current.get("id_document"),
+    }
+
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
@@ -29,6 +66,14 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
     user_dict["created_at"] = datetime.utcnow()
     user_dict["updated_at"] = datetime.utcnow()
     
+    # Auto-verified solo para roles administrativos
+    if user_data.role in ["admin", "admin_general", "socio_comercial"]:
+        user_dict["status"] = "ACTIVE"
+        user_dict["is_verified"] = True
+    else:
+        user_dict["status"] = "PENDING_VERIFICATION"
+        user_dict["is_verified"] = False
+    
     result = await db.users.insert_one(user_dict)
     user_dict["_id"] = str(result.inserted_id)
     
@@ -42,7 +87,9 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
             "id": user_dict["_id"],
             "email": user_dict["email"],
             "full_name": user_dict["full_name"],
-            "role": user_dict["role"]
+            "role": user_dict["role"],
+            "status": user_dict["status"],
+            "is_verified": user_dict["is_verified"]
         }
     }
 
@@ -56,14 +103,23 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
             detail="Incorrect email or password"
         )
     
-    if user.get("status") != "active":
+    if user.get("status") in ["inactive", "suspended"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is not active"
         )
     
-    access_token = create_access_token(data={"sub": user["email"], "role": user["role"]})
-    
+    # Fuente de verdad de verificación: campo is_verified.
+    # Para roles administrativos: siempre True (los maestros son confiables).
+    admin_roles = ["admin", "admin_general", "socio_comercial"]
+    role = user.get("role", "lawyer")
+    if role in admin_roles:
+        is_verified = True
+    else:
+        is_verified = bool(user.get("is_verified", False))
+
+    access_token = create_access_token(data={"sub": user["email"], "role": role})
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -71,6 +127,14 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
             "id": str(user["_id"]),
             "email": user["email"],
             "full_name": user["full_name"],
-            "role": user["role"]
+            "role": role,
+            "status": user.get("status", "PENDING_VERIFICATION"),
+            "is_verified": is_verified,
+            "country": user.get("country"),
+            "specialty": user.get("specialty"),
+            "phone": user.get("phone"),
+            "bar_number": user.get("bar_number"),
+            "firm_name": user.get("firm_name"),
+            "id_document": user.get("id_document")
         }
     }

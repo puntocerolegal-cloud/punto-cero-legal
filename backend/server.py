@@ -63,11 +63,18 @@ async def init_master_accounts():
                 "password_hash": pwd.hash(m["password"]),
                 "full_name": m["name"],
                 "role": m["role"],
-                "status": "active",
+                "status": "ACTIVE",
+                "is_verified": True,
                 "country": "Colombia",
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow()
             })
+        else:
+            # Backfill seguro para cuentas maestras pre-existentes
+            await db.users.update_one(
+                {"email": m["email"]},
+                {"$set": {"status": "ACTIVE", "is_verified": True, "role": m["role"]}}
+            )
 
 # Include the router in the main app
 app.include_router(api_router)

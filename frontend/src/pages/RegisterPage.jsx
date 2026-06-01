@@ -21,7 +21,9 @@ export const RegisterPage = () => {
   const [referrerName, setReferrerName] = useState('');
   const [formData, setFormData] = useState({
     email: '', password: '', full_name: '', phone: '',
-    country: 'Colombia', specialty: 'Derecho Civil', bar_number: '', role: 'lawyer'
+    country: 'Colombia', specialty: 'Derecho Civil', 
+    bar_number: '', id_document: '', firm_name: '',
+    role: 'lawyer'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,8 +42,11 @@ export const RegisterPage = () => {
     setError('');
     setLoading(true);
     try {
-      await register(formData);
-      if (planFromUrl) {
+      const newUser = await register(formData);
+      // Si requiere verificación → /verificacion-pendiente
+      if (newUser?.is_verified === false || newUser?.status === 'PENDING_VERIFICATION') {
+        navigate('/verificacion-pendiente');
+      } else if (planFromUrl) {
         navigate(`/checkout?plan=${planFromUrl}&cycle=${cycleFromUrl || 'monthly'}${refFromUrl ? `&ref=${refFromUrl}` : ''}`);
       } else {
         navigate('/dashboard');
@@ -120,9 +125,17 @@ export const RegisterPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-white/80 mb-2">Tarjeta Profesional</label>
-                <Input type="text" value={formData.bar_number} onChange={(e) => setFormData({ ...formData, bar_number: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="TP-123456" data-testid="register-bar" />
+                <label className="block text-sm font-semibold text-white/80 mb-2">Tarjeta Profesional *</label>
+                <Input type="text" value={formData.bar_number} onChange={(e) => setFormData({ ...formData, bar_number: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="TP-123456" required data-testid="register-bar" />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-white/80 mb-2">Cédula / Documento *</label>
+                <Input type="text" value={formData.id_document} onChange={(e) => setFormData({ ...formData, id_document: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="CC 1.234.567.890" required data-testid="register-id-document" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-white/80 mb-2">Nombre del Bufete / Firma *</label>
+              <Input type="text" value={formData.firm_name} onChange={(e) => setFormData({ ...formData, firm_name: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Despacho Pérez & Asociados" required data-testid="register-firm-name" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-white/80 mb-2">Contraseña</label>
@@ -130,9 +143,12 @@ export const RegisterPage = () => {
             </div>
 
             <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6" data-testid="register-submit">
-              {loading ? 'Creando cuenta...' : 'Crear Cuenta Gratis'}
+              {loading ? 'Creando cuenta...' : 'Crear Cuenta · Solicitar Verificación'}
               {!loading && <ArrowRight className="ml-2 w-5 h-5" />}
             </Button>
+            <p className="text-xs text-white/40 text-center mt-2">
+              🔒 Tu cuenta será revisada por nuestro equipo de compliance antes de la activación.
+            </p>
           </form>
 
           <p className="text-center text-white/60 mt-6">

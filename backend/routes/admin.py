@@ -208,3 +208,77 @@ async def create_payment_link(data: dict, admin = Depends(get_current_admin), db
     payment_link["_id"] = str(payment_link.get("_id", ""))
     
     return {"message": "Enlace creado", "link": payment_link["url"], "id": link_id}
+
+# ============ AUDITORÍA DE ACCESO ============
+@router.get("/access-audit/pending")
+async def list_pending_users(admin = Depends(get_current_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Lista usuarios pendientes de verificación"""
+    pending = await db.users.find({
+        "$or": [
+            {"is_verified": False},
+            {"status": "PENDING_VERIFICATION"}
+        ],
+        "role": "lawyer"
+    }).sort("created_at", -1).to_list(200)
+    
+    result = []
+    for u in pending:
+        result.append({
+            "id": str(u["_id"]),
+            "email": u.get("email"),
+            "full_name": u.get("full_name"),
+            "phone": u.get("phone"),
+            "country": u.get("country"),
+            "specialty": u.get("specialty"),
+            "bar_number": u.get("bar_number"),
+            "firm_name": u.get("firm_name"),
+            "id_document": u.get("id_document"),
+            "status": u.get("status"),
+            "is_verified": u.get("is_verified", False),
+            "created_at": u.get("created_at").isoformat() if isinstance(u.get("created_at"), datetime) else str(u.get("created_at", ""))
+        })
+    
+    return {"total": len(result), "users": result}
+
+@router.post("/access-audit/{user_id}/approve")
+async def approve_user_access(user_id: str, admin = Depends(get_current_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Aprobar acceso de un usuario pendiente"""
+    if admin["role"] not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo ADMIN_GENERAL puede aprobar")
+    
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {
+            "is_verified": True,
+            "status": "ACTIVE",
+            "verified_at": datetime.utcnow(),
+            "verified_by": admin["_id"],
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Log de auditoría
+    await db.audit_logs.insert_one({
+        "action": "user_approved",
+        "admin_id": admin["_id"],
+        "admin_name": admin.get("full_name"),
+        "target_user_id": user_id,
+        "timestamp": datetime.utcnow()
+    })
+    
+    return {"message": "Acceso aprobado exitosamente", "user_id": user_id}
+
+@router.post("/access-audit/{user_id}/reject")
+async def reject_user_access(user_id: str, admin = Depends(get_current_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Rechazar acceso de un usuario"""
+    if admin["role"] not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo ADMIN_GENERAL puede rechazar")
+    
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"status": "suspended", "is_verified": False, "updated_at": datetime.utcnow()}}
+    )
+    return {"message": "Acceso rechazado", "user_id": user_id}
