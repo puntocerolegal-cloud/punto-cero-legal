@@ -144,7 +144,7 @@ async def get_comercial_dashboard(country: Optional[str] = None, admin = Depends
             "email": u.get("email", ""),
             "country": u.get("country", "—"),
             "specialty": u.get("specialty", "—"),
-            "status": "registered" if u.get("status") == "active" else "pending",
+            "status": "registered" if u.get("status") in ("active", "ACTIVE") or u.get("is_verified") is True else "pending",
             "created_at": u.get("created_at", datetime.utcnow()).isoformat() if isinstance(u.get("created_at"), datetime) else str(u.get("created_at", ""))
         })
     

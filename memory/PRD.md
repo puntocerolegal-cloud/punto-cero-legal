@@ -21,11 +21,14 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 - Redes sociales (Instagram, Facebook, TikTok)
 - Etiquetas semánticas + ARIA labels
 
-### Authentication
-- /login - Login page
-- /register - Registro con 7 días gratis
-- AuthContext + ProtectedRoute
+### Authentication (Auditado 2026-02)
+- /login - Login con redirect por rol (admin → /admin · lawyer → /dashboard)
+- /register - Registro con campos obligatorios: Cédula/Documento, Nombre del Bufete/Firma, Tarjeta Profesional
+- /verificacion-pendiente - Pantalla con botón "Verificar estado" + polling 30s
+- AuthContext con refreshUser() que consume /api/auth/me
+- ProtectedRoute con RBAC estricto: admin→/dashboard redirige a /admin, lawyer→/admin redirige a /dashboard, pendiente→/verificacion-pendiente
 - JWT tokens en localStorage
+- Cuentas maestras seed (server.py startup): is_verified=true, status=ACTIVE explícitos con backfill
 
 ### Dashboard (/dashboard)
 - Bienvenida personalizada con saludo según hora
@@ -45,7 +48,9 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 9. Configuración - 6 tabs (Perfil/Seguridad/Notificaciones/Despacho/Suscripción/Integraciones)
 
 ### Backend API (`/api/`)
-- /auth/login, /auth/register
+- /auth/login, /auth/register, /auth/me (NUEVO 2026-02 - fuente de verdad para is_verified)
+- /admin/access-audit/pending, /approve, /reject (solo admin_general)
+- /admin/dashboard/general (KPIs LATAM), /admin/dashboard/comercial (pipeline)
 - /leads (con convert-to-case)
 - /cases (con start-meeting)
 - /meetings (con complete → updates billing)
@@ -53,6 +58,18 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 - /messages
 - /dashboard/kpis, /dashboard/alerts
 - /ai/chat (OpenAI GPT-4o-mini) - FUNCIONAL
+- /payment/* y /referrals/* — MOCKED (UI/lógica de router lista; SDKs reales pendientes)
+
+## Tests (regresión)
+- /app/backend/tests/test_auth_rbac.py — 17 tests E2E auth + RBAC (100% passing 2026-02-01)
+
+## Changelog 2026-02-01
+- Auditoría completa de auth (Task 1): refresh /auth/me, normalización status/is_verified, fuente de verdad única.
+- Master seeds explícitos (is_verified=true, status=ACTIVE) con backfill idempotente.
+- VerificacionPendiente: botón "Verificar estado" + polling 30s + redirección automática al aprobarse.
+- Landing footer: texto sutil "Bajo la firma comercial Inversiones y Variedades DJGG 2013".
+- Landing footer: doble TikTok @Puntoceroconsultores + @PuntoceromultiserviciosLATAM.
+- Landing #planes: sección "Métodos de pago seguros" con logos monocromos MercadoPago + PayPal (modo informativo).
 
 ## Backlog (P1)
 - Persistir datos de módulos en backend (actualmente mockeados en frontend)
