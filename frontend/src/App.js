@@ -17,6 +17,7 @@ import InvoicesPage from './pages/dashboard/InvoicesPage';
 import DocumentsPage from './pages/dashboard/DocumentsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import AdminPanel from './pages/AdminPanel';
+import CheckoutPage from './pages/CheckoutPage';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
             <Route path="/dashboard/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

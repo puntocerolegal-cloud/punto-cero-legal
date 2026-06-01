@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Scale, ArrowRight, AlertCircle } from 'lucide-react';
+import { Scale, ArrowRight, AlertCircle, Gift, Tag } from 'lucide-react';
+import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
 
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
 export const RegisterPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { register } = useAuth();
+  const planFromUrl = searchParams.get('plan');
+  const cycleFromUrl = searchParams.get('cycle');
+  const refFromUrl = searchParams.get('ref');
+
+  const [referralValid, setReferralValid] = useState(null);
+  const [referrerName, setReferrerName] = useState('');
   const [formData, setFormData] = useState({
     email: '', password: '', full_name: '', phone: '',
     country: 'Colombia', specialty: 'Derecho Civil', bar_number: '', role: 'lawyer'
@@ -16,13 +26,26 @@ export const RegisterPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (refFromUrl) {
+      axios.get(`${API}/referrals/validate/${refFromUrl}`).then(res => {
+        setReferralValid(res.data.valid);
+        if (res.data.valid) setReferrerName(res.data.referrer_name);
+      }).catch(() => setReferralValid(false));
+    }
+  }, [refFromUrl]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       await register(formData);
-      navigate('/dashboard');
+      if (planFromUrl) {
+        navigate(`/checkout?plan=${planFromUrl}&cycle=${cycleFromUrl || 'monthly'}${refFromUrl ? `&ref=${refFromUrl}` : ''}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al registrarse');
     } finally {
@@ -44,6 +67,20 @@ export const RegisterPage = () => {
         <div className="backdrop-blur-xl bg-white/5 rounded-3xl p-8 border border-white/20 shadow-2xl">
           <h1 className="text-3xl font-bold text-white mb-2">Únete a la red más grande de LATAM</h1>
           <p className="text-white/60 mb-6">Comienza tu prueba gratuita de 7 días</p>
+
+          {planFromUrl && (
+            <div className="mb-4 p-3 rounded-xl bg-[#f97316]/10 border border-[#f97316]/30 flex items-center gap-2 text-[#f97316]">
+              <Tag className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm">Plan seleccionado: <strong className="capitalize">{planFromUrl}</strong> · {cycleFromUrl === 'annual' ? 'Anual (1 mes gratis)' : 'Mensual'}</span>
+            </div>
+          )}
+
+          {refFromUrl && referralValid && (
+            <div className="mb-4 p-3 rounded-xl bg-[#10b981]/10 border border-[#10b981]/30 flex items-center gap-2 text-[#10b981]">
+              <Gift className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm">Llegaste por referido de <strong>{referrerName}</strong>. Él recibirá 1 mes gratis cuando completes tu pago.</span>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 text-red-400">

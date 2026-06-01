@@ -3,10 +3,14 @@ import { motion } from 'framer-motion';
 import {
   Users, FolderKanban, Calendar, Receipt, TrendingUp, AlertCircle,
   Clock, MapPin, Briefcase, Phone, Mail, Award, IdCard, Building2,
-  ArrowUpRight, Activity, Bell, CheckCircle2
+  ArrowUpRight, Activity, Bell, CheckCircle2, Gift, Share2, Copy, MessageCircle, X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
+import { Button } from '../components/ui/button';
+import axios from 'axios';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -61,11 +65,40 @@ const StatCard = ({ icon: Icon, label, value, change, color, delay = 0 }) => (
 export const DashboardHome = () => {
   const { user } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [referralData, setReferralData] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    loadReferralData();
     return () => clearInterval(timer);
   }, []);
+
+  const loadReferralData = async () => {
+    try {
+      const [codeRes, notifRes] = await Promise.all([
+        axios.get(`${API}/referrals/my-code`),
+        axios.get(`${API}/referrals/notifications`)
+      ]);
+      setReferralData(codeRes.data);
+      setNotifications(notifRes.data.notifications || []);
+    } catch (e) {
+      console.log('No referral data');
+    }
+  };
+
+  const shareWhatsApp = () => {
+    if (referralData) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(referralData.whatsapp_message)}`, '_blank');
+    }
+  };
+
+  const copyLink = () => {
+    if (referralData) {
+      navigator.clipboard.writeText(referralData.share_url);
+    }
+  };
 
   const stats = [
     { icon: Users, label: 'Clientes Activos', value: '24', change: '+12%', color: '#3b82f6' },
@@ -114,6 +147,52 @@ export const DashboardHome = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* Referral Rewards Banner */}
+        {referralData && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="backdrop-blur-xl bg-gradient-to-r from-[#10b981]/15 via-[#f97316]/10 to-[#10b981]/15 rounded-2xl p-5 border border-[#10b981]/30 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#10b981]/10 rounded-full blur-3xl" />
+            <div className="relative flex flex-col lg:flex-row lg:items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center flex-shrink-0">
+                <Gift className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-bold text-lg">Programa de Referidos</h3>
+                  {referralData.free_months_credits > 0 && (
+                    <span className="text-xs bg-[#10b981] text-white px-2 py-0.5 rounded-full font-bold">
+                      🎉 {referralData.free_months_credits} mes(es) gratis acumulados
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-white/70">
+                  Invita colegas y obtén <strong className="text-[#10b981]">1 mes gratis</strong> por cada referido que pague.
+                  Has referido a <strong>{referralData.total_referrals}</strong> abogados.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={() => setShowShareModal(true)} className="bg-gradient-to-r from-[#10b981] to-[#059669] text-white" data-testid="share-referral">
+                  <Share2 className="w-4 h-4 mr-2" /> Compartir
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Notifications de Recompensa */}
+        {notifications.filter(n => !n.read && n.type === 'referral_reward').slice(0, 1).map(notif => (
+          <motion.div key={notif._id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-4 border border-[#f97316]/40 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f97316] to-[#fb923c] flex items-center justify-center">
+              <Gift className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <div className="font-bold text-[#f97316]">{notif.title}</div>
+              <div className="text-sm text-white/70">{notif.message}</div>
+            </div>
+          </motion.div>
+        ))}
 
         {/* Professional Profile Card */}
         <motion.div
@@ -276,6 +355,38 @@ export const DashboardHome = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Share Referral Modal */}
+      {showShareModal && referralData && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowShareModal(false)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()}
+            className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold flex items-center gap-2"><Gift className="w-6 h-6 text-[#10b981]" /> Tu Código de Referido</h2>
+              <button onClick={() => setShowShareModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-gradient-to-r from-[#10b981]/10 to-[#f97316]/10 border border-[#10b981]/30 text-center">
+                <div className="text-xs text-white/60 mb-2">CÓDIGO</div>
+                <div className="text-3xl font-bold tracking-wider text-[#f97316]">{referralData.code}</div>
+              </div>
+              <div>
+                <div className="text-xs text-white/60 mb-2">ENLACE DE INVITACIÓN</div>
+                <div className="flex gap-2">
+                  <input value={referralData.share_url} readOnly className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-xs text-white/80" />
+                  <Button onClick={copyLink} variant="outline" className="border-white/20"><Copy className="w-4 h-4" /></Button>
+                </div>
+              </div>
+              <Button onClick={shareWhatsApp} className="w-full bg-gradient-to-r from-[#25d366] to-[#128c7e] text-white font-bold py-4">
+                <MessageCircle className="w-4 h-4 mr-2" /> Compartir por WhatsApp
+              </Button>
+              <p className="text-xs text-white/40 text-center">Cada vez que un referido pague, recibirás 1 mes gratis automáticamente.</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </DashboardLayout>
   );
 };

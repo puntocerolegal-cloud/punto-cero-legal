@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -42,6 +42,32 @@ api_router.include_router(messages.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(ai.router)
 api_router.include_router(admin.router)
+api_router.include_router(payment.router)
+api_router.include_router(referrals.router)
+
+# Inicialización de cuentas maestras al arranque
+@app.on_event("startup")
+async def init_master_accounts():
+    from passlib.context import CryptContext
+    pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    masters = [
+        {"email": "darwin@puntocerolegal.com", "password": "Admin2025!", "name": "Dr. Darwin Gomez", "role": "admin_general"},
+        {"email": "alejandro@puntocerolegal.com", "password": "Socio2025!", "name": "Dr. Alejandro Cetina", "role": "socio_comercial"},
+    ]
+    from datetime import datetime
+    for m in masters:
+        existing = await db.users.find_one({"email": m["email"]})
+        if not existing:
+            await db.users.insert_one({
+                "email": m["email"],
+                "password_hash": pwd.hash(m["password"]),
+                "full_name": m["name"],
+                "role": m["role"],
+                "status": "active",
+                "country": "Colombia",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            })
 
 # Include the router in the main app
 app.include_router(api_router)

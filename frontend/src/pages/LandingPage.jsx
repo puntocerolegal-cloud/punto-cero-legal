@@ -1,17 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Shield, Lock, Users, Award, CheckCircle, ArrowRight, Scale, FileText, Clock,
   Briefcase, Calendar, FolderKanban, BookOpen, Video, Brain, Menu, X,
-  Mail, MessageCircle, Instagram, Facebook
+  Mail, MessageCircle, Instagram, Facebook, Crown, Sparkles
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import { useAuth } from '../contexts/AuthContext';
 
 export const LandingPage = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  
+  const handleAccess = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    } else if (['admin', 'admin_general', 'socio_comercial'].includes(user?.role)) {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
+  };
   const [formData, setFormData] = useState({
     name: '',
     area: 'Derecho Migratorio',
@@ -63,8 +78,8 @@ export const LandingPage = () => {
               <a href="#modulos" className="text-white/80 hover:text-[#3b82f6] transition-colors">Módulos</a>
               <a href="#planes" className="text-white/80 hover:text-[#3b82f6] transition-colors">Planes</a>
               <a href="#abogados" className="text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
-              <Button variant="outline" className="border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all">
-                Iniciar Sesión
+              <Button onClick={handleAccess} variant="outline" className="border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all" data-testid="navbar-access-btn">
+                {isAuthenticated ? 'Mi Dashboard' : 'Iniciar Sesión'}
               </Button>
             </motion.div>
 
@@ -399,7 +414,7 @@ export const LandingPage = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
             <span className="inline-flex items-center px-4 py-2 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 backdrop-blur-sm text-[#f97316] text-xs font-bold uppercase tracking-wider mb-4">
               ◆ Planes para Abogados
@@ -407,78 +422,159 @@ export const LandingPage = () => {
             <h2 className="text-5xl font-bold text-white mb-4">
               Elige el plan <span className="bg-gradient-to-r from-[#f97316] to-[#10b981] bg-clip-text text-transparent">ideal para ti</span>
             </h2>
-            <p className="text-white/70 text-lg max-w-2xl mx-auto">
-              Comienza con 7 días gratis. Sin tarjeta de crédito.
+            <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
+              Comienza con 7 días gratis. Sin tarjeta de crédito. Cancela cuando quieras.
             </p>
+
+            {/* Billing Toggle */}
+            <div className="inline-flex items-center gap-2 backdrop-blur-md bg-white/5 rounded-full p-1.5 border border-white/10">
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${billingCycle === 'monthly' ? 'bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white' : 'text-white/60 hover:text-white'}`}
+                data-testid="toggle-monthly"
+              >
+                Mensual
+              </button>
+              <button
+                onClick={() => setBillingCycle('annual')}
+                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all relative ${billingCycle === 'annual' ? 'bg-gradient-to-r from-[#10b981] to-[#059669] text-white' : 'text-white/60 hover:text-white'}`}
+                data-testid="toggle-annual"
+              >
+                Anual
+                <span className="absolute -top-2 -right-2 bg-[#10b981] text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">1 MES GRATIS</span>
+              </button>
+            </div>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 max-w-7xl mx-auto">
             {[
               {
+                id: 'esencial',
                 name: 'Esencial',
-                price: '$49.000',
+                priceMonthly: 75000,
+                processes: '20 procesos',
                 description: 'Para abogados independientes que inician',
                 color: '#3b82f6',
-                features: ['Hasta 20 casos activos', 'CRM básico', 'Agenda personal', '5 GB de almacenamiento', 'Soporte por email', 'IA Jurídica (50 consultas/mes)'],
-                cta: 'Comenzar Gratis'
+                features: ['20 procesos activos', 'CRM básico', 'Agenda personal', '5 GB almacenamiento', 'IA Jurídica (50 consultas/mes)', 'Soporte email'],
+                icon: Briefcase
               },
               {
+                id: 'profesional',
                 name: 'Profesional',
-                price: '$99.000',
-                description: 'La elección de los abogados más exitosos',
+                priceMonthly: 140000,
+                processes: '60 procesos',
+                description: 'La elección de los abogados exitosos',
                 color: '#f97316',
                 featured: true,
-                features: ['Casos ilimitados', 'CRM avanzado + Pipeline', 'Agenda con sincronización', '50 GB de almacenamiento', 'Soporte prioritario 24/7', 'IA Jurídica ilimitada', 'Sala de Conferencias HD', 'Facturación automática'],
-                cta: '7 Días Gratis'
+                features: ['60 procesos activos', 'CRM avanzado + Pipeline', 'Agenda sincronizada', '20 GB almacenamiento', 'IA Jurídica (200 consultas)', 'Sala Conferencias HD', 'Facturación automática', 'Soporte prioritario'],
+                icon: Award
               },
               {
-                name: 'Empresarial',
-                price: 'Personalizado',
+                id: 'elite',
+                name: 'Elite',
+                priceMonthly: 195000,
+                processes: '100 procesos',
+                description: 'Para firmas en crecimiento',
+                color: '#8b5cf6',
+                features: ['100 procesos activos', 'CRM Pro + Automatizaciones', 'Multi-agenda equipo', '50 GB almacenamiento', 'IA Jurídica (500 consultas)', 'Conferencias HD + Grabación', 'Facturación + Reportes', 'Soporte 24/7', 'Multi-usuario (hasta 3)'],
+                icon: Sparkles
+              },
+              {
+                id: 'ilimitado',
+                name: 'Ilimitado',
+                priceMonthly: 275000,
+                processes: 'Procesos ilimitados',
                 description: 'Para firmas y bufetes consolidados',
                 color: '#10b981',
-                features: ['Todo lo del Profesional', 'Usuarios ilimitados', 'API personalizada', 'Almacenamiento ilimitado', 'Account Manager dedicado', 'Integraciones a medida', 'White-label disponible', 'SLA garantizado'],
-                cta: 'Contactar Ventas'
+                premium: true,
+                features: ['Procesos ILIMITADOS', 'CRM Empresarial completo', 'API personalizada', 'Almacenamiento ILIMITADO', 'IA Jurídica ILIMITADA', 'White-label disponible', 'Account Manager dedicado', 'SLA garantizado 99.9%', 'Usuarios ilimitados', 'Integraciones a medida'],
+                icon: Crown
               }
-            ].map((plan, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={`relative backdrop-blur-xl rounded-3xl p-8 border transition-all duration-300 hover:scale-[1.02] ${plan.featured ? 'bg-gradient-to-br from-[#f97316]/10 to-[#fb923c]/5 border-[#f97316]/40 lg:-translate-y-4' : 'bg-white/5 border-white/10'}`}
-                data-testid={`plan-${plan.name.toLowerCase()}`}
-              >
-                {plan.featured && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white text-xs font-bold uppercase tracking-wider px-4 py-1.5 rounded-full">
-                    Más Popular
-                  </div>
-                )}
-                <div className="mb-6">
-                  <div className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: plan.color }}>{plan.name}</div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-white">{plan.price}</span>
-                    {plan.price.startsWith('$') && <span className="text-white/60">/mes</span>}
-                  </div>
-                  <p className="text-sm text-white/60 mt-2">{plan.description}</p>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f, fi) => (
-                    <li key={fi} className="flex items-start gap-2 text-sm text-white/80">
-                      <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: plan.color }} />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={plan.name === 'Empresarial' ? 'https://wa.me/573028322083?text=Hola,%20me%20interesa%20el%20plan%20Empresarial' : '/register'}
-                  className={`block w-full py-3 rounded-xl font-bold text-center transition-all ${plan.featured ? 'bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white hover:shadow-[0_10px_30px_rgba(249,115,22,0.4)]' : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'}`}
-                  data-testid={`plan-cta-${plan.name.toLowerCase()}`}
+            ].map((plan, i) => {
+              const annualPrice = plan.priceMonthly * 11; // 12 meses - 1 mes gratis
+              const displayPrice = billingCycle === 'annual' ? annualPrice : plan.priceMonthly;
+              const monthlyEq = billingCycle === 'annual' ? Math.round(annualPrice / 12) : plan.priceMonthly;
+              const fmtPrice = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+
+              return (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className={`relative backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-[1.02] flex flex-col ${
+                    plan.premium ? 'bg-gradient-to-br from-[#10b981]/15 via-[#0f172a]/50 to-[#f97316]/10 border-[#10b981]/50 lg:-translate-y-2' :
+                    plan.featured ? 'bg-gradient-to-br from-[#f97316]/10 to-[#fb923c]/5 border-[#f97316]/40' :
+                    'bg-white/5 border-white/10'
+                  }`}
+                  data-testid={`plan-${plan.id}`}
                 >
-                  {plan.cta}
-                </a>
-              </motion.div>
-            ))}
+                  {plan.premium && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#10b981] via-[#f97316] to-[#10b981] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap">
+                      <Crown className="w-3 h-3" /> PREMIUM
+                    </div>
+                  )}
+                  {plan.featured && !plan.premium && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+                      Más Popular
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${plan.color}20`, borderColor: `${plan.color}40`, borderWidth: 1 }}>
+                      <plan.icon className="w-5 h-5" style={{ color: plan.color }} />
+                    </div>
+                    <div>
+                      <div className="text-xs uppercase tracking-wider font-semibold" style={{ color: plan.color }}>{plan.name}</div>
+                      <div className="text-xs text-white/40">{plan.processes}</div>
+                    </div>
+                  </div>
+
+                  <div className="mb-1">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-white">{fmtPrice(displayPrice)}</span>
+                    </div>
+                    {billingCycle === 'annual' ? (
+                      <div className="text-xs text-[#10b981] mt-1">
+                        ≈ {fmtPrice(monthlyEq)}/mes · 1 mes gratis
+                      </div>
+                    ) : (
+                      <div className="text-xs text-white/40 mt-1">por mes</div>
+                    )}
+                  </div>
+                  <p className="text-xs text-white/60 mt-2 mb-5">{plan.description}</p>
+
+                  <ul className="space-y-2 mb-6 flex-1">
+                    {plan.features.map((f, fi) => (
+                      <li key={fi} className="flex items-start gap-2 text-xs text-white/80">
+                        <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: plan.color }} />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <a
+                    href={`/register?plan=${plan.id}&cycle=${billingCycle}`}
+                    className={`block w-full py-3 rounded-xl font-bold text-center text-sm transition-all ${
+                      plan.premium ? 'bg-gradient-to-r from-[#10b981] via-[#f97316] to-[#10b981] text-white hover:shadow-[0_10px_30px_rgba(16,185,129,0.5)]' :
+                      plan.featured ? 'bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white hover:shadow-[0_10px_30px_rgba(249,115,22,0.4)]' :
+                      'bg-white/10 text-white hover:bg-white/20 border border-white/20'
+                    }`}
+                    data-testid={`plan-cta-${plan.id}`}
+                  >
+                    {plan.premium ? '👑 Unirse al Ilimitado' : `Comenzar con ${plan.name}`}
+                  </a>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="text-center mt-10 text-white/50 text-sm flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6">
+            <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> 7 días gratis</div>
+            <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> Sin permanencia</div>
+            <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> Mercado Pago / PayPal</div>
+            <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> Programa de referidos: 1 mes gratis por amigo</div>
           </div>
         </div>
       </section>
