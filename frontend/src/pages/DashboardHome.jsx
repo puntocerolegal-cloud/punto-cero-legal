@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, FolderKanban, Calendar, Receipt, TrendingUp, AlertCircle,
@@ -69,13 +69,7 @@ export const DashboardHome = () => {
   const [notifications, setNotifications] = useState([]);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    loadReferralData();
-    return () => clearInterval(timer);
-  }, []);
-
-  const loadReferralData = async () => {
+  const loadReferralData = useCallback(async () => {
     try {
       const [codeRes, notifRes] = await Promise.all([
         axios.get(`${API}/referrals/my-code`),
@@ -84,9 +78,15 @@ export const DashboardHome = () => {
       setReferralData(codeRes.data);
       setNotifications(notifRes.data.notifications || []);
     } catch (e) {
-      console.log('No referral data');
+      if (process.env.NODE_ENV === 'development') console.error('No referral data', e);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    loadReferralData();
+    return () => clearInterval(timer);
+  }, [loadReferralData]);
 
   const shareWhatsApp = () => {
     if (referralData) {
@@ -274,7 +274,7 @@ export const DashboardHome = () => {
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {stats.map((stat, i) => (
-              <StatCard key={i} {...stat} delay={0.2 + i * 0.05} />
+              <StatCard key={stat.label} {...stat} delay={0.2 + i * 0.05} />
             ))}
           </div>
         </div>
@@ -299,7 +299,7 @@ export const DashboardHome = () => {
             </div>
             <ul className="space-y-3">
               {recentActivity.map((activity, i) => (
-                <li key={i} className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
+                <li key={`${activity.type}-${i}`} className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
                   <div
                     className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
                     style={{ background: activity.color }}
@@ -328,7 +328,7 @@ export const DashboardHome = () => {
             <ul className="space-y-3">
               {alerts.map((alert, i) => (
                 <li
-                  key={i}
+                  key={`alert-${alert.priority}-${i}`}
                   className={`p-3 rounded-xl border ${
                     alert.priority === 'high'
                       ? 'bg-red-500/10 border-red-500/30'
