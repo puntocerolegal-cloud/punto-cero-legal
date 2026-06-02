@@ -31,6 +31,7 @@ def created_case():
         "description": "Necesito asesoría legal urgente con un proceso migratorio en curso.",
         "legal_area": "Derecho Migratorio",
         "priority": "alta",
+        "country": "Colombia",
         "phone": "+57 300 0000000",
         "email": f"cliente_{TS}@test.com",
     }
@@ -104,6 +105,7 @@ class TestClientIntake:
             "name": f"TEST_DefPrio_{TS}",
             "description": "Sin prioridad explicita en payload aqui.",
             "legal_area": "Civil",
+            "country": "Colombia",
         }
         r = requests.post(f"{BASE_URL}/api/public/case-intake", json=payload, timeout=10)
         assert r.status_code == 200

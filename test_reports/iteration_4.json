@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 4 testing PASSED. Backend: 32/32 iteration-4 tests pass (country required in both intakes, Dr. prefix in candidates/talent/operations, accounting CRUD+KPIs with RBAC, geography stats). Full regression: 76 passed, 1 skipped. Frontend: landing has floating WhatsApp +573028322083, LATAM dropdowns (21 options incl. placeholder) with Midnight Navy bg, country required on both forms, areas reduced to 7 standardized (prefixed 'Derecho '). Admin Panel: admin_general sees all 6 tabs; billing labels use Pendiente/Finalizada/Vencida (no 'No terminada'); each invoice row has 5 action buttons (view/edit/paylink/print/send); invoice view & edit modals open correctly; Accounting tab shows 4 KPIs, add-movement modal works, edit/delete buttons on movement rows; Geography tab shows country cards with 'Estrategia activa'. RBAC: socio_comercial does NOT see tab-accounting nor tab-talent (sales/ops/billing/geo visible).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing area dropdowns", "issues": ["Area options labeled with 'Derecho ' prefix (e.g. 'Derecho Civil', 'Derecho de Familia') instead of the bare 7 standardized terms in PRD ('Civil', 'Familia', ...). The set is the same 7 areas only, so semantically correct, but labels diverge from spec. Confirm with product if 'Derecho ' prefix is intended."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4.py",
+    "/app/backend/tests/test_public_intake.py",
+    "/app/test_reports/pytest/iteration4_results.xml",
+    "/app/test_reports/pytest/all_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Decide if landing area labels should drop the 'Derecho ' prefix to match spec ('Laboral, Familia, Penal, Civil, Comercial, Administrativo, Tributario')."
+  ],
+  "critical_code_review_comments": [
+    "AdminPanel.jsx is large (>1400 lines); consider splitting AccountingView, GeographyView, BillingView, MovementModal and InvoiceEditModal into dedicated files for maintainability.",
+    "InvoiceEditModal save is currently a 'preview' (no real PUT endpoint). Marked as MOCKED by design — track to implement real invoice update endpoint.",
+    "Geography stats endpoint always exposes data to socio_comercial (no role restriction). Confirmed intended per PRD ('visible a todos'); fine.",
+    "with_dr_prefix accepts 'Dr ' (no dot) and 'Dra ' as already-prefixed and preserves them; this means manually-entered 'Dr Juan' will not be normalized to 'Dr. Juan'. Consider normalizing to consistent 'Dr. ' / 'Dra. ' form."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration4.py (new)",
+    "/app/backend/tests/test_public_intake.py (added country field to payloads to comply with new required field)"
+  ],
+  "success_rate": {"backend": "100% (76/76 tests passing, 1 unrelated skip)", "frontend": "100% on tested flows"},
+  "test_credentials": "darwin@puntocerolegal.com / Admin2025! (admin_general); alejandro@puntocerolegal.com / Socio2025! (socio_comercial). Source: /app/memory/test_credentials.md",
+  "seed_data_creation": "POST /api/admin-ops/accounting/seed/demo invoked during tests — creates 8 movements if empty (idempotent: returns created:0 if already seeded). Also created TEST_ accounting movement via UI and via API (UI movement remains in DB; API one was deleted by test).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration-4 endpoints fully covered in /app/backend/tests/test_iteration4.py. New required field: 'country' on POST /api/public/case-intake and /api/public/lawyer-application — payloads MUST include it. Accounting routes under /api/admin-ops/accounting/* require role=admin_general for write ops (POST/PUT/DELETE/seed) and return 403 for socio_comercial. Geography stats at /api/admin-ops/geography/stats is open to all admin roles. RBAC frontend: socio_comercial hides tab-accounting and tab-talent. Frontend areas in landing use 'Derecho X' / 'Derecho de Familia' labels (intentional? confirm with PRD owner).",
+  "rca of the issue": "N/A — no bugs. Initial 3 test failures were test-side issues (Dr. prefix tuple too strict and category min_length=2 invalidated socio RBAC tests with 422 instead of 403). All fixed."
+}

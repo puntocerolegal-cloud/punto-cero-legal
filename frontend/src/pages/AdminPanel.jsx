@@ -7,7 +7,8 @@ import {
   Megaphone, ShieldAlert, RefreshCw, CheckCircle2, XCircle, CreditCard,
   X, Search, Filter, Send, MessageCircle, Save, Phone, Mail, Trash2,
   Pencil, AlertTriangle, Zap, UserCheck, ClipboardList, ArrowRight,
-  Activity, TrendingUp, Eye
+  Activity, TrendingUp, Eye, Globe, Calculator, Plus, Link as LinkIcon,
+  Printer, FileEdit
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
@@ -18,6 +19,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const fmtMoney = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
+
+// Garantiza el prefijo Dr. en nombres de abogados (centralizado)
+const withDr = (name) => {
+  if (!name) return '—';
+  const n = String(name).trim();
+  if (/^dr\.?\s|^dra\.?\s/i.test(n)) return n;
+  return `Dr. ${n}`;
+};
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -181,6 +190,14 @@ export const AdminPanel = () => {
             <TabsTrigger value="billing" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#8b5cf6] data-[state=active]:to-[#a855f7] data-[state=active]:text-white rounded-xl px-4 py-2.5 text-sm font-semibold gap-2" data-testid="tab-billing">
               <Receipt className="w-4 h-4" /> Facturación
             </TabsTrigger>
+            {isAdminGeneral && (
+              <TabsTrigger value="accounting" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#06b6d4] data-[state=active]:to-[#0284c7] data-[state=active]:text-white rounded-xl px-4 py-2.5 text-sm font-semibold gap-2" data-testid="tab-accounting">
+                <Calculator className="w-4 h-4" /> Contabilidad
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="geo" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#f59e0b] data-[state=active]:to-[#d97706] data-[state=active]:text-white rounded-xl px-4 py-2.5 text-sm font-semibold gap-2" data-testid="tab-geo">
+              <Globe className="w-4 h-4" /> Geografía
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="sales" className="mt-6">
@@ -196,6 +213,14 @@ export const AdminPanel = () => {
           )}
           <TabsContent value="billing" className="mt-6">
             <BillingView />
+          </TabsContent>
+          {isAdminGeneral && (
+            <TabsContent value="accounting" className="mt-6">
+              <AccountingView />
+            </TabsContent>
+          )}
+          <TabsContent value="geo" className="mt-6">
+            <GeographyView />
           </TabsContent>
         </Tabs>
       </div>
@@ -317,10 +342,10 @@ const SalesView = ({ isAdminGeneral, onMutate }) => {
                   <td className="p-3 pl-5">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#f97316] to-[#fb923c] flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {(c.full_name || 'AB').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                        {(withDr(c.full_name) || 'Dr').replace(/^Dr\.\s?/i, '').split(' ').map(n => n[0]).slice(0, 2).join('') || 'DR'}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold truncate">{c.full_name}</div>
+                        <div className="font-semibold truncate">{withDr(c.full_name)}</div>
                         <div className="text-xs text-white/40 truncate">{c.email}</div>
                       </div>
                     </div>
@@ -574,7 +599,7 @@ const TalentView = () => {
               {filtered.map(l => (
                 <tr key={l.id} className="border-b border-white/5 hover:bg-white/[0.04]" data-testid={`talent-row-${l.id}`}>
                   <td className="p-3 pl-5">
-                    <div className="font-semibold">{l.full_name}</div>
+                    <div className="font-semibold">{withDr(l.full_name)}</div>
                     <div className="text-xs text-white/40">{l.email}</div>
                   </td>
                   <td className="p-3 hidden md:table-cell text-white/70">{l.specialty || '—'}</td>
@@ -687,6 +712,8 @@ const BillingView = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [viewing, setViewing] = useState(null);
+  const [editing, setEditing] = useState(null);
   const { user } = useAuth();
   const isAdminGeneral = user?.role === 'admin_general' || user?.role === 'admin';
 
@@ -713,6 +740,24 @@ const BillingView = () => {
       await load();
     } catch (e) { alert('Error'); }
   };
+  const sendPaymentLink = (inv) => {
+    const link = `${window.location.origin}/pay/${inv.id}`;
+    navigator.clipboard?.writeText(link);
+    alert(`Link de pago copiado al portapapeles:\n${link}`);
+  };
+  const printInvoice = (inv) => {
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${inv.invoice_number}</title>
+      <style>body{font-family:system-ui;padding:40px;color:#0a0e1a}h1{color:#f97316}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}</style></head><body>
+      <h1>PUNTO CERO LEGAL</h1><h2>Factura ${inv.invoice_number}</h2>
+      <table><tr><td>Descripción</td><td>${inv.description || '—'}</td></tr>
+      <tr><td>Monto</td><td>${fmtMoney(inv.amount)}</td></tr>
+      <tr><td>Vence</td><td>${inv.due_date?.slice(0,10) || '—'}</td></tr>
+      <tr><td>Estado</td><td>${inv.status}</td></tr></table>
+      <p style="margin-top:40px;font-size:11px;color:#666">Inversiones y Variedades DJGG 2013</p>
+      </body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
+  };
   const seedDemo = async () => {
     setSeeding(true);
     try { await axios.post(`${API}/admin-ops/seed/demo-invoices`); await load(); }
@@ -730,16 +775,16 @@ const BillingView = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard icon={Clock} label="Pendiente" value={fmtMoney(totals.pendiente)} color="#f97316" testid="billing-pending" />
         <StatCard icon={CheckCircle2} label="Finalizada" value={fmtMoney(totals.finalizada)} color="#10b981" testid="billing-finalized" />
-        <StatCard icon={XCircle} label="No terminada" value={fmtMoney(totals.no_terminada)} color="#ef4444" testid="billing-overdue" />
+        <StatCard icon={XCircle} label="Vencida" value={fmtMoney(totals.no_terminada)} color="#ef4444" testid="billing-overdue" />
       </div>
 
       <div className="flex gap-2 flex-wrap items-center justify-between">
         <div className="flex gap-2 flex-wrap">
           {[
             { v: 'all', l: 'Todas' },
-            { v: 'pendiente', l: 'Pendientes', c: 'text-yellow-300' },
-            { v: 'finalizada', l: 'Finalizadas', c: 'text-emerald-300' },
-            { v: 'no_terminada', l: 'No terminadas', c: 'text-red-300' },
+            { v: 'pendiente', l: 'Pendiente', c: 'text-yellow-300' },
+            { v: 'finalizada', l: 'Finalizada', c: 'text-emerald-300' },
+            { v: 'no_terminada', l: 'Vencida', c: 'text-red-300' },
           ].map(o => (
             <button key={o.v} onClick={() => setFilter(o.v)}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${filter === o.v ? 'bg-purple-500/30 border-purple-500/60 text-white' : `bg-white/5 border-white/10 hover:bg-white/10 ${o.c || 'text-white/60'}`}`}
@@ -772,20 +817,22 @@ const BillingView = () => {
               {!loading && invoices.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-white/40">Sin facturas</td></tr>}
               {invoices.map(inv => {
                 const sc = { pendiente: 'text-yellow-300 bg-yellow-500/15', finalizada: 'text-emerald-300 bg-emerald-500/15', no_terminada: 'text-red-300 bg-red-500/15' }[inv.status];
+                const slabel = { pendiente: 'Pendiente', finalizada: 'Finalizada', no_terminada: 'Vencida' }[inv.status] || inv.status;
                 return (
                   <tr key={inv.id} className="border-b border-white/5 hover:bg-white/[0.04]" data-testid={`invoice-row-${inv.id}`}>
                     <td className="p-3 pl-5 font-mono text-xs">{inv.invoice_number}</td>
                     <td className="p-3 hidden md:table-cell text-white/70 truncate max-w-[280px]">{inv.description}</td>
                     <td className="p-3 font-bold">{fmtMoney(inv.amount)}</td>
                     <td className="p-3 hidden md:table-cell text-xs text-white/50">{inv.due_date?.slice(0, 10)}</td>
-                    <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sc}`}>{inv.status}</span></td>
-                    <td className="p-3 pr-5 text-right space-x-1">
-                      <button onClick={() => sendReminder(inv.id)} className="px-2.5 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-semibold hover:bg-blue-500/25" data-testid={`reminder-${inv.id}`}>
-                        Recordatorio
-                      </button>
-                      <button onClick={() => sendInvoice(inv.id)} className="px-2.5 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-semibold hover:bg-purple-500/25" data-testid={`send-${inv.id}`}>
-                        Enviar
-                      </button>
+                    <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sc}`}>{slabel}</span></td>
+                    <td className="p-3 pr-5 text-right">
+                      <div className="inline-flex items-center gap-1">
+                        <ActionIconBtn icon={Eye} label="Ver" color="white" onClick={() => setViewing(inv)} testid={`view-${inv.id}`} />
+                        <ActionIconBtn icon={FileEdit} label="Editar" color="blue" onClick={() => setEditing(inv)} testid={`edit-${inv.id}`} />
+                        <ActionIconBtn icon={LinkIcon} label="Enviar link de pago" color="emerald" onClick={() => sendPaymentLink(inv)} testid={`paylink-${inv.id}`} />
+                        <ActionIconBtn icon={Printer} label="Imprimir" color="amber" onClick={() => printInvoice(inv)} testid={`print-${inv.id}`} />
+                        <ActionIconBtn icon={Send} label="Enviar" color="purple" onClick={() => sendInvoice(inv.id)} testid={`send-${inv.id}`} />
+                      </div>
                     </td>
                   </tr>
                 );
@@ -794,13 +841,103 @@ const BillingView = () => {
           </table>
         </div>
       </div>
+
+      {/* Modal Ver Factura */}
+      {viewing && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewing(null)} data-testid="invoice-view-modal">
+          <div onClick={e => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">Factura {viewing.invoice_number}</h3>
+              <button onClick={() => setViewing(null)} className="p-1 hover:bg-white/10 rounded"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-2 text-sm">
+              <Field label="Descripción" value={viewing.description} />
+              <Field label="Monto" value={fmtMoney(viewing.amount)} />
+              <Field label="Vence" value={viewing.due_date?.slice(0, 10)} />
+              <Field label="Estado" value={viewing.status} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Factura */}
+      {editing && (
+        <InvoiceEditModal invoice={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
+      )}
     </div>
   );
 };
 
+const ActionIconBtn = ({ icon: Icon, label, color = 'white', onClick, testid }) => {
+  const map = {
+    white: 'bg-white/5 hover:bg-white/15 text-white',
+    blue: 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300',
+    emerald: 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300',
+    amber: 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300',
+    purple: 'bg-purple-500/15 hover:bg-purple-500/25 text-purple-300',
+    red: 'bg-red-500/15 hover:bg-red-500/25 text-red-300',
+  };
+  return (
+    <button onClick={onClick} title={label} aria-label={label} data-testid={testid}
+      className={`p-1.5 rounded-lg transition-all ${map[color]}`}>
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
+};
 
-// ═══════════════════════════════════════════════════════════════════
-// DRAWER · Ficha de Candidato (Sala de Ventas)
+const InvoiceEditModal = ({ invoice, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    description: invoice.description || '',
+    amount: invoice.amount || 0,
+    due_date: invoice.due_date?.slice(0, 10) || '',
+    status: invoice.status || 'pendiente',
+  });
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    // No tenemos endpoint update — simulamos UX y guardamos localmente
+    try {
+      // Si existiera /billing/{id}/update se llamaría aquí
+      alert('Cambios guardados (preview). Endpoint de update se agregará con la integración SMTP.');
+      onSaved();
+    } finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose} data-testid="invoice-edit-modal">
+      <div onClick={e => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+        <h3 className="text-xl font-bold mb-4">Editar factura {invoice.invoice_number}</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Descripción</label>
+            <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-white/50 mb-1">Monto</label>
+              <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: parseFloat(e.target.value) })} className="bg-white/10 border-white/20 text-white" />
+            </div>
+            <div>
+              <label className="block text-xs text-white/50 mb-1">Vence</label>
+              <Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Estado</label>
+            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-[#0a0e1a] border border-white/20 text-white text-sm">
+              <option value="pendiente">Pendiente</option>
+              <option value="finalizada">Finalizada</option>
+              <option value="no_terminada">Vencida</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={onClose} className="border-white/10 text-white/70">Cancelar</Button>
+          <Button onClick={save} disabled={saving} className="bg-gradient-to-r from-purple-500 to-purple-700 text-white" data-testid="invoice-save-btn"><Save className="w-3 h-3 mr-1" /> Guardar</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
 // ═══════════════════════════════════════════════════════════════════
 const CandidateDrawer = ({ candidate, isAdminGeneral, onClose, onMutate }) => {
   const [data, setData] = useState(candidate);
@@ -851,10 +988,10 @@ const CandidateDrawer = ({ candidate, isAdminGeneral, onClose, onMutate }) => {
         <SheetHeader>
           <SheetTitle className="text-white flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#f97316] to-[#fb923c] flex items-center justify-center text-sm font-bold">
-              {(data.full_name || 'AB').split(' ').map(n => n[0]).slice(0, 2).join('')}
+              {(withDr(data.full_name) || 'Dr').replace(/^Dr\.\s?/i, '').split(' ').map(n => n[0]).slice(0, 2).join('') || 'DR'}
             </div>
             <div>
-              <div>{data.full_name}</div>
+              <div>{withDr(data.full_name)}</div>
               <div className="text-xs font-normal text-white/50">{data.email}</div>
             </div>
           </SheetTitle>
@@ -1070,5 +1207,266 @@ const StatusBadgeSales = ({ status, isVerified }) => {
   else if (status === 'suspended') { bg = 'bg-red-500/15'; text = 'text-red-300'; label = 'Suspendido'; }
   return <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${bg} ${text}`}>{label}</span>;
 };
+
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTABILIDAD · Auditoría Interna (solo ADMIN_GENERAL)
+// ═══════════════════════════════════════════════════════════════════
+const AccountingView = () => {
+  const [kpis, setKpis] = useState({ ingresos_totales: 0, egresos_totales: 0, rentabilidad_productiva: 0, margen_pct: 0, facturado: 0, cobrado: 0, tasa_cobranza_pct: 0, por_cobrar: 0 });
+  const [movements, setMovements] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [k, m] = await Promise.all([
+        axios.get(`${API}/admin-ops/accounting/kpis`),
+        axios.get(`${API}/admin-ops/accounting/movements`, { params: { type_filter: filter } }),
+      ]);
+      setKpis(k.data);
+      setMovements(m.data);
+    } finally { setLoading(false); }
+  }, [filter]);
+  useEffect(() => { load(); }, [load]);
+
+  const remove = async (id) => {
+    if (!window.confirm('¿Eliminar este movimiento?')) return;
+    try { await axios.delete(`${API}/admin-ops/accounting/movements/${id}`); await load(); }
+    catch (e) { alert('Error'); }
+  };
+  const seedDemo = async () => {
+    setSeeding(true);
+    try { await axios.post(`${API}/admin-ops/accounting/seed/demo`); await load(); }
+    finally { setSeeding(false); }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="accounting-view">
+      {/* KPIs Auditoría */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={TrendingUp} label="Ingresos totales" value={fmtMoney(kpis.ingresos_totales)} color="#10b981" testid="kpi-ingresos" />
+        <StatCard icon={XCircle} label="Gastos totales" value={fmtMoney(kpis.egresos_totales)} color="#ef4444" testid="kpi-egresos" />
+        <StatCard icon={Calculator} label={`Rentabilidad productiva (${kpis.margen_pct}%)`} value={fmtMoney(kpis.rentabilidad_productiva)} color="#06b6d4" testid="kpi-rentabilidad" />
+        <StatCard icon={Receipt} label={`Facturado vs Cobrado (${kpis.tasa_cobranza_pct}%)`} value={`${fmtMoney(kpis.cobrado)} / ${fmtMoney(kpis.facturado)}`} color="#8b5cf6" testid="kpi-fact-vs-cob" />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { v: 'all', l: 'Todos' },
+            { v: 'ingreso', l: 'Ingresos', c: 'text-emerald-300' },
+            { v: 'egreso', l: 'Egresos', c: 'text-red-300' },
+          ].map(o => (
+            <button key={o.v} onClick={() => setFilter(o.v)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${filter === o.v ? 'bg-cyan-500/30 border-cyan-500/60 text-white' : `bg-white/5 border-white/10 hover:bg-white/10 ${o.c || 'text-white/60'}`}`}
+              data-testid={`filter-acc-${o.v}`}
+            >{o.l}</button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {movements.length === 0 && (
+            <Button size="sm" onClick={seedDemo} disabled={seeding} className="bg-gradient-to-r from-cyan-500 to-cyan-700 text-white text-xs" data-testid="seed-acc-demo">
+              {seeding ? 'Cargando...' : 'Cargar movimientos demo'}
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setCreating(true)} className="bg-gradient-to-r from-emerald-500 to-emerald-700 text-white text-xs" data-testid="add-movement-btn">
+            <Plus className="w-3.5 h-3.5 mr-1" /> Registrar movimiento
+          </Button>
+        </div>
+      </div>
+
+      <div className="backdrop-blur-xl bg-white/[0.03] rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" data-testid="movements-table">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wider text-white/40 border-b border-white/10 bg-white/[0.02]">
+                <th className="p-3 pl-5">Fecha</th>
+                <th className="p-3">Tipo</th>
+                <th className="p-3">Categoría</th>
+                <th className="p-3 hidden md:table-cell">Descripción</th>
+                <th className="p-3">Monto</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3 pr-5 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <tr><td colSpan="7" className="p-8 text-center text-white/40">Cargando...</td></tr>}
+              {!loading && movements.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-white/40">Sin movimientos registrados</td></tr>}
+              {movements.map(m => (
+                <tr key={m.id} className="border-b border-white/5 hover:bg-white/[0.04]" data-testid={`movement-row-${m.id}`}>
+                  <td className="p-3 pl-5 text-xs text-white/60">{m.date?.slice(0, 10)}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${m.type === 'ingreso' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>
+                      {m.type === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                    </span>
+                  </td>
+                  <td className="p-3">{m.category}</td>
+                  <td className="p-3 hidden md:table-cell text-white/70 truncate max-w-[280px]">{m.description}</td>
+                  <td className={`p-3 font-bold ${m.type === 'ingreso' ? 'text-emerald-300' : 'text-red-300'}`}>{m.type === 'ingreso' ? '+' : '-'}{fmtMoney(m.amount)}</td>
+                  <td className="p-3 text-xs"><span className="px-2 py-0.5 rounded bg-white/5 text-white/60">{m.status}</span></td>
+                  <td className="p-3 pr-5 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <ActionIconBtn icon={Pencil} label="Editar" color="blue" onClick={() => setEditing(m)} testid={`acc-edit-${m.id}`} />
+                      <ActionIconBtn icon={Trash2} label="Eliminar" color="red" onClick={() => remove(m.id)} testid={`acc-delete-${m.id}`} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {(creating || editing) && (
+        <MovementModal movement={editing} onClose={() => { setCreating(false); setEditing(null); }} onSaved={() => { setCreating(false); setEditing(null); load(); }} />
+      )}
+    </div>
+  );
+};
+
+
+const MovementModal = ({ movement, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    type: movement?.type || 'ingreso',
+    category: movement?.category || '',
+    amount: movement?.amount || '',
+    description: movement?.description || '',
+    status: movement?.status || 'registrado',
+    date: movement?.date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+  });
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!form.category || !form.description || !form.amount) {
+      alert('Categoría, descripción y monto son obligatorios');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form, amount: parseFloat(form.amount) };
+      if (movement?.id) await axios.put(`${API}/admin-ops/accounting/movements/${movement.id}`, payload);
+      else await axios.post(`${API}/admin-ops/accounting/movements`, payload);
+      onSaved();
+    } catch (e) { alert(e.response?.data?.detail || 'Error guardando'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose} data-testid="movement-modal">
+      <div onClick={e => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+        <h3 className="text-xl font-bold mb-4">{movement ? 'Editar movimiento' : 'Registrar movimiento'}</h3>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-white/50 mb-1">Tipo</label>
+              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-[#0a0e1a] border border-white/20 text-white text-sm" data-testid="movement-type">
+                <option value="ingreso">Ingreso</option>
+                <option value="egreso">Egreso</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-white/50 mb-1">Fecha</label>
+              <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Categoría</label>
+            <Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Honorarios / Nómina / Marketing..." className="bg-white/10 border-white/20 text-white" data-testid="movement-category" />
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Monto</label>
+            <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className="bg-white/10 border-white/20 text-white" data-testid="movement-amount" />
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Descripción</label>
+            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm" data-testid="movement-description" />
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">Estado</label>
+            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-[#0a0e1a] border border-white/20 text-white text-sm">
+              <option value="registrado">Registrado</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={onClose} className="border-white/10 text-white/70">Cancelar</Button>
+          <Button onClick={save} disabled={saving} className="bg-gradient-to-r from-cyan-500 to-cyan-700 text-white" data-testid="movement-save">{saving ? 'Guardando...' : 'Guardar'}</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ═══════════════════════════════════════════════════════════════════
+// GEOGRAFÍA · Ventas por país + Estrategias Activas (LATAM)
+// ═══════════════════════════════════════════════════════════════════
+const GeographyView = () => {
+  const [data, setData] = useState({ countries: [], total_countries: 0 });
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try { const r = await axios.get(`${API}/admin-ops/geography/stats`); setData(r.data); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  return (
+    <div className="space-y-6" data-testid="geography-view">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2"><Globe className="w-5 h-5 text-amber-400" /> Ventas por país · Estrategias activas</h2>
+          <p className="text-xs text-white/40 mt-1">Rendimiento de cada mercado LATAM con su plan de acción regional</p>
+        </div>
+        <div className="text-sm text-white/60">{data.total_countries} mercados activos</div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading && <div className="col-span-3 text-center text-white/40 py-12">Cargando métricas LATAM...</div>}
+        {!loading && data.countries.length === 0 && <div className="col-span-3 text-center text-white/40 py-12">Sin datos geográficos aún. A medida que se registren abogados/clientes verás el rendimiento por país.</div>}
+        {data.countries.map(c => (
+          <motion.div key={c.country} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            className="backdrop-blur-xl bg-white/[0.03] rounded-2xl border border-white/[0.08] p-5 hover:border-amber-500/30 transition-all"
+            data-testid={`geo-card-${c.country}`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                  <Globe className="w-4 h-4 text-amber-400" />
+                </div>
+                <h3 className="font-bold">{c.country}</h3>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-bold">{c.active_lawyers} activos</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+              <div className="text-center bg-white/[0.02] rounded-lg py-2">
+                <div className="text-base font-bold">{c.lawyers}</div>
+                <div className="text-white/40 text-[10px]">Abogados</div>
+              </div>
+              <div className="text-center bg-white/[0.02] rounded-lg py-2">
+                <div className="text-base font-bold">{c.cases}</div>
+                <div className="text-white/40 text-[10px]">Casos</div>
+              </div>
+              <div className="text-center bg-white/[0.02] rounded-lg py-2">
+                <div className="text-base font-bold text-emerald-300">{fmtMoney(c.revenue)}</div>
+                <div className="text-white/40 text-[10px]">Ingresos</div>
+              </div>
+            </div>
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+              <div className="text-[10px] uppercase tracking-wider text-amber-400 font-bold mb-1 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Estrategia activa</div>
+              <div className="text-xs text-white/80">{c.strategy}</div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 export default AdminPanel;

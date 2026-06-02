@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -46,6 +46,7 @@ api_router.include_router(payment.router)
 api_router.include_router(referrals.router)
 api_router.include_router(admin_ops.router)
 api_router.include_router(public_intake.router)
+api_router.include_router(accounting.router)
 
 # Inicialización de cuentas maestras al arranque
 @app.on_event("startup")

@@ -13,6 +13,15 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { useAuth } from '../contexts/AuthContext';
 
+const LATAM_COUNTRIES = [
+  'México', 'Guatemala', 'Honduras', 'El Salvador', 'Nicaragua', 'Costa Rica', 'Panamá',
+  'Cuba', 'República Dominicana', 'Puerto Rico',
+  'Colombia', 'Venezuela', 'Ecuador', 'Perú', 'Bolivia', 'Chile', 'Argentina',
+  'Uruguay', 'Paraguay', 'Brasil',
+];
+
+const SUPPORT_WHATSAPP = '573028322083';
+
 export const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -38,8 +47,9 @@ export const LandingPage = () => {
   };
   const [formData, setFormData] = useState({
     name: '',
-    area: 'Derecho Migratorio',
+    area: 'Derecho Laboral',
     priority: 'media',
+    country: '',
     phone: '',
     email: '',
     message: ''
@@ -48,7 +58,7 @@ export const LandingPage = () => {
     name: '',
     email: '',
     phone: '',
-    specialty: 'Derecho Migratorio',
+    specialty: 'Derecho Laboral',
     country: '',
     experience: ''
   });
@@ -66,11 +76,12 @@ export const LandingPage = () => {
         description: formData.message,
         legal_area: formData.area,
         priority: formData.priority,
+        country: formData.country,
         phone: formData.phone || null,
         email: formData.email || null,
       });
       setClientStatus({ loading: false, success: true, error: '', message: data.message, ref: data.case_number });
-      setFormData({ name: '', area: 'Derecho Migratorio', priority: 'media', phone: '', email: '', message: '' });
+      setFormData({ name: '', area: 'Derecho Laboral', priority: 'media', country: '', phone: '', email: '', message: '' });
     } catch (err) {
       setClientStatus({ loading: false, success: false, error: err.response?.data?.detail || 'Error al enviar. Intente de nuevo.' });
     }
@@ -85,11 +96,11 @@ export const LandingPage = () => {
         email: lawyerData.email,
         phone: lawyerData.phone || null,
         specialty: lawyerData.specialty,
-        country: lawyerData.country || null,
+        country: lawyerData.country,
         experience: lawyerData.experience,
       });
       setLawyerStatus({ loading: false, success: true, error: '', message: data.message });
-      setLawyerData({ name: '', email: '', phone: '', specialty: 'Derecho Migratorio', country: '', experience: '' });
+      setLawyerData({ name: '', email: '', phone: '', specialty: 'Derecho Laboral', country: '', experience: '' });
     } catch (err) {
       setLawyerStatus({ loading: false, success: false, error: err.response?.data?.detail || 'Error al enviar. Intente de nuevo.' });
     }
@@ -258,18 +269,16 @@ export const LandingPage = () => {
                       <select 
                         value={formData.area}
                         onChange={(e) => setFormData({...formData, area: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
+                        className="w-full px-4 py-3 rounded-xl bg-[#0a0e1a] border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
                         data-testid="client-area"
                       >
-                        <option value="Derecho Migratorio">Derecho Migratorio</option>
-                        <option value="Derecho de Familia">Derecho de Familia</option>
-                        <option value="Derecho Civil">Derecho Civil</option>
-                        <option value="Derecho Laboral">Derecho Laboral</option>
-                        <option value="Derecho Penal">Derecho Penal</option>
-                        <option value="Derecho Comercial">Derecho Comercial</option>
-                        <option value="Derecho Corporativo">Derecho Corporativo</option>
-                        <option value="Derecho Tributario">Derecho Tributario</option>
-                        <option value="Propiedad Intelectual">Propiedad Intelectual</option>
+                        <option value="Derecho Laboral" className="bg-[#0a0e1a] text-white">Laboral</option>
+                        <option value="Derecho de Familia" className="bg-[#0a0e1a] text-white">Familia</option>
+                        <option value="Derecho Penal" className="bg-[#0a0e1a] text-white">Penal</option>
+                        <option value="Derecho Civil" className="bg-[#0a0e1a] text-white">Civil</option>
+                        <option value="Derecho Comercial" className="bg-[#0a0e1a] text-white">Comercial</option>
+                        <option value="Derecho Administrativo" className="bg-[#0a0e1a] text-white">Administrativo</option>
+                        <option value="Derecho Tributario" className="bg-[#0a0e1a] text-white">Tributario</option>
                       </select>
                     </div>
                     <div>
@@ -277,17 +286,30 @@ export const LandingPage = () => {
                       <select 
                         value={formData.priority}
                         onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
+                        className="w-full px-4 py-3 rounded-xl bg-[#0a0e1a] border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
                         data-testid="client-priority"
                       >
-                        <option value="alta">Alta · urgente</option>
-                        <option value="media">Media · estándar</option>
-                        <option value="baja">Baja · informativa</option>
+                        <option value="alta" className="bg-[#0a0e1a] text-white">Alta · urgente</option>
+                        <option value="media" className="bg-[#0a0e1a] text-white">Media · estándar</option>
+                        <option value="baja" className="bg-[#0a0e1a] text-white">Baja · informativa</option>
                       </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">País *</label>
+                      <select 
+                        value={formData.country || ''}
+                        onChange={(e) => setFormData({...formData, country: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl bg-[#0a0e1a] border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
+                        required
+                        data-testid="client-country"
+                      >
+                        <option value="" className="bg-[#0a0e1a]">— Seleccione —</option>
+                        {LATAM_COUNTRIES.map(c => <option key={c} value={c} className="bg-[#0a0e1a] text-white">{c}</option>)}
+                      </select>
+                    </div>
                     <div>
                       <label className="block text-sm font-semibold text-white/80 mb-2">Correo electrónico</label>
                       <Input 
@@ -300,7 +322,7 @@ export const LandingPage = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-white/80 mb-2">Teléfono / WhatsApp</label>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Teléfono</label>
                       <Input 
                         type="tel" 
                         placeholder="+57 3000000000" 
@@ -867,30 +889,30 @@ export const LandingPage = () => {
                       <select 
                         value={lawyerData.specialty}
                         onChange={(e) => setLawyerData({...lawyerData, specialty: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/20 outline-none"
+                        className="w-full px-4 py-3 rounded-xl bg-[#0a0e1a] border border-white/20 text-white focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/20 outline-none"
                         data-testid="lawyer-specialty"
                       >
-                        <option value="Derecho Migratorio">Derecho Migratorio</option>
-                        <option value="Derecho de Familia">Derecho de Familia</option>
-                        <option value="Derecho Corporativo">Derecho Corporativo</option>
-                        <option value="Derecho Civil">Derecho Civil</option>
-                        <option value="Derecho Penal">Derecho Penal</option>
-                        <option value="Derecho Laboral">Derecho Laboral</option>
-                        <option value="Derecho Comercial">Derecho Comercial</option>
-                        <option value="Derecho Tributario">Derecho Tributario</option>
-                        <option value="Propiedad Intelectual">Propiedad Intelectual</option>
+                        <option value="Derecho Laboral" className="bg-[#0a0e1a] text-white">Laboral</option>
+                        <option value="Derecho de Familia" className="bg-[#0a0e1a] text-white">Familia</option>
+                        <option value="Derecho Penal" className="bg-[#0a0e1a] text-white">Penal</option>
+                        <option value="Derecho Civil" className="bg-[#0a0e1a] text-white">Civil</option>
+                        <option value="Derecho Comercial" className="bg-[#0a0e1a] text-white">Comercial</option>
+                        <option value="Derecho Administrativo" className="bg-[#0a0e1a] text-white">Administrativo</option>
+                        <option value="Derecho Tributario" className="bg-[#0a0e1a] text-white">Tributario</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-white/80 mb-2">País de ejercicio</label>
-                      <Input 
-                        type="text" 
-                        placeholder="Colombia" 
+                      <label className="block text-sm font-semibold text-white/80 mb-2">País de ejercicio *</label>
+                      <select 
                         value={lawyerData.country}
                         onChange={(e) => setLawyerData({...lawyerData, country: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20"
+                        className="w-full px-4 py-3 rounded-xl bg-[#0a0e1a] border border-white/20 text-white focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/20 outline-none"
+                        required
                         data-testid="lawyer-country"
-                      />
+                      >
+                        <option value="" className="bg-[#0a0e1a]">— Seleccione —</option>
+                        {LATAM_COUNTRIES.map(c => <option key={c} value={c} className="bg-[#0a0e1a] text-white">{c}</option>)}
+                      </select>
                     </div>
                   </div>
 
@@ -1103,6 +1125,27 @@ export const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* === BOTÓN FLOTANTE WHATSAPP DE SOPORTE === */}
+      <motion.a
+        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, necesito soporte de Punto Cero Legal')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Soporte WhatsApp"
+        title="Soporte WhatsApp +57 302 832 2083"
+        data-testid="floating-whatsapp"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 1.2, type: 'spring', stiffness: 200 }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-[#25d366] to-[#128c7e] flex items-center justify-center shadow-[0_10px_30px_rgba(37,211,102,0.45)] hover:shadow-[0_15px_45px_rgba(37,211,102,0.65)] transition-shadow"
+      >
+        <svg viewBox="0 0 24 24" className="w-7 h-7 text-white" fill="currentColor" aria-hidden="true">
+          <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.91-7.01A9.816 9.816 0 0 0 12.04 2zm5.69 14.13c-.24.68-1.4 1.3-1.95 1.38-.52.08-1.16.12-1.86-.12-.43-.14-.98-.32-1.68-.64-2.97-1.28-4.91-4.26-5.05-4.46-.15-.2-1.21-1.61-1.21-3.07 0-1.46.77-2.18 1.04-2.48.27-.3.59-.37.79-.37l.57.01c.18.01.43-.07.67.51.24.59.83 2.05.91 2.19.07.15.12.32.02.51-.09.2-.14.32-.27.49-.13.17-.27.38-.39.5-.13.13-.27.27-.12.53.15.27.66 1.08 1.41 1.75.97.87 1.78 1.13 2.04 1.26.27.13.42.11.58-.07.16-.18.67-.78.85-1.05.18-.27.36-.22.6-.13.24.09 1.53.72 1.79.85.27.13.44.2.51.31.07.12.07.71-.17 1.39z"/>
+        </svg>
+        <span className="absolute inset-0 rounded-full animate-ping bg-[#25d366]/30 pointer-events-none" />
+      </motion.a>
     </div>
   );
 };

@@ -25,6 +25,7 @@ class ClientIntake(BaseModel):
     description: str = Field(..., min_length=8, max_length=2000)
     legal_area: str = Field(..., min_length=2, max_length=80)
     priority: str = Field("media")  # alta | media | baja
+    country: str = Field(..., min_length=2, max_length=80)
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
 
@@ -55,6 +56,7 @@ async def case_intake(payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(
         "client_name": payload.name,
         "client_phone": payload.phone,
         "client_email": payload.email,
+        "client_country": payload.country,
         "source": "landing_intake",
         "is_demo": False,
         "created_at": now,
@@ -87,11 +89,20 @@ class LawyerApplication(BaseModel):
     email: EmailStr
     phone: Optional[str] = None
     specialty: str = Field(..., min_length=2, max_length=80)
-    country: Optional[str] = None
+    country: str = Field(..., min_length=2, max_length=80)
     experience: str = Field(..., min_length=4, max_length=2000)  # texto libre
     bar_number: Optional[str] = None
     firm_name: Optional[str] = None
     id_document: Optional[str] = None
+
+
+def _with_dr(name: str) -> str:
+    if not name:
+        return name
+    n = name.strip()
+    if n.lower().startswith(("dr.", "dra.", "dr ", "dra ")):
+        return n
+    return f"Dr. {n}"
 
 
 @router.post("/lawyer-application")
@@ -111,7 +122,7 @@ async def lawyer_application(payload: LawyerApplication, db: AsyncIOMotorDatabas
     user_doc = {
         "email": payload.email,
         "password_hash": None,  # se asigna tras aprobación (admin envía invitación / setea temporal)
-        "full_name": payload.full_name,
+        "full_name": _with_dr(payload.full_name),
         "role": "lawyer",
         "status": "PENDING_VERIFICATION",
         "is_verified": False,
@@ -136,7 +147,7 @@ async def lawyer_application(payload: LawyerApplication, db: AsyncIOMotorDatabas
         "target": "admin",
         "type": "new_lawyer_application",
         "title": "Nueva aplicación de abogado",
-        "message": f"{payload.full_name} aplicó como socio ({payload.specialty}).",
+        "message": f"{_with_dr(payload.full_name)} aplicó como socio ({payload.specialty}).",
         "candidate_id": candidate_id,
         "read": False,
         "created_at": now,

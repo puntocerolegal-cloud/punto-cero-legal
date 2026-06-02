@@ -13,6 +13,18 @@ import random
 router = APIRouter(prefix="/admin-ops", tags=["Admin · Centro de Gestión"])
 
 
+# ───────────── Helper Dr. prefix ─────────────
+def with_dr_prefix(name: Optional[str]) -> Optional[str]:
+    """Aplica el prefijo 'Dr.' a un nombre si no lo tiene ya."""
+    if not name:
+        return name
+    n = name.strip()
+    lower = n.lower()
+    if lower.startswith("dr.") or lower.startswith("dra.") or lower.startswith("dr ") or lower.startswith("dra "):
+        return n
+    return f"Dr. {n}"
+
+
 async def get_db():
     from server import db
     return db
@@ -136,7 +148,7 @@ def _serialize_candidate(u: dict) -> dict:
     return {
         "id": str(u["_id"]),
         "email": u.get("email"),
-        "full_name": u.get("full_name"),
+        "full_name": with_dr_prefix(u.get("full_name")),
         "phone": u.get("phone"),
         "country": u.get("country"),
         "specialty": u.get("specialty"),
@@ -298,7 +310,7 @@ async def _serialize_case(c: dict, db) -> dict:
     if c.get("lawyer_id"):
         lawyer = await db.users.find_one({"_id": ObjectId(c["lawyer_id"])}) if ObjectId.is_valid(str(c["lawyer_id"])) else None
         if lawyer:
-            lawyer_name = lawyer.get("full_name")
+            lawyer_name = with_dr_prefix(lawyer.get("full_name"))
             lawyer_phone = lawyer.get("phone")
 
     client_name = None
@@ -390,8 +402,8 @@ async def auto_assign_case(case_id: str, admin=Depends(get_admin), db: AsyncIOMo
         "ok": True,
         "matched": True,
         "lawyer_id": chosen_id,
-        "lawyer_name": chosen.get("full_name"),
-        "message": f"Caso asignado a {chosen.get('full_name')}",
+        "lawyer_name": with_dr_prefix(chosen.get("full_name")),
+        "message": f"Caso asignado a {with_dr_prefix(chosen.get('full_name'))}",
     }
 
 
@@ -423,7 +435,7 @@ async def manual_assign_case(case_id: str, payload: dict, admin=Depends(get_admi
         "read": False,
         "created_at": datetime.utcnow(),
     })
-    return {"ok": True, "message": f"Caso asignado a {lawyer.get('full_name')}"}
+    return {"ok": True, "message": f"Caso asignado a {with_dr_prefix(lawyer.get('full_name'))}"}
 
 
 @router.post("/operations/cases/{case_id}/attended")
@@ -623,3 +635,78 @@ async def seed_demo_invoices(admin=Depends(get_admin), db: AsyncIOMotorDatabase 
             "updated_at": now,
         })
     return {"ok": True, "created": len(samples)}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MÉTRICAS GEOGRÁFICAS — Ventas por país + Estrategias Activas
+# ═══════════════════════════════════════════════════════════════════
+LATAM_STRATEGIES = {
+    "Colombia": "Expansión bufetes regionales · Red B2B",
+    "México": "Alianzas notariales · Migración USA",
+    "Argentina": "Foco corporativo · Buenos Aires + Córdoba",
+    "Chile": "Premium suscripciones · Santiago Metro",
+    "Perú": "Crecimiento orgánico · Lima + Arequipa",
+    "Venezuela": "Asesoría migratoria · Caracas + Valencia",
+    "Ecuador": "Tributario PYMES · Quito",
+    "Bolivia": "Inicio mercado · Santa Cruz",
+    "Uruguay": "Boutique · Montevideo",
+    "Paraguay": "Onboarding piloto · Asunción",
+    "República Dominicana": "Turismo legal · Punta Cana",
+    "Panamá": "Offshore corporativo · Panama City",
+    "Costa Rica": "Tech compliance · San José",
+    "Guatemala": "Penal urbano · Guatemala City",
+    "Honduras": "Migración + laboral",
+    "El Salvador": "Cripto-legal · San Salvador",
+    "Nicaragua": "Onboarding piloto",
+    "Cuba": "Asesoría diaspora",
+    "Puerto Rico": "Bilingüe USA-LATAM",
+    "Brasil": "Expansión idioma · São Paulo (próximamente)",
+    "United States": "Hispano-US · Miami + Houston",
+}
+
+
+@router.get("/geography/stats")
+async def geography_stats(admin=Depends(get_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Ventas por país (abogados activos + suscripciones cobradas) + estrategias activas por región."""
+    # Abogados por país
+    pipeline = [
+        {"$match": {"role": "lawyer"}},
+        {"$group": {"_id": "$country", "lawyers": {"$sum": 1}, "active": {"$sum": {"$cond": [{"$eq": ["$is_verified", True]}, 1, 0]}}}},
+        {"$sort": {"lawyers": -1}},
+    ]
+    countries_cur = db.users.aggregate(pipeline)
+    countries_raw = await countries_cur.to_list(50)
+
+    # Casos por país de cliente — derivado del país del abogado asignado o del país en client_phone
+    case_pipeline = [
+        {"$lookup": {"from": "users", "let": {"lid": "$lawyer_id"}, "pipeline": [{"$match": {"$expr": {"$eq": [{"$toString": "$_id"}, "$$lid"]}}}], "as": "lawyer"}},
+        {"$unwind": {"path": "$lawyer", "preserveNullAndEmptyArrays": True}},
+        {"$group": {"_id": "$lawyer.country", "cases": {"$sum": 1}}},
+    ]
+    case_cur = db.cases.aggregate(case_pipeline)
+    case_rows = await case_cur.to_list(50)
+    cases_by_country = {r["_id"]: r["cases"] for r in case_rows if r.get("_id")}
+
+    # Ingresos por país (a partir de invoices.country si existe)
+    revenue_pipeline = [
+        {"$match": {"status": "paid"}},
+        {"$group": {"_id": "$country", "revenue": {"$sum": "$amount"}}},
+    ]
+    rev_cur = db.invoices.aggregate(revenue_pipeline)
+    rev_rows = await rev_cur.to_list(50)
+    revenue_by_country = {r["_id"]: float(r["revenue"]) for r in rev_rows if r.get("_id")}
+
+    countries = []
+    for c in countries_raw:
+        name = c["_id"] or "—"
+        countries.append({
+            "country": name,
+            "lawyers": c["lawyers"],
+            "active_lawyers": c["active"],
+            "cases": cases_by_country.get(name, 0),
+            "revenue": revenue_by_country.get(name, 0),
+            "strategy": LATAM_STRATEGIES.get(name, "Mercado en evaluación"),
+        })
+
+    return {"countries": countries, "total_countries": len(countries)}
+
