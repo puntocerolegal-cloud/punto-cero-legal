@@ -81,6 +81,17 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 - RBAC riguroso: SOCIO_COMERCIAL no ve tab-talent, recibe 403 en approve/reject/pending-payment/talent CRUD/seed.
 - Tests: `/app/backend/tests/test_admin_ops.py` (27 passing) + `test_auth_rbac.py` (17 passing).
 
+## Changelog 2026-02-01 (parte 3) — Captación centralizada (sin WhatsApp)
+- Nuevo router `/api/public/*` (public_intake.py) SIN autenticación:
+  - `POST /case-intake`: persiste cliente en `db.cases` con `assignment_status=sin_asignar`, `status=PENDING_ASSIGNMENT`, prioridad alta/media/baja, fuente `landing_intake`. Aparece en Monitor de Operaciones listo para Routing Inteligente.
+  - `POST /lawyer-application`: persiste abogado en `db.users` con `role=lawyer`, `status=PENDING_VERIFICATION`, `is_verified=false`, `password_hash=null`. Aparece en Sala de Ventas para Aprobar/Rechazar/Pendiente Pago. 409 en email duplicado.
+- Ambos disparan notificación en `db.notifications` con `target='admin'`.
+- Landing forms: ya NO abren WhatsApp. Botones renombrados ("Enviar Caso" y "Únase a nuestra red"). Estados loading/success/error con bloque visual de éxito que reemplaza el botón.
+- Form cliente gana campos: Prioridad, Email, Teléfono (los dos contactos son opcionales). Form abogado gana: Email (required) y Teléfono.
+- Mensajes de éxito fijos del backend (palabras exactas del usuario).
+- **Hardening seguridad**: login rechaza usuarios con `password_hash=None` (evita login fantasma de candidatos pendientes).
+- Tests: `/app/backend/tests/test_public_intake.py` (11/11 passing).
+
 ## Backlog (P1)
 - Persistir datos de módulos en backend (actualmente mockeados en frontend)
 - WebRTC real para videollamadas
