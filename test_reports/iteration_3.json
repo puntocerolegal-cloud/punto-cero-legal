@@ -1,0 +1,35 @@
+{
+  "summary": "E2E testing del nuevo router público /api/public/* (case-intake + lawyer-application) y de los formularios CLIENTE/ABOGADO en LandingPage.jsx. Backend: 11/11 nuevos tests passing + 44/45 regresión (1 skip preexistente de routing). Frontend: ambos formularios envían vía axios (NO abren WhatsApp), muestran mensajes EXACTOS del backend, ocultan el botón submit tras éxito (no re-envío), muestran lawyer-error en 409 duplicado. Verificación cruzada en panel admin (darwin): el cliente recién creado aparece en Monitor de Operaciones y el abogado nuevo aparece en TOP de Sala de Ventas (PENDING_VERIFICATION). Notificaciones db.notifications target=admin creadas por ambos endpoints. Mensajes exactos verificados textualmente. Counters del header reflejan los nuevos casos/abogados.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_public_intake.py",
+    "/app/test_reports/pytest/public_intake_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "public_intake.py: limpio y bien estructurado — Pydantic con min_length, EmailStr, mapeo de prioridad alta/media/baja → high/medium/low (engine) + priority_label (etiqueta humana). Bien.",
+    "public_intake.py: el endpoint cliente acepta email/phone opcionales — correcto para mantener intake con barrera baja. Considerar incluir índice único en db.users.email (ya implícito por el check 409 manual), mismo para case_number en db.cases.",
+    "public_intake.py: password_hash=None en la creación del abogado es coherente con flujo 'admin aprueba → setea password temporal'. Asegurarse en routes/auth.py de rechazar login si password_hash is None (evitar login fantasma de candidatos pending).",
+    "LandingPage.jsx: 1110 líneas — se sugiere extraer ClientIntakeForm y LawyerApplicationForm a componentes propios para reducir el archivo <700 líneas (DRY + maintainability). El handler de error usa err.response?.data?.detail correctamente.",
+    "Sin sanitización adicional en server: descripción/experience pueden contener HTML/XSS si se renderiza sin escape en admin panel. Actualmente AdminPanel.jsx no usa dangerouslySetInnerHTML (revisado en iteración previa), por lo que está seguro hoy, pero documentarlo.",
+    "Idempotencia: si el cliente envía dos veces el mismo formulario por error, se crearán dos casos. Para landing-intake es aceptable, pero podría añadirse debounce en el botón (clientStatus.loading ya lo cubre parcialmente)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_public_intake.py"
+  ],
+  "success_rate": {"backend": "100% (11/11 nuevos · 55/56 totales incluyendo regresión — 1 skip preexistente de data state)", "frontend": "100% (todos los flujos client/lawyer/duplicate/admin-cross-check validados)"},
+  "test_credentials": "Admin: darwin@puntocerolegal.com / Admin2025! (sin auth para los dos endpoints públicos)",
+  "seed_data_creation": "TEST_Cliente_UI_<ts> + lawyerui_<ts>@test.com creados vía UI. TEST_Cliente_<ts> + lawyer_<ts>@test.com vía pytest. Todos con prefijo TEST_ para limpieza futura.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Comando: REACT_APP_BACKEND_URL=https://punto-cero-legal-2.preview.emergentagent.com pytest /app/backend/tests/test_public_intake.py /app/backend/tests/test_admin_ops.py /app/backend/tests/test_auth_rbac.py -v. Cada ejecución crea nuevos casos+abogados (timestamps únicos). Si se necesita test idempotente, considerar TTL/cleanup en conftest. LandingPage.jsx supera 1000 líneas y AdminPanel.jsx también — refactor pendiente sugerido en iteración 2.",
+  "rca of the issue": "Sin issues. Único ajuste menor durante el desarrollo del test: el endpoint /api/admin-ops/sales/candidates no devuelve el campo 'role' en el payload (lo filtra implícitamente por role=lawyer), por lo que el test se ajustó para validar solo status=PENDING_VERIFICATION + is_verified=False. No es un bug — es comportamiento esperado del endpoint que ya filtra."
+}

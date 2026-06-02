@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { 
   Shield, Lock, Users, Award, CheckCircle, ArrowRight, Scale, FileText, Clock,
   Briefcase, Calendar, FolderKanban, BookOpen, Video, Brain, Menu, X,
-  Mail, MessageCircle, Instagram, Facebook, Crown, Sparkles
+  Mail, MessageCircle, Instagram, Facebook, Crown, Sparkles, CheckCircle2, Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -38,27 +39,60 @@ export const LandingPage = () => {
   const [formData, setFormData] = useState({
     name: '',
     area: 'Derecho Migratorio',
+    priority: 'media',
+    phone: '',
+    email: '',
     message: ''
   });
   const [lawyerData, setLawyerData] = useState({
     name: '',
+    email: '',
+    phone: '',
     specialty: 'Derecho Migratorio',
     country: '',
     experience: ''
   });
+  const [clientStatus, setClientStatus] = useState({ loading: false, success: false, error: '' });
+  const [lawyerStatus, setLawyerStatus] = useState({ loading: false, success: false, error: '' });
 
-  const handleClientSubmit = (e) => {
+  const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+  const handleClientSubmit = async (e) => {
     e.preventDefault();
-    const phone = "573028322083";
-    const text = `Hola, mi nombre es *${formData.name}*.%0A%0AHe completado el formulario de evaluación:%0A🏛️ *Área:* ${formData.area}%0A📝 *Caso:* ${formData.message}`;
-    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    setClientStatus({ loading: true, success: false, error: '' });
+    try {
+      const { data } = await axios.post(`${API}/public/case-intake`, {
+        name: formData.name,
+        description: formData.message,
+        legal_area: formData.area,
+        priority: formData.priority,
+        phone: formData.phone || null,
+        email: formData.email || null,
+      });
+      setClientStatus({ loading: false, success: true, error: '', message: data.message, ref: data.case_number });
+      setFormData({ name: '', area: 'Derecho Migratorio', priority: 'media', phone: '', email: '', message: '' });
+    } catch (err) {
+      setClientStatus({ loading: false, success: false, error: err.response?.data?.detail || 'Error al enviar. Intente de nuevo.' });
+    }
   };
 
-  const handleLawyerSubmit = (e) => {
+  const handleLawyerSubmit = async (e) => {
     e.preventDefault();
-    const phone = "573028322083";
-    const message = `🏛️ *NUEVA SOLICITUD DE ALIANZA*%0A%0A*Nombre:* ${lawyerData.name}%0A*Especialidad:* ${lawyerData.specialty}%0A*País:* ${lawyerData.country}%0A*Experiencia:* ${lawyerData.experience}`;
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    setLawyerStatus({ loading: true, success: false, error: '' });
+    try {
+      const { data } = await axios.post(`${API}/public/lawyer-application`, {
+        full_name: lawyerData.name,
+        email: lawyerData.email,
+        phone: lawyerData.phone || null,
+        specialty: lawyerData.specialty,
+        country: lawyerData.country || null,
+        experience: lawyerData.experience,
+      });
+      setLawyerStatus({ loading: false, success: true, error: '', message: data.message });
+      setLawyerData({ name: '', email: '', phone: '', specialty: 'Derecho Migratorio', country: '', experience: '' });
+    } catch (err) {
+      setLawyerStatus({ loading: false, success: false, error: err.response?.data?.detail || 'Error al enviar. Intente de nuevo.' });
+    }
   };
 
   return (
@@ -204,7 +238,7 @@ export const LandingPage = () => {
                 <h2 className="text-3xl font-bold text-white mb-2">Cuéntenos su caso</h2>
                 <p className="text-white/60 mb-6">Un especialista legal revisará su solicitud y le contactará en breve.</p>
 
-                <form onSubmit={handleClientSubmit} className="space-y-4">
+                <form onSubmit={handleClientSubmit} className="space-y-4" data-testid="client-intake-form">
                   <div>
                     <label className="block text-sm font-semibold text-white/80 mb-2">Nombre completo</label>
                     <Input 
@@ -214,22 +248,68 @@ export const LandingPage = () => {
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#3b82f6] focus:ring-[#3b82f6]/20"
                       required
+                      data-testid="client-name"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-white/80 mb-2">Área legal</label>
-                    <select 
-                      value={formData.area}
-                      onChange={(e) => setFormData({...formData, area: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
-                    >
-                      <option value="Derecho Migratorio">Derecho Migratorio</option>
-                      <option value="Litigio Civil">Litigio Civil</option>
-                      <option value="Derecho Corporativo">Derecho Corporativo</option>
-                      <option value="Gestión Documental">Gestión Documental</option>
-                      <option value="Propiedad Intelectual">Propiedad Intelectual</option>
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Área legal</label>
+                      <select 
+                        value={formData.area}
+                        onChange={(e) => setFormData({...formData, area: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
+                        data-testid="client-area"
+                      >
+                        <option value="Derecho Migratorio">Derecho Migratorio</option>
+                        <option value="Derecho de Familia">Derecho de Familia</option>
+                        <option value="Derecho Civil">Derecho Civil</option>
+                        <option value="Derecho Laboral">Derecho Laboral</option>
+                        <option value="Derecho Penal">Derecho Penal</option>
+                        <option value="Derecho Comercial">Derecho Comercial</option>
+                        <option value="Derecho Corporativo">Derecho Corporativo</option>
+                        <option value="Derecho Tributario">Derecho Tributario</option>
+                        <option value="Propiedad Intelectual">Propiedad Intelectual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Prioridad</label>
+                      <select 
+                        value={formData.priority}
+                        onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 outline-none"
+                        data-testid="client-priority"
+                      >
+                        <option value="alta">Alta · urgente</option>
+                        <option value="media">Media · estándar</option>
+                        <option value="baja">Baja · informativa</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Correo electrónico</label>
+                      <Input 
+                        type="email" 
+                        placeholder="email@ejemplo.com" 
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#3b82f6] focus:ring-[#3b82f6]/20"
+                        data-testid="client-email"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Teléfono / WhatsApp</label>
+                      <Input 
+                        type="tel" 
+                        placeholder="+57 3000000000" 
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#3b82f6] focus:ring-[#3b82f6]/20"
+                        data-testid="client-phone"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -240,15 +320,37 @@ export const LandingPage = () => {
                       onChange={(e) => setFormData({...formData, message: e.target.value})}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#3b82f6] focus:ring-[#3b82f6]/20 min-h-[100px]"
                       required
+                      data-testid="client-message"
                     />
                   </div>
 
-                  <Button 
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6 transition-all"
-                  >
-                    Enviar Caso
-                  </Button>
+                  {clientStatus.success ? (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      className="rounded-xl bg-emerald-500/10 border border-emerald-500/40 p-4 text-emerald-200 text-sm flex items-start gap-3"
+                      role="status"
+                      data-testid="client-success"
+                    >
+                      <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold">{clientStatus.message}</div>
+                        {clientStatus.ref && <div className="text-xs text-emerald-300/70 mt-1">Referencia: <span className="font-mono">{clientStatus.ref}</span></div>}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <Button 
+                      type="submit"
+                      disabled={clientStatus.loading}
+                      className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6 transition-all disabled:opacity-60"
+                      data-testid="client-submit"
+                    >
+                      {clientStatus.loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando solicitud...</>) : 'Enviar Caso'}
+                    </Button>
+                  )}
+                  {clientStatus.error && (
+                    <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl p-3" data-testid="client-error">
+                      {clientStatus.error}
+                    </div>
+                  )}
                 </form>
               </div>
             </motion.div>
@@ -717,9 +819,9 @@ export const LandingPage = () => {
                   REGISTRO PROFESIONAL
                 </span>
                 <h3 className="text-3xl font-bold text-white mb-2">Únase a nuestra red</h3>
-                <p className="text-white/60 mb-6">Complete su perfil profesional y nuestro equipo evaluará su incorporación vía WhatsApp.</p>
+                <p className="text-white/60 mb-6">Complete su perfil profesional y nuestro equipo evaluará su incorporación. Le contactaremos a su correo registrado.</p>
 
-                <form onSubmit={handleLawyerSubmit} className="space-y-4">
+                <form onSubmit={handleLawyerSubmit} className="space-y-4" data-testid="lawyer-application-form">
                   <div>
                     <label className="block text-sm font-semibold text-white/80 mb-2">Nombre completo</label>
                     <Input 
@@ -729,54 +831,105 @@ export const LandingPage = () => {
                       onChange={(e) => setLawyerData({...lawyerData, name: e.target.value})}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20"
                       required
+                      data-testid="lawyer-name"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-white/80 mb-2">Especialidad legal</label>
-                    <select 
-                      value={lawyerData.specialty}
-                      onChange={(e) => setLawyerData({...lawyerData, specialty: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/20 outline-none"
-                    >
-                      <option value="Derecho Migratorio">Derecho Migratorio</option>
-                      <option value="Derecho Corporativo">Derecho Corporativo</option>
-                      <option value="Litigio Civil">Litigio Civil</option>
-                      <option value="Derecho Penal">Derecho Penal</option>
-                      <option value="Propiedad Intelectual">Propiedad Intelectual</option>
-                      <option value="Derecho Laboral">Derecho Laboral</option>
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Correo electrónico *</label>
+                      <Input 
+                        type="email" 
+                        placeholder="dr.perez@bufete.com" 
+                        value={lawyerData.email}
+                        onChange={(e) => setLawyerData({...lawyerData, email: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20"
+                        required
+                        data-testid="lawyer-email"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Teléfono / WhatsApp</label>
+                      <Input 
+                        type="tel" 
+                        placeholder="+57 3000000000" 
+                        value={lawyerData.phone}
+                        onChange={(e) => setLawyerData({...lawyerData, phone: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20"
+                        data-testid="lawyer-phone"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-white/80 mb-2">País de ejercicio</label>
-                    <Input 
-                      type="text" 
-                      placeholder="Colombia" 
-                      value={lawyerData.country}
-                      onChange={(e) => setLawyerData({...lawyerData, country: e.target.value})}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20"
-                      required
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">Especialidad legal</label>
+                      <select 
+                        value={lawyerData.specialty}
+                        onChange={(e) => setLawyerData({...lawyerData, specialty: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/20 outline-none"
+                        data-testid="lawyer-specialty"
+                      >
+                        <option value="Derecho Migratorio">Derecho Migratorio</option>
+                        <option value="Derecho de Familia">Derecho de Familia</option>
+                        <option value="Derecho Corporativo">Derecho Corporativo</option>
+                        <option value="Derecho Civil">Derecho Civil</option>
+                        <option value="Derecho Penal">Derecho Penal</option>
+                        <option value="Derecho Laboral">Derecho Laboral</option>
+                        <option value="Derecho Comercial">Derecho Comercial</option>
+                        <option value="Derecho Tributario">Derecho Tributario</option>
+                        <option value="Propiedad Intelectual">Propiedad Intelectual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/80 mb-2">País de ejercicio</label>
+                      <Input 
+                        type="text" 
+                        placeholder="Colombia" 
+                        value={lawyerData.country}
+                        onChange={(e) => setLawyerData({...lawyerData, country: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20"
+                        data-testid="lawyer-country"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-white/80 mb-2">Experiencia profesional</label>
                     <Textarea 
-                      placeholder="Describa brevemente su experiencia jurídica" 
+                      placeholder="Describa brevemente su experiencia jurídica, años de ejercicio y casos representativos" 
                       value={lawyerData.experience}
                       onChange={(e) => setLawyerData({...lawyerData, experience: e.target.value})}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#f97316] focus:ring-[#f97316]/20 min-h-[100px]"
                       required
+                      data-testid="lawyer-experience"
                     />
                   </div>
 
-                  <Button 
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6 transition-all"
-                  >
-                    Solicitar incorporación vía WhatsApp
-                  </Button>
+                  {lawyerStatus.success ? (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      className="rounded-xl bg-emerald-500/10 border border-emerald-500/40 p-4 text-emerald-200 text-sm flex items-start gap-3"
+                      role="status"
+                      data-testid="lawyer-success"
+                    >
+                      <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div className="font-semibold leading-relaxed">{lawyerStatus.message}</div>
+                    </motion.div>
+                  ) : (
+                    <Button 
+                      type="submit"
+                      disabled={lawyerStatus.loading}
+                      className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6 transition-all disabled:opacity-60"
+                      data-testid="lawyer-submit"
+                    >
+                      {lawyerStatus.loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando solicitud...</>) : 'Únase a nuestra red'}
+                    </Button>
+                  )}
+                  {lawyerStatus.error && (
+                    <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl p-3" data-testid="lawyer-error">
+                      {lawyerStatus.error}
+                    </div>
+                  )}
                 </form>
               </div>
             </motion.div>
