@@ -92,6 +92,16 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 - **Hardening seguridad**: login rechaza usuarios con `password_hash=None` (evita login fantasma de candidatos pendientes).
 - Tests: `/app/backend/tests/test_public_intake.py` (11/11 passing).
 
+## Changelog 2026-02-01 (parte 4) — Integración final + Contabilidad
+- **Estandarización formularios landing**: País OBLIGATORIO en ambos forms (cliente + abogado) con dropdown de 20 países LATAM. Áreas estandarizadas (Laboral, Familia, Penal, Civil, Comercial, Administrativo, Tributario) idénticas en ambos forms. Dropdowns con fondo Midnight Navy + texto claro.
+- **Botón flotante WhatsApp** (`data-testid=floating-whatsapp`) en esquina inferior derecha dirigido a +57 302 832 2083.
+- **Prefijo 'Dr.' obligatorio** centralizado en backend (`with_dr_prefix` en admin_ops + `_with_dr` en public_intake) + helper frontend `withDr()` aplicado en candidatos, talent, drawer, autoasignación.
+- **Módulo Contabilidad (Auditoría Interna)**: nuevo tab solo ADMIN_GENERAL. CRUD movimientos (ingreso/egreso, categoría, monto, descripción, estado) en `db.accounting_movements`. KPIs: Ingresos Totales, Egresos Totales, Rentabilidad Productiva (margen %), Facturado vs Cobrado (tasa cobranza %), por cobrar. Independiente de Facturación.
+- **Facturación mejorada**: etiquetas "Pendiente / Finalizada / Vencida" (antes "No terminada"). 5 acciones por fila: Ver (modal), Editar (modal), Enviar Link de Pago (copia al portapapeles), Imprimir (window.print), Enviar (existente).
+- **Tab Geografía**: cards por país LATAM con abogados activos / casos / ingresos + "Estrategia activa" regional (Colombia · Argentina · México · Chile · Venezuela · etc.).
+- Endpoints nuevos: `/api/admin-ops/accounting/{movements,kpis,seed/demo}` y `/api/admin-ops/geography/stats`.
+- Tests: 76/76 backend passing (iteration_4.json + previos).
+
 ## Backlog (P1)
 - Persistir datos de módulos en backend (actualmente mockeados en frontend)
 - WebRTC real para videollamadas
