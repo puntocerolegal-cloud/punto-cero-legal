@@ -71,6 +71,16 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 - Landing footer: doble TikTok @Puntoceroconsultores + @PuntoceromultiserviciosLATAM.
 - Landing #planes: sección "Métodos de pago seguros" con logos monocromos MercadoPago + PayPal (modo informativo).
 
+## Changelog 2026-02-01 (parte 2) — Centro de Gestión doble flujo
+- Nuevo router `/api/admin-ops/*` (admin_ops.py): header stats, sales (candidatos/approve/reject/pending-payment/notes/chat), operations (cases/auto-assign/attended/notes/priority), talent CRUD (admin_general), billing (list/reminder/send), seed demo.
+- AdminPanel reescrito: Header global (reloj live + counters tiempo real Casos Pendientes & Socios en Espera + notificaciones drawer) + 4 tabs (Sala Ventas / Monitor Operaciones / Gestión Talento / Facturación).
+- **Sala de Ventas**: tabla candidatos con filtros (En proceso/Activos/Rechazados/Todos), drawer ficha con acciones de cierre (Aprobar y Activar / Rechazar / Pendiente Pago — solo ADMIN_GENERAL), WhatsApp directo, notas privadas, chat seguimiento.
+- **Monitor de Operaciones**: tabla de casos con semáforo por prioridad (alta/media/baja), Routing Inteligente (`POST /auto-assign` → matching specialty + is_online, fail-safe sin_asignar=rojo si no hay match, notifica al abogado vía db.notifications), drawer con WA directo cliente, Marcar como Atendido, notas.
+- **Gestión de Talento** (solo ADMIN_GENERAL): CRUD completo abogados con modal edición (full_name, specialty, experience, status, is_verified, is_online).
+- **Facturación**: filtros pendiente/finalizada/no_terminada, totalizadores por estado, botones Recordatorio/Enviar (MOCKED hasta SMTP).
+- RBAC riguroso: SOCIO_COMERCIAL no ve tab-talent, recibe 403 en approve/reject/pending-payment/talent CRUD/seed.
+- Tests: `/app/backend/tests/test_admin_ops.py` (27 passing) + `test_auth_rbac.py` (17 passing).
+
 ## Backlog (P1)
 - Persistir datos de módulos en backend (actualmente mockeados en frontend)
 - WebRTC real para videollamadas
