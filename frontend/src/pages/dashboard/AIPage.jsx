@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Brain, Send, Sparkles, Gavel, Shield, FileText, Mail, Search, User, Loader2, Copy, RotateCcw } from 'lucide-react';
@@ -125,8 +125,8 @@ export const AIPage = () => {
                   <h3 className="text-xl font-bold mb-2">¿En qué puedo ayudarte hoy?</h3>
                   <p className="text-white/60 max-w-md mx-auto">Pregúntame sobre cualquier tema jurídico. Puedo redactar documentos, analizar casos y brindar asesoría especializada.</p>
                   <div className="grid sm:grid-cols-2 gap-2 max-w-lg mx-auto mt-6">
-                    {['Redacta una demanda por incumplimiento contractual', 'Resume jurisprudencia sobre tutela laboral', 'Genera un contrato de prestación de servicios', 'Analiza riesgos en este caso'].map((suggestion) => (
-                      <button key={`suggestion-${suggestion.substring(0, 20).replace(/\s+/g, '-')}`} onClick={() => setInput(suggestion)} className="p-3 text-left text-sm rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+                    {['Redacta una demanda por incumplimiento contractual', 'Resume jurisprudencia sobre tutela laboral', 'Genera un contrato de prestación de servicios', 'Analiza riesgos en estipulaciones'].map((suggestion) => (
+                      <button key={`suggestion-${suggestion.substring(0, 20).replace(/\s+/g, '-')}`} onClick={() => setInput(suggestion)} className="p-3 text-left text-sm rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/10 text-white/80">
                         {suggestion}
                       </button>
                     ))}
@@ -136,7 +136,7 @@ export const AIPage = () => {
 
               {messages.map((msg, i) => (
                 <motion.div key={`msg-${msg.role}-${i}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6]' : 'bg-gradient-to-br from-[#f97316] to-[#ec4899]'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6]' : 'bg-gradient-to-br from-[#f97316] to-[#fb923c]'}`}>
                     {msg.role === 'user' ? <User className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
                   </div>
                   <div className={`flex-1 max-w-[80%] ${msg.role === 'user' ? 'flex flex-col items-end' : ''}`}>
