@@ -36,6 +36,9 @@ const formatTime = (date) => {
   });
 };
 
+const fmtCurrency = (n) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
+
 const StatCard = ({ icon: Icon, label, value, change, color, delay = 0 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -68,6 +71,8 @@ export const DashboardHome = () => {
   const [referralData, setReferralData] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [kpis, setKpis] = useState(null);
+  const [apiAlerts, setApiAlerts] = useState([]);
 
   const loadReferralData = useCallback(async () => {
     try {
@@ -82,11 +87,26 @@ export const DashboardHome = () => {
     }
   }, []);
 
+  const loadDashboardData = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const [kpiRes, alertRes] = await Promise.all([
+        axios.get(`${API}/dashboard/kpis/${user.id}`),
+        axios.get(`${API}/dashboard/alerts/${user.id}`)
+      ]);
+      setKpis(kpiRes.data);
+      setApiAlerts(alertRes.data || []);
+    } catch (e) {
+      // Backend puede no tener datos aún — se mantienen valores por defecto
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     loadReferralData();
+    loadDashboardData();
     return () => clearInterval(timer);
-  }, [loadReferralData]);
+  }, [loadReferralData, loadDashboardData]);
 
   const shareWhatsApp = () => {
     if (referralData) {
@@ -101,12 +121,12 @@ export const DashboardHome = () => {
   };
 
   const stats = [
-    { icon: Users, label: 'Clientes Activos', value: '24', change: '+12%', color: '#3b82f6' },
-    { icon: FolderKanban, label: 'Casos Activos', value: '18', change: '+5%', color: '#f97316' },
-    { icon: Calendar, label: 'Audiencias Programadas', value: '7', color: '#8b5cf6' },
-    { icon: AlertCircle, label: 'Tareas Pendientes', value: '12', color: '#ec4899' },
-    { icon: Receipt, label: 'Facturas Emitidas', value: '32', color: '#10b981' },
-    { icon: TrendingUp, label: 'Facturación Mensual', value: '$8.5M', change: '+23%', color: '#14b8a6' },
+    { icon: Users, label: 'Leads Totales', value: kpis ? String(kpis.total_leads) : '—', color: '#3b82f6' },
+    { icon: FolderKanban, label: 'Casos Activos', value: kpis ? String(kpis.active_cases) : '—', color: '#f97316' },
+    { icon: Calendar, label: 'Citas Programadas', value: kpis ? String(kpis.upcoming_appointments) : '—', color: '#8b5cf6' },
+    { icon: AlertCircle, label: 'Facturas Pendientes', value: kpis ? String(kpis.pending_invoices) : '—', color: '#ec4899' },
+    { icon: Receipt, label: 'Casos Cerrados', value: kpis ? String(kpis.closed_cases) : '—', color: '#10b981' },
+    { icon: TrendingUp, label: 'Facturación Total', value: kpis ? fmtCurrency(kpis.total_revenue) : '—', color: '#14b8a6' },
   ];
 
   const recentActivity = [
@@ -116,11 +136,18 @@ export const DashboardHome = () => {
     { type: 'document', text: 'Documento firmado: Contrato de servicios', time: 'Hace 3 horas', color: '#8b5cf6' },
   ];
 
-  const alerts = [
-    { priority: 'high', text: 'Audiencia mañana 9:00 AM - Caso López', icon: Calendar },
-    { priority: 'medium', text: '3 facturas próximas a vencer', icon: Receipt },
-    { priority: 'low', text: '5 nuevos leads sin contactar', icon: Users },
-  ];
+  const priorityIcon = { high: Calendar, medium: Receipt, low: Users };
+  const alerts = apiAlerts.length > 0
+    ? apiAlerts.slice(0, 5).map(a => ({
+        priority: a.priority,
+        text: a.message,
+        icon: priorityIcon[a.priority] || AlertCircle
+      }))
+    : [
+        { priority: 'high', text: 'Audiencia mañana 9:00 AM - Caso López', icon: Calendar },
+        { priority: 'medium', text: '3 facturas próximas a vencer', icon: Receipt },
+        { priority: 'low', text: '5 nuevos leads sin contactar', icon: Users },
+      ];
 
   return (
     <DashboardLayout>
