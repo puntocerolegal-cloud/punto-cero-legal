@@ -89,18 +89,27 @@ async def get_dashboard_alerts(lawyer_id: str, db: AsyncIOMotorDatabase = Depend
     alerts = []
     
     # Cases approaching deadline
-    upcoming_deadline = date.today() + timedelta(days=7)
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    upcoming_deadline = today + timedelta(days=7)
     urgent_cases = await db.cases.find({
         "lawyer_id": lawyer_id,
         "status": {"$in": ["open", "in_progress"]},
-        "deadline": {"$lte": upcoming_deadline, "$gte": date.today()}
+        "deadline": {"$lte": upcoming_deadline, "$gte": today}
     }).to_list(10)
     
     for case in urgent_cases:
+        deadline_val = case.get("deadline")
+        if deadline_val:
+            if isinstance(deadline_val, datetime):
+                days_left = (deadline_val - datetime.utcnow()).days
+            else:
+                days_left = (datetime.combine(deadline_val, datetime.min.time()) - datetime.utcnow()).days
+        else:
+            days_left = 0
         alerts.append({
             "type": "deadline",
             "priority": "high",
-            "message": f"Caso {case['case_number']} vence en {(case['deadline'] - date.today()).days} días",
+            "message": f"Caso {case.get('case_number', 'sin número')} vence en {max(0, days_left)} días",
             "case_id": str(case["_id"])
         })
     
