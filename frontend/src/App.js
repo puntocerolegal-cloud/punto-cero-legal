@@ -19,9 +19,11 @@ import InvoicesPage from './pages/dashboard/InvoicesPage';
 import DocumentsPage from './pages/dashboard/DocumentsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import AdminPanel from './pages/AdminPanel';
+import PortalPage from './pages/PortalPage';
 
 // Roles
 const LAWYER_ROLES = ['lawyer', 'client'];
+const CLIENT_ROLES = ['client', 'lawyer', 'admin', 'admin_general'];
 const ADMIN_ROLES = ['admin', 'admin_general', 'socio_comercial'];
 
 function App() {
@@ -58,6 +60,9 @@ function App() {
             <Route path="/dashboard/invoices" element={<ProtectedRoute require={LAWYER_ROLES}><InvoicesPage /></ProtectedRoute>} />
             <Route path="/dashboard/documents" element={<ProtectedRoute require={LAWYER_ROLES}><DocumentsPage /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute require={LAWYER_ROLES}><SettingsPage /></ProtectedRoute>} />
+
+            {/* === PORTAL DEL CLIENTE (clientes y abogados) === */}
+            <Route path="/portal" element={<ProtectedRoute require={CLIENT_ROLES}><PortalPage /></ProtectedRoute>} />
 
             {/* === CENTRO DE GESTIÓN (Solo admin/socio_comercial) === */}
             <Route path="/admin" element={<ProtectedRoute require={ADMIN_ROLES}><AdminPanel /></ProtectedRoute>} />
