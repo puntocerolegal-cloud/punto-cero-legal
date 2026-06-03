@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FolderKanban, Plus, LayoutGrid, List, Calendar, Clock, AlertTriangle, CheckCircle2, FileText, X } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
+import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
-const initialCases = [
-  { id: 1, number: 'CASO-2025-A3B7D', title: 'Divorcio Express - González', client: 'María González', area: 'Familiar', status: 'open', priority: 'high', deadline: '2025-12-25', progress: 30 },
-  { id: 2, number: 'CASO-2025-X8C9E', title: 'Visa de Trabajo - EE.UU.', client: 'Carlos Mendoza', area: 'Migratorio', status: 'in_progress', priority: 'urgent', deadline: '2025-12-20', progress: 65 },
-  { id: 3, number: 'CASO-2025-K2M4F', title: 'Constitución de Empresa', client: 'Luis Torres', area: 'Corporativo', status: 'in_progress', priority: 'medium', deadline: '2026-01-15', progress: 45 },
-  { id: 4, number: 'CASO-2025-P5Q1G', title: 'Indemnización Laboral', client: 'Ana Rodríguez', area: 'Laboral', status: 'closed', priority: 'low', deadline: '2025-11-30', progress: 100 },
-];
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const statusConfig = {
   open: { label: 'Abierto', color: '#3b82f6' },
@@ -28,17 +25,43 @@ const priorityConfig = {
 };
 
 export const CasesPage = () => {
-  const [cases, setCases] = useState(initialCases);
+  const { user } = useAuth();
+  const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState('kanban');
   const [showModal, setShowModal] = useState(false);
-  const [newCase, setNewCase] = useState({ title: '', client: '', area: 'Civil', status: 'open', priority: 'medium', deadline: '' });
+  const [newCase, setNewCase] = useState({ title: '', client_id: '', legal_area: 'Civil', status: 'open', priority: 'medium', deadline: '', description: '' });
 
-  const handleCreate = (e) => {
+  const loadCases = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/cases/?lawyer_id=${user.id}`);
+      setCases(data);
+    } catch (e) {
+      console.error('Error cargando casos:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => { loadCases(); }, [loadCases]);
+
+  const handleCreate = async (e) => {
     e.preventDefault();
-    const id = Date.now();
-    setCases([...cases, { ...newCase, id, number: `CASO-2025-${id.toString().slice(-5).toUpperCase()}`, progress: 0 }]);
-    setNewCase({ title: '', client: '', area: 'Civil', status: 'open', priority: 'medium', deadline: '' });
-    setShowModal(false);
+    try {
+      await axios.post(`${API}/cases/`, {
+        ...newCase,
+        lawyer_id: user.id,
+        client_id: newCase.client_id || user.id,
+        legal_area: newCase.legal_area,
+        description: newCase.description || newCase.title,
+      });
+      setNewCase({ title: '', client_id: '', legal_area: 'Civil', status: 'open', priority: 'medium', deadline: '', description: '' });
+      setShowModal(false);
+      loadCases();
+    } catch (e) {
+      console.error('Error creando caso:', e);
+    }
   };
 
   return (
@@ -64,7 +87,9 @@ export const CasesPage = () => {
           </div>
         </div>
 
-        {view === 'kanban' ? (
+        {loading && <div className="text-center py-8 text-white/50">Cargando casos...</div>}
+
+        {!loading && view === 'kanban' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {Object.entries(statusConfig).map(([key, config]) => {
               const items = cases.filter(c => c.status === key);
@@ -79,20 +104,17 @@ export const CasesPage = () => {
                   </div>
                   <div className="space-y-3">
                     {items.map(c => (
-                      <motion.div key={c.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="backdrop-blur-md bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all cursor-pointer">
-                        <div className="text-xs text-[#f97316] font-bold mb-1">{c.number}</div>
+                      <motion.div key={c._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="backdrop-blur-md bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+                        <div className="text-xs text-[#f97316] font-bold mb-1">{c.case_number}</div>
                         <div className="font-semibold mb-2">{c.title}</div>
-                        <div className="text-xs text-white/60 mb-3">{c.client}</div>
+                        <div className="text-xs text-white/60 mb-3">{c.client_name}</div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="px-2 py-0.5 rounded-md font-semibold" style={{ background: `${priorityConfig[c.priority].color}20`, color: priorityConfig[c.priority].color }}>
-                            {priorityConfig[c.priority].label}
+                          <span className="px-2 py-0.5 rounded-md font-semibold" style={{ background: `${priorityConfig[c.priority]?.color || '#f97316'}20`, color: priorityConfig[c.priority]?.color || '#f97316' }}>
+                            {priorityConfig[c.priority]?.label || 'Media'}
                           </span>
                           <div className="flex items-center gap-1 text-white/60">
-                            <Calendar className="w-3 h-3" /> {c.deadline}
+                            <Calendar className="w-3 h-3" /> {c.deadline || 'S/F'}
                           </div>
-                        </div>
-                        <div className="mt-3 w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c]" style={{ width: `${c.progress}%` }} />
                         </div>
                       </motion.div>
                     ))}
@@ -101,7 +123,7 @@ export const CasesPage = () => {
               );
             })}
           </div>
-        ) : (
+        ) : !loading && (
           <div className="backdrop-blur-xl bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -112,36 +134,27 @@ export const CasesPage = () => {
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Prioridad</th>
                     <th className="px-4 py-3">Vencimiento</th>
-                    <th className="px-4 py-3">Progreso</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cases.map((c) => (
-                    <tr key={c.id} className="border-b border-white/5 hover:bg-white/5">
+                    <tr key={c._id} className="border-b border-white/5 hover:bg-white/5">
                       <td className="px-4 py-3">
-                        <div className="text-xs text-[#f97316] font-bold">{c.number}</div>
+                        <div className="text-xs text-[#f97316] font-bold">{c.case_number}</div>
                         <div className="font-medium">{c.title}</div>
                       </td>
-                      <td className="px-4 py-3 text-sm">{c.client}</td>
+                      <td className="px-4 py-3 text-sm">{c.client_name}</td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-1 rounded-md text-xs font-semibold" style={{ background: `${statusConfig[c.status].color}20`, color: statusConfig[c.status].color }}>
                           {statusConfig[c.status].label}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-1 rounded-md text-xs font-semibold" style={{ background: `${priorityConfig[c.priority].color}20`, color: priorityConfig[c.priority].color }}>
-                          {priorityConfig[c.priority].label}
+                        <span className="px-2 py-1 rounded-md text-xs font-semibold" style={{ background: `${priorityConfig[c.priority]?.color || '#f97316'}20`, color: priorityConfig[c.priority]?.color || '#f97316' }}>
+                          {priorityConfig[c.priority]?.label || 'Media'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm">{c.deadline}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c]" style={{ width: `${c.progress}%` }} />
-                          </div>
-                          <span className="text-xs">{c.progress}%</span>
-                        </div>
-                      </td>
+                      <td className="px-4 py-3 text-sm">{c.deadline || 'S/F'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -160,11 +173,15 @@ export const CasesPage = () => {
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
               <Input placeholder="Título del caso" value={newCase.title} onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input placeholder="Cliente" value={newCase.client} onChange={(e) => setNewCase({ ...newCase, client: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
+              <Input placeholder="ID del cliente" value={newCase.client_id} onChange={(e) => setNewCase({ ...newCase, client_id: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              <select value={newCase.legal_area} onChange={(e) => setNewCase({ ...newCase, legal_area: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                <option value="Civil">Derecho Civil</option><option value="Penal">Penal</option><option value="Familiar">Familiar</option><option value="Corporativo">Corporativo</option><option value="Laboral">Laboral</option>
+              </select>
               <select value={newCase.priority} onChange={(e) => setNewCase({ ...newCase, priority: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
                 <option value="low">Prioridad Baja</option><option value="medium">Media</option><option value="high">Alta</option><option value="urgent">Urgente</option>
               </select>
               <Input type="date" value={newCase.deadline} onChange={(e) => setNewCase({ ...newCase, deadline: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              <Textarea placeholder="Descripción" value={newCase.description} onChange={(e) => setNewCase({ ...newCase, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
               <Button type="submit" className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Crear Caso</Button>
             </form>
           </motion.div>
