@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Folder, Upload, Search, Download, Eye, Trash2, FolderPlus, ShieldCheck } from 'lucide-react';
+import { FileText, Folder, Upload, Search, Download, Trash2, FolderPlus, ShieldCheck, KeyRound } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { encryptFile, decryptToBlob } from '../../lib/zkcrypto';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -19,7 +20,15 @@ export const DocumentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
+  // Frase de cifrado Zero-Knowledge: vive solo en memoria de sesión, nunca se envía
+  const [passphrase, setPassphrase] = useState(() => sessionStorage.getItem('pcl_zk_pass') || '');
   const fileInputRef = useRef(null);
+
+  const savePassphrase = (val) => {
+    setPassphrase(val);
+    if (val) sessionStorage.setItem('pcl_zk_pass', val);
+    else sessionStorage.removeItem('pcl_zk_pass');
+  };
 
   const loadData = useCallback(async () => {
     if (!user?.id) return;
@@ -46,20 +55,49 @@ export const DocumentsPage = () => {
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!passphrase) {
+      alert('Configura tu frase de cifrado antes de subir documentos. Sin ella, nadie (ni el servidor) puede leer tus archivos.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     setUploading(true);
     try {
-      await axios.post(`${API}/documents/`, {
+      // Cifrado Zero-Knowledge en el navegador: el servidor solo recibe ciphertext
+      const encrypted = await encryptFile(file, passphrase);
+      await axios.post(`${API}/documents/upload`, {
         lawyer_id: user.id,
-        name: file.name,
-        size_bytes: file.size,
         folder: 'Casos Activos',
+        ...encrypted,
       });
       await loadData();
     } catch (err) {
       console.error('Error subiendo documento:', err);
+      alert('No se pudo cifrar o subir el documento.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    if (!doc.encrypted) {
+      alert('Este documento no tiene contenido cifrado descargable.');
+      return;
+    }
+    const pass = passphrase || window.prompt('Ingresa tu frase de cifrado para descifrar el documento:');
+    if (!pass) return;
+    try {
+      const { data } = await axios.get(`${API}/documents/${doc._id}/content`);
+      const blob = await decryptToBlob(data, pass);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error descargando documento:', err);
+      alert('No se pudo descifrar. ¿La frase es correcta?');
     }
   };
 
@@ -89,6 +127,27 @@ export const DocumentsPage = () => {
             <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold" data-testid="upload-doc">
               <Upload className="w-4 h-4 mr-2" /> {uploading ? 'Subiendo...' : 'Subir'}
             </Button>
+          </div>
+        </div>
+
+        {/* Zero-Knowledge passphrase */}
+        <div className="backdrop-blur-xl bg-gradient-to-r from-[#10b981]/10 to-[#3b82f6]/10 rounded-2xl p-4 border border-[#10b981]/30">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 flex items-center justify-center flex-shrink-0">
+              <KeyRound className="w-5 h-5 text-[#10b981]" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold flex items-center gap-2">Cifrado Zero-Knowledge <ShieldCheck className="w-4 h-4 text-[#10b981]" /></div>
+              <div className="text-xs text-white/60">Tus archivos se cifran en tu navegador antes de subir a Google Drive. Esta frase nunca se envía al servidor — guárdala bien, sin ella no podrás recuperar tus documentos.</div>
+            </div>
+            <Input
+              type="password"
+              value={passphrase}
+              onChange={(e) => savePassphrase(e.target.value)}
+              placeholder="Tu frase de cifrado"
+              className="bg-white/10 border-white/20 text-white md:w-64"
+              data-testid="zk-passphrase"
+            />
           </div>
         </div>
 
@@ -157,8 +216,7 @@ export const DocumentsPage = () => {
                     <td className="px-4 py-3 text-sm hidden lg:table-cell">{doc.date}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <button className="p-1.5 rounded-lg hover:bg-white/10"><Eye className="w-4 h-4 text-[#3b82f6]" /></button>
-                        <button className="p-1.5 rounded-lg hover:bg-white/10"><Download className="w-4 h-4 text-[#10b981]" /></button>
+                        <button onClick={() => handleDownload(doc)} className="p-1.5 rounded-lg hover:bg-white/10" data-testid={`download-doc-${doc._id}`}><Download className="w-4 h-4 text-[#10b981]" /></button>
                         <button onClick={() => handleDelete(doc._id)} className="p-1.5 rounded-lg hover:bg-white/10" data-testid={`delete-doc-${doc._id}`}><Trash2 className="w-4 h-4 text-red-400" /></button>
                       </div>
                     </td>

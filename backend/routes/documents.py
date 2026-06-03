@@ -58,6 +58,25 @@ class DocumentMeta(BaseModel):
     folder: Optional[str] = None
 
 
+class EncryptedUpload(BaseModel):
+    """
+    Payload Zero-Knowledge: el contenido ya viene cifrado desde el navegador.
+    El servidor NUNCA recibe la frase ni la clave; solo ciphertext + parámetros
+    públicos (iv, salt) necesarios para que el cliente descifre al descargar.
+    """
+    lawyer_id: str
+    name: str = Field(..., min_length=1, max_length=300)
+    size_bytes: int = 0           # tamaño original (plaintext) para cuotas/UI
+    mime: Optional[str] = "application/octet-stream"
+    ciphertext_b64: str           # bytes cifrados en base64
+    iv_b64: str                   # vector de inicialización AES-GCM
+    salt_b64: str                 # salt PBKDF2 usado para derivar la clave
+    client_id: Optional[str] = None
+    client_name: Optional[str] = None
+    case_id: Optional[str] = None
+    folder: Optional[str] = None
+
+
 @router.get("/", response_model=List[dict])
 async def list_documents(lawyer_id: str, folder: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_db)):
     q = {"lawyer_id": lawyer_id}
@@ -107,6 +126,85 @@ async def create_document_meta(payload: DocumentMeta, db: AsyncIOMotorDatabase =
     res = await db.documents.insert_one(doc)
     doc["_id"] = res.inserted_id
     return _serialize(doc)
+
+
+@router.post("/upload", response_model=dict, status_code=201)
+async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """
+    Recibe un documento YA CIFRADO en el cliente (Zero-Knowledge) y lo persiste.
+    - Si Google Drive está configurado, sube el ciphertext a Drive (storage=drive).
+    - Si no, guarda el ciphertext en MongoDB (storage=mongo).
+    En ambos casos el backend solo ve bytes opacos.
+    """
+    import base64
+    from utils import drive_service
+
+    try:
+        cipher_bytes = base64.b64decode(payload.ciphertext_b64)
+    except Exception:
+        raise HTTPException(400, "ciphertext_b64 inválido")
+
+    doc = {
+        "lawyer_id": payload.lawyer_id,
+        "name": payload.name,
+        "size_bytes": payload.size_bytes,
+        "mime": payload.mime,
+        "client_id": payload.client_id,
+        "client_name": payload.client_name,
+        "case_id": payload.case_id,
+        "folder": payload.folder or "Casos Activos",
+        "encrypted": True,
+        "iv_b64": payload.iv_b64,
+        "salt_b64": payload.salt_b64,
+        "created_at": datetime.utcnow(),
+    }
+
+    drive_id = drive_service.upload_bytes(payload.name, cipher_bytes, payload.mime or "application/octet-stream")
+    if drive_id:
+        doc["storage"] = "drive"
+        doc["drive_file_id"] = drive_id
+    else:
+        doc["storage"] = "mongo"
+        doc["content_b64"] = payload.ciphertext_b64
+
+    res = await db.documents.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    return _serialize(doc)
+
+
+@router.get("/{document_id}/content", response_model=dict)
+async def get_encrypted_content(document_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """
+    Devuelve el ciphertext y los parámetros públicos (iv, salt) para que el
+    navegador descifre localmente con la frase del abogado.
+    """
+    import base64
+    from utils import drive_service
+
+    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
+    if not doc:
+        raise HTTPException(404, "Documento no encontrado")
+    if not doc.get("encrypted"):
+        raise HTTPException(400, "El documento no tiene contenido cifrado")
+
+    if doc.get("storage") == "drive" and doc.get("drive_file_id"):
+        data = drive_service.download_bytes(doc["drive_file_id"])
+        if data is None:
+            raise HTTPException(502, "No se pudo recuperar el contenido desde Drive")
+        ciphertext_b64 = base64.b64encode(data).decode("ascii")
+    else:
+        ciphertext_b64 = doc.get("content_b64")
+        if not ciphertext_b64:
+            raise HTTPException(404, "Contenido no disponible")
+
+    return {
+        "_id": str(doc["_id"]),
+        "name": doc.get("name"),
+        "mime": doc.get("mime", "application/octet-stream"),
+        "ciphertext_b64": ciphertext_b64,
+        "iv_b64": doc.get("iv_b64"),
+        "salt_b64": doc.get("salt_b64"),
+    }
 
 
 @router.delete("/{document_id}", status_code=204)
