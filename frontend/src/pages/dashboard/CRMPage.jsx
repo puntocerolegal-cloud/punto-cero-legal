@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Plus, Search, Filter, Edit, Trash2, Mail, Phone, MapPin,
@@ -7,13 +7,11 @@ import {
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
+import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
-const mockLeads = [
-  { id: 1, name: 'María González', email: 'maria@ejemplo.com', phone: '+57 300 123 4567', status: 'new', area: 'Derecho Familiar', tag: 'Caliente', date: '2025-12-10' },
-  { id: 2, name: 'Carlos Mendoza', email: 'carlos@ejemplo.com', phone: '+57 301 234 5678', status: 'contacted', area: 'Derecho Corporativo', tag: 'Tibio', date: '2025-12-09' },
-  { id: 3, name: 'Ana Rodríguez', email: 'ana@ejemplo.com', phone: '+57 302 345 6789', status: 'qualified', area: 'Derecho Migratorio', tag: 'Caliente', date: '2025-12-08' },
-  { id: 4, name: 'Luis Torres', email: 'luis@ejemplo.com', phone: '+57 303 456 7890', status: 'converted', area: 'Derecho Civil', tag: 'Convertido', date: '2025-12-07' },
-];
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const statusConfig = {
   new: { label: 'Nuevo', color: '#3b82f6' },
@@ -23,26 +21,54 @@ const statusConfig = {
 };
 
 export const CRMPage = () => {
-  const [leads, setLeads] = useState(mockLeads);
+  const { user } = useAuth();
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [newLead, setNewLead] = useState({ name: '', email: '', phone: '', area: 'Derecho Civil', status: 'new', tag: 'Nuevo' });
+  const [newLead, setNewLead] = useState({ client_name: '', client_email: '', client_phone: '', legal_area: 'Derecho Civil', status: 'new', description: '' });
+
+  const loadLeads = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/leads/?lawyer_id=${user.id}`);
+      setLeads(data);
+    } catch (e) {
+      console.error('Error cargando leads:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => { loadLeads(); }, [loadLeads]);
 
   const filteredLeads = leads.filter(l => {
-    const matchesSearch = l.name.toLowerCase().includes(search.toLowerCase()) || l.email.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = l.client_name?.toLowerCase().includes(search.toLowerCase()) || l.client_email?.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = filterStatus === 'all' || l.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    setLeads([...leads, { ...newLead, id: Date.now(), date: new Date().toISOString().split('T')[0] }]);
-    setNewLead({ name: '', email: '', phone: '', area: 'Derecho Civil', status: 'new', tag: 'Nuevo' });
-    setShowModal(false);
+    try {
+      await axios.post(`${API}/leads/`, { ...newLead, lawyer_id: user.id, source: 'dashboard' });
+      setNewLead({ client_name: '', client_email: '', client_phone: '', legal_area: 'Derecho Civil', status: 'new', description: '' });
+      setShowModal(false);
+      loadLeads();
+    } catch (e) {
+      console.error('Error creando lead:', e);
+    }
   };
 
-  const handleDelete = (id) => setLeads(leads.filter(l => l.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`${API}/leads/${id}`);
+      setLeads(prev => prev.filter(l => l._id !== id));
+    } catch (e) {
+      console.error('Error eliminando lead:', e);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -91,66 +117,67 @@ export const CRMPage = () => {
           </select>
         </div>
 
+        {/* Loading State */}
+        {loading && <div className="text-center py-8 text-white/50">Cargando leads...</div>}
+
         {/* Leads Table */}
-        <div className="backdrop-blur-xl bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-white/5 border-b border-white/10">
-                <tr className="text-left text-xs uppercase text-white/60">
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Contacto</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Área</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Etiqueta</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.map((lead) => {
-                  const config = statusConfig[lead.status];
-                  return (
-                    <tr key={lead.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#f97316] to-[#ec4899] flex items-center justify-center font-bold text-sm">
-                            {lead.name.split(' ').map(n => n[0]).join('')}
+        {!loading && (
+          <div className="backdrop-blur-xl bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-white/5 border-b border-white/10">
+                  <tr className="text-left text-xs uppercase text-white/60">
+                    <th className="px-4 py-3">Cliente</th>
+                    <th className="px-4 py-3 hidden md:table-cell">Contacto</th>
+                    <th className="px-4 py-3 hidden lg:table-cell">Área</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map((lead) => {
+                    const config = statusConfig[lead.status];
+                    return (
+                      <tr key={lead._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#f97316] to-[#ec4899] flex items-center justify-center font-bold text-sm">
+                              {lead.client_name?.split(' ').map(n => n[0]).join('') || 'CL'}
+                            </div>
+                            <div>
+                              <div className="font-medium">{lead.client_name}</div>
+                              <div className="text-xs text-white/40 md:hidden">{lead.client_email}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium">{lead.name}</div>
-                            <div className="text-xs text-white/40 md:hidden">{lead.email}</div>
+                        </td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <div className="text-sm">{lead.client_email}</div>
+                          <div className="text-xs text-white/40">{lead.client_phone}</div>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell text-sm">{lead.legal_area}</td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-1 rounded-md text-xs font-semibold" style={{ background: `${config.color}20`, color: config.color }}>
+                            {config.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`edit-lead-${lead._id}`}>
+                              <Edit className="w-4 h-4 text-[#3b82f6]" />
+                            </button>
+                            <button onClick={() => handleDelete(lead._id)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`delete-lead-${lead._id}`}>
+                              <Trash2 className="w-4 h-4 text-red-400" />
+                            </button>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="text-sm">{lead.email}</div>
-                        <div className="text-xs text-white/40">{lead.phone}</div>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-sm">{lead.area}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-1 rounded-md text-xs font-semibold" style={{ background: `${config.color}20`, color: config.color }}>
-                          {config.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="px-2 py-1 rounded-md text-xs bg-white/10 text-white/80">{lead.tag}</span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`edit-lead-${lead.id}`}>
-                            <Edit className="w-4 h-4 text-[#3b82f6]" />
-                          </button>
-                          <button onClick={() => handleDelete(lead.id)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`delete-lead-${lead.id}`}>
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Modal Create Lead */}
@@ -172,13 +199,14 @@ export const CRMPage = () => {
               <button onClick={() => setShowModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
-              <Input placeholder="Nombre completo" value={newLead.name} onChange={(e) => setNewLead({ ...newLead, name: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input placeholder="Email" type="email" value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input placeholder="Teléfono" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <select value={newLead.area} onChange={(e) => setNewLead({ ...newLead, area: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+              <Input placeholder="Nombre completo" value={newLead.client_name} onChange={(e) => setNewLead({ ...newLead, client_name: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
+              <Input placeholder="Email" type="email" value={newLead.client_email} onChange={(e) => setNewLead({ ...newLead, client_email: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
+              <Input placeholder="Teléfono" value={newLead.client_phone} onChange={(e) => setNewLead({ ...newLead, client_phone: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
+              <select value={newLead.legal_area} onChange={(e) => setNewLead({ ...newLead, legal_area: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
                 <option>Derecho Civil</option><option>Derecho Penal</option><option>Derecho Familiar</option>
                 <option>Derecho Corporativo</option><option>Derecho Migratorio</option><option>Derecho Laboral</option>
               </select>
+              <Textarea placeholder="Descripción del lead" value={newLead.description} onChange={(e) => setNewLead({ ...newLead, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
               <Button type="submit" className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Crear Cliente</Button>
             </form>
           </motion.div>
