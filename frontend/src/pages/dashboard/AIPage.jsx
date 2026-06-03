@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { Brain, Send, Sparkles, Gavel, Shield, FileText, Mail, Search, User, Loader2, Copy, RotateCcw } from 'lucide-react';
+import { Brain, Send, Sparkles, Gavel, Shield, FileText, Mail, Search, User, Loader2, Copy, RotateCcw, Zap } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -18,19 +19,36 @@ const templates = [
 ];
 
 export const AIPage = () => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [template, setTemplate] = useState('general');
   const [sessionId, setSessionId] = useState(null);
+  const [usage, setUsage] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const loadUsage = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/ai/usage/${user.id}`);
+      setUsage(data);
+    } catch (e) {
+      // Sin datos de uso aún
+    }
+  }, [user?.id]);
+
+  useEffect(() => { loadUsage(); }, [loadUsage]);
+
+  const limitReached = usage && !usage.unlimited && usage.remaining <= 0;
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
+    if (limitReached) return;
     const userMsg = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -40,12 +58,19 @@ export const AIPage = () => {
       const { data } = await axios.post(`${API}/ai/chat`, {
         message: input,
         session_id: sessionId,
-        template: template
+        template: template,
+        lawyer_id: user?.id || null,
       });
       setSessionId(data.session_id);
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      if (data.usage) setUsage(prev => ({ ...prev, ...data.usage }));
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error al conectar con el asistente. Verifique la configuración.' }]);
+      if (err.response?.status === 429) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${err.response.data.detail}` }]);
+        loadUsage();
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error al conectar con el asistente. Verifique la configuración.' }]);
+      }
     } finally {
       setLoading(false);
     }
@@ -73,9 +98,17 @@ export const AIPage = () => {
             </h1>
             <p className="text-white/60">Tu asistente legal inteligente potenciado por IA avanzada</p>
           </div>
-          <Button onClick={handleNewChat} variant="outline" className="border-white/20 text-white hover:bg-white/10" data-testid="new-chat-button">
-            <RotateCcw className="w-4 h-4 mr-2" /> Nueva Consulta
-          </Button>
+          <div className="flex items-center gap-3">
+            {usage && (
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${limitReached ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-white/5 border-white/10 text-white/70'}`} data-testid="ai-usage">
+                <Zap className="w-3.5 h-3.5 text-[#f97316]" />
+                {usage.unlimited ? 'Consultas ilimitadas' : `${usage.used}/${usage.limit} consultas · plan ${usage.plan}`}
+              </div>
+            )}
+            <Button onClick={handleNewChat} variant="outline" className="border-white/20 text-white hover:bg-white/10" data-testid="new-chat-button">
+              <RotateCcw className="w-4 h-4 mr-2" /> Nueva Consulta
+            </Button>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-4 gap-6 flex-1 min-h-0">
@@ -167,6 +200,11 @@ export const AIPage = () => {
 
             {/* Input */}
             <div className="border-t border-white/10 p-4 flex-shrink-0">
+              {limitReached && (
+                <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300" data-testid="ai-limit-banner">
+                  Alcanzaste el límite de {usage.limit} consultas de tu plan <strong>{usage.plan}</strong> este mes. Actualiza tu plan para seguir consultando.
+                </div>
+              )}
               <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
                 <Textarea
                   value={input}
@@ -177,11 +215,12 @@ export const AIPage = () => {
                       sendMessage();
                     }
                   }}
-                  placeholder={`Escriba su consulta de ${currentTemplate.name.toLowerCase()}...`}
-                  className="flex-1 bg-white/10 border-white/20 text-white resize-none min-h-[60px]"
+                  disabled={limitReached}
+                  placeholder={limitReached ? 'Límite de consultas alcanzado' : `Escriba su consulta de ${currentTemplate.name.toLowerCase()}...`}
+                  className="flex-1 bg-white/10 border-white/20 text-white resize-none min-h-[60px] disabled:opacity-50"
                   data-testid="ai-input"
                 />
-                <Button type="submit" disabled={loading || !input.trim()} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white self-end" data-testid="ai-send">
+                <Button type="submit" disabled={loading || !input.trim() || limitReached} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white self-end" data-testid="ai-send">
                   <Send className="w-4 h-4" />
                 </Button>
               </form>

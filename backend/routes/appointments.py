@@ -56,6 +56,25 @@ async def get_appointment(appointment_id: str, db: AsyncIOMotorDatabase = Depend
     appointment["_id"] = str(appointment["_id"])
     return appointment
 
+@router.patch("/{appointment_id}", response_model=dict)
+async def update_appointment(appointment_id: str, updates: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Solo campos permitidos; convierte fechas ISO a datetime
+    allowed = {"title", "description", "event_type", "start_time", "end_time", "location", "status"}
+    update_data = {k: v for k, v in updates.items() if k in allowed and v is not None}
+    for f in ("start_time", "end_time"):
+        if isinstance(update_data.get(f), str):
+            try:
+                update_data[f] = datetime.fromisoformat(update_data[f].replace("Z", "+00:00"))
+            except Exception:
+                update_data.pop(f, None)
+    update_data["updated_at"] = datetime.utcnow()
+    result = await db.appointments.update_one({"_id": ObjectId(appointment_id)}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    appt = await db.appointments.find_one({"_id": ObjectId(appointment_id)})
+    appt["_id"] = str(appt["_id"])
+    return appt
+
 @router.delete("/{appointment_id}")
 async def delete_appointment(appointment_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     result = await db.appointments.delete_one({"_id": ObjectId(appointment_id)})
