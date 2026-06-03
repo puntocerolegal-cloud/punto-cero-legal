@@ -133,7 +133,7 @@ class TestAccounting:
         r = requests.post(f"{BASE_URL}/api/admin-ops/accounting/seed/demo", headers=H(admin_token), timeout=15)
         assert r.status_code == 200, r.text
         data = r.json()
-        assert data.get("ok") is True
+        assert data.get("ok") == True
         # If already seeded, created may be 0; if newly seeded, must be 8.
         assert data.get("created") in (0, 8), f"Unexpected created count: {data}"
 

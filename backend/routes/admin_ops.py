@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from utils.auth import decode_token
 from bson import ObjectId
-import random
+import secrets
 
 router = APIRouter(prefix="/admin-ops", tags=["Admin · Centro de Gestión"])
 
@@ -375,7 +375,7 @@ async def auto_assign_case(case_id: str, admin=Depends(get_admin), db: AsyncIOMo
         )
         return {"ok": False, "matched": False, "message": "No hay abogado disponible. Caso marcado SIN ASIGNAR para intervención manual."}
 
-    chosen = random.choice(candidates)
+    chosen = secrets.choice(candidates)
     chosen_id = str(chosen["_id"])
 
     await db.cases.update_one(

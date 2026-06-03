@@ -1,11 +1,40 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
-from datetime import datetime
+from datetime import datetime, date
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.lead import LeadCreate, Lead, LeadUpdate
+from utils.case_number_generator import generate_case_number
 from bson import ObjectId
 
 router = APIRouter(prefix="/leads", tags=["CRM - Leads"])
+
+
+async def _get_lead_or_404(db, lead_id: str):
+    lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead
+
+
+def _create_case_payload(lead: dict, client_id: str, lead_id: str) -> dict:
+    return {
+        "case_number": generate_case_number(),
+        "lawyer_id": lead["lawyer_id"],
+        "client_id": client_id,
+        "title": f"Caso: {lead['description'][:50]}",
+        "legal_area": lead["legal_area"],
+        "description": lead["description"],
+        "status": "open",
+        "priority": "medium",
+        "start_date": date.today(),
+        "documents": [],
+        "billable_hours": 0.0,
+        "total_billed": 0.0,
+        "tags": [],
+        "lead_source_id": lead_id,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
 
 async def get_db():
     from server import db
@@ -68,18 +97,11 @@ async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(
     INTEGRACIÓN CRÍTICA: CRM → Gestión de Casos
     Convierte un lead en un caso automáticamente
     """
-    from utils.case_number_generator import generate_case_number
-    from datetime import date
-    
-    # Get lead
-    lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-    
+    lead = await _get_lead_or_404(db, lead_id)
+
     if lead.get("status") == "converted":
         raise HTTPException(status_code=400, detail="Lead already converted")
-    
-    # Create client user
+
     client_data = {
         "email": lead["client_email"],
         "full_name": lead["client_name"],
@@ -90,38 +112,18 @@ async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
-    
+
     existing_client = await db.users.find_one({"email": lead["client_email"]})
     if existing_client:
         client_id = str(existing_client["_id"])
     else:
         client_result = await db.users.insert_one(client_data)
         client_id = str(client_result.inserted_id)
-    
-    # Create case
-    case_data = {
-        "case_number": generate_case_number(),
-        "lawyer_id": lead["lawyer_id"],
-        "client_id": client_id,
-        "title": f"Caso: {lead['description'][:50]}",
-        "legal_area": lead["legal_area"],
-        "description": lead["description"],
-        "status": "open",
-        "priority": "medium",
-        "start_date": date.today(),
-        "documents": [],
-        "billable_hours": 0.0,
-        "total_billed": 0.0,
-        "tags": [],
-        "lead_source_id": lead_id,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
-    
+
+    case_data = _create_case_payload(lead, client_id, lead_id)
     case_result = await db.cases.insert_one(case_data)
     case_id = str(case_result.inserted_id)
-    
-    # Update lead status
+
     await db.leads.update_one(
         {"_id": ObjectId(lead_id)},
         {"$set": {
@@ -130,7 +132,7 @@ async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(
             "updated_at": datetime.utcnow()
         }}
     )
-    
+
     return {
         "message": "Lead converted successfully",
         "case_id": case_id,

@@ -83,14 +83,14 @@ class TestRegistrationVerification:
     def test_register_lawyer_pending(self, new_lawyer):
         u = new_lawyer["user"]
         assert u["role"] == "lawyer"
-        assert u["is_verified"] is False
+        assert u["is_verified"] == False
         assert u["status"] == "PENDING_VERIFICATION"
 
     def test_me_pending_after_register(self, new_lawyer):
         r = requests.get(f"{API}/auth/me", headers=_auth_headers(new_lawyer["token"]), timeout=15)
         assert r.status_code == 200, r.text
         data = r.json()
-        assert data["is_verified"] is False
+        assert data["is_verified"] == False
         assert data["status"] == "PENDING_VERIFICATION"
         assert data["role"] == "lawyer"
 
@@ -100,7 +100,7 @@ class TestAdminLogin:
         r = requests.get(f"{API}/auth/me", headers=_auth_headers(admin_token), timeout=15)
         assert r.status_code == 200
         data = r.json()
-        assert data["is_verified"] is True
+        assert data["is_verified"] == True
         assert data["status"] == "ACTIVE"
         assert data["role"] == "admin_general"
 
@@ -108,14 +108,14 @@ class TestAdminLogin:
         r = requests.get(f"{API}/auth/me", headers=_auth_headers(socio_token), timeout=15)
         assert r.status_code == 200
         data = r.json()
-        assert data["is_verified"] is True
+        assert data["is_verified"] == True
         assert data["role"] == "socio_comercial"
 
     def test_login_response_includes_is_verified(self):
         r = _login(ADMIN_GENERAL)
         assert r.status_code == 200
         body = r.json()
-        assert body["user"]["is_verified"] is True
+        assert body["user"]["is_verified"] == True
         assert body["user"]["role"] == "admin_general"
 
 
@@ -156,7 +156,7 @@ class TestAccessAudit:
         me = requests.get(f"{API}/auth/me", headers=_auth_headers(new_lawyer["token"]), timeout=15)
         assert me.status_code == 200
         body = me.json()
-        assert body["is_verified"] is True, f"after approve still not verified: {body}"
+        assert body["is_verified"] == True, f"after approve still not verified: {body}"
         assert body["status"] == "ACTIVE"
 
     def test_lawyer_no_longer_in_pending(self, admin_token, new_lawyer):

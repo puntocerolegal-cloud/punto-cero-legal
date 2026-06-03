@@ -40,22 +40,8 @@ async def get_admin_profile(admin = Depends(get_current_admin)):
         "country": admin.get("country", "")
     }
 
-@router.get("/dashboard/general")
-async def get_general_dashboard(country: Optional[str] = None, admin = Depends(get_current_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Dashboard macro para ADMIN_GENERAL - KPIs globales de 18 mercados"""
-    if admin["role"] not in ["admin", "admin_general"]:
-        raise HTTPException(status_code=403, detail="Solo ADMIN_GENERAL puede acceder")
-    
-    query = {"country": country} if country and country != "ALL" else {}
-    
-    total_users = await db.users.count_documents({"role": "lawyer", **query})
-    total_clients = await db.users.count_documents({"role": "client", **query})
-    active_users = await db.users.count_documents({"role": "lawyer", "status": "active", **query})
-    
-    # MRR mock calculation
-    mrr = total_users * 99000  # Plan profesional
-    
-    countries_data = [
+def _load_countries_data() -> List[dict]:
+    return [
         {"country": "Colombia", "users": 87, "revenue": 8613000, "growth": 23, "leads": 142, "flag": "🇨🇴"},
         {"country": "México", "users": 64, "revenue": 6336000, "growth": 18, "leads": 98, "flag": "🇲🇽"},
         {"country": "Argentina", "users": 42, "revenue": 4158000, "growth": 15, "leads": 67, "flag": "🇦🇷"},
@@ -75,48 +61,69 @@ async def get_general_dashboard(country: Optional[str] = None, admin = Depends(g
         {"country": "Guatemala", "users": 3, "revenue": 297000, "growth": 8, "leads": 7, "flag": "🇬🇹"},
         {"country": "El Salvador", "users": 2, "revenue": 198000, "growth": 6, "leads": 5, "flag": "🇸🇻"},
     ]
-    
+
+
+def _filter_countries(countries_data: List[dict], country: Optional[str]) -> List[dict]:
     if country and country != "ALL":
-        countries_data = [c for c in countries_data if c["country"] == country]
-    
+        return [c for c in countries_data if c["country"] == country]
+    return countries_data
+
+
+def _build_kpis(countries_data: List[dict]) -> dict:
     total_revenue = sum(c["revenue"] for c in countries_data)
-    total_leads_global = sum(c["leads"] for c in countries_data)
-    total_users_calc = sum(c["users"] for c in countries_data)
-    
-    # System health
-    db_status = "healthy"
-    api_uptime = 99.97
-    avg_response_ms = 142
-    
-    # Recent audit logs
-    audit_logs = [
+    total_leads = sum(c["leads"] for c in countries_data)
+    total_users = sum(c["users"] for c in countries_data)
+    return {
+        "mrr": total_revenue,
+        "total_users": total_users,
+        "active_users": int(total_users * 0.87),
+        "conversion_rate": 24.6,
+        "churn_rate": 3.2,
+        "total_leads": total_leads,
+        "growth_mom": 18.4,
+    }
+
+
+def _build_system_health() -> dict:
+    return {
+        "db_status": "healthy",
+        "api_uptime": 99.97,
+        "avg_response_ms": 142,
+        "ai_credits_used": 67,
+        "storage_used_gb": 245.8,
+        "active_sessions": 142,
+    }
+
+
+def _build_audit_logs() -> List[dict]:
+    return [
         {"action": "new_lawyer_registered", "user": "Dr. María Pérez", "country": "México", "time": "Hace 5 min"},
         {"action": "subscription_paid", "user": "Dr. Carlos López", "country": "Colombia", "time": "Hace 12 min"},
         {"action": "ai_query_executed", "user": "Dr. Ana Torres", "country": "Argentina", "time": "Hace 18 min"},
         {"action": "case_created", "user": "Dr. Luis Mendez", "country": "Chile", "time": "Hace 25 min"},
         {"action": "invoice_generated", "user": "Dra. Sofia Reyes", "country": "Perú", "time": "Hace 32 min"},
     ]
-    
+
+@router.get("/dashboard/general")
+async def get_general_dashboard(country: Optional[str] = None, admin = Depends(get_current_admin), db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Dashboard macro para ADMIN_GENERAL - KPIs globales de 18 mercados"""
+    if admin["role"] not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo ADMIN_GENERAL puede acceder")
+
+    query = {"country": country} if country and country != "ALL" else {}
+    total_users = await db.users.count_documents({"role": "lawyer", **query})
+    total_clients = await db.users.count_documents({"role": "client", **query})
+    active_users = await db.users.count_documents({"role": "lawyer", "status": "active", **query})
+
+    countries_data = _filter_countries(_load_countries_data(), country)
     return {
-        "kpis": {
-            "mrr": total_revenue,
-            "total_users": total_users_calc,
-            "active_users": int(total_users_calc * 0.87),
-            "conversion_rate": 24.6,
-            "churn_rate": 3.2,
-            "total_leads": total_leads_global,
-            "growth_mom": 18.4
-        },
+        "kpis": _build_kpis(countries_data),
         "countries": countries_data,
-        "system_health": {
-            "db_status": db_status,
-            "api_uptime": api_uptime,
-            "avg_response_ms": avg_response_ms,
-            "ai_credits_used": 67,
-            "storage_used_gb": 245.8,
-            "active_sessions": 142
-        },
-        "audit_logs": audit_logs
+        "system_health": _build_system_health(),
+        "audit_logs": _build_audit_logs(),
+        "total_users": total_users,
+        "total_clients": total_clients,
+        "active_users": active_users,
     }
 
 @router.get("/dashboard/comercial")
@@ -144,7 +151,7 @@ async def get_comercial_dashboard(country: Optional[str] = None, admin = Depends
             "email": u.get("email", ""),
             "country": u.get("country", "—"),
             "specialty": u.get("specialty", "—"),
-            "status": "registered" if u.get("status") in ("active", "ACTIVE") or u.get("is_verified") is True else "pending",
+            "status": "registered" if u.get("status") in ("active", "ACTIVE") or u.get("is_verified") == True else "pending",
             "created_at": u.get("created_at", datetime.utcnow()).isoformat() if isinstance(u.get("created_at"), datetime) else str(u.get("created_at", ""))
         })
     

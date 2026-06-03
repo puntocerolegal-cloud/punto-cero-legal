@@ -54,6 +54,62 @@ async def get_meeting(meeting_id: str, db: AsyncIOMotorDatabase = Depends(get_db
     meeting["_id"] = str(meeting["_id"])
     return meeting
 
+
+def _calculate_duration_minutes(meeting: dict) -> tuple[int, datetime]:
+    end_time = datetime.utcnow()
+    start_time = meeting.get("start_time") or meeting.get("scheduled_time")
+    return int((end_time - start_time).total_seconds() / 60), end_time
+
+
+async def _update_meeting_record(db, meeting_id: str, duration_minutes: int, end_time: datetime):
+    await db.meetings.update_one(
+        {"_id": ObjectId(meeting_id)},
+        {"$set": {
+            "status": "completed",
+            "end_time": end_time,
+            "duration_minutes": duration_minutes,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+
+async def _update_case_financials(db, meeting: dict, duration_minutes: int) -> float:
+    case = await db.cases.find_one({"_id": ObjectId(meeting["case_id"])})
+    if not case:
+        return 0.0
+
+    billable_hours = case.get("billable_hours", 0.0) + (duration_minutes / 60.0)
+    hourly_rate = 150.0
+
+    await db.cases.update_one(
+        {"_id": ObjectId(meeting["case_id"])},
+        {"$set": {
+            "billable_hours": billable_hours,
+            "total_billed": billable_hours * hourly_rate,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    await db.case_activities.update_one(
+        {"meeting_id": meeting["_id"]},
+        {"$set": {"duration_minutes": duration_minutes}}
+    )
+
+    await db.kpi_metrics.update_one(
+        {"lawyer_id": case["lawyer_id"], "date": datetime.utcnow().date()},
+        {
+            "$inc": {
+                "meetings_held": 1,
+                "billable_hours": duration_minutes / 60.0
+            },
+            "$set": {"created_at": datetime.utcnow()}
+        },
+        upsert=True
+    )
+
+    return billable_hours
+
+
 @router.patch("/{meeting_id}", response_model=dict)
 async def update_meeting(meeting_id: str, meeting_update: MeetingUpdate, db: AsyncIOMotorDatabase = Depends(get_db)):
     update_data = {k: v for k, v in meeting_update.model_dump().items() if v is not None}
@@ -84,63 +140,10 @@ async def complete_meeting(meeting_id: str, db: AsyncIOMotorDatabase = Depends(g
     if meeting["status"] == "completed":
         raise HTTPException(status_code=400, detail="Meeting already completed")
     
-    # Calculate duration
-    end_time = datetime.utcnow()
-    start_time = meeting.get("start_time") or meeting.get("scheduled_time")
-    duration_minutes = int((end_time - start_time).total_seconds() / 60)
+    duration_minutes, end_time = _calculate_duration_minutes(meeting)
     
-    # Update meeting
-    await db.meetings.update_one(
-        {"_id": ObjectId(meeting_id)},
-        {"$set": {
-            "status": "completed",
-            "end_time": end_time,
-            "duration_minutes": duration_minutes,
-            "updated_at": datetime.utcnow()
-        }}
-    )
-    
-    # Update case billable hours
-    case = await db.cases.find_one({"_id": ObjectId(meeting["case_id"])})
-    if case:
-        billable_hours = case.get("billable_hours", 0.0) + (duration_minutes / 60.0)
-        
-        # Assume hourly rate (esto se puede obtener del abogado)
-        hourly_rate = 150.0  # Default, debería venir del perfil del abogado
-        total_billed = billable_hours * hourly_rate
-        
-        await db.cases.update_one(
-            {"_id": ObjectId(meeting["case_id"])},
-            {"$set": {
-                "billable_hours": billable_hours,
-                "total_billed": total_billed,
-                "updated_at": datetime.utcnow()
-            }}
-        )
-        
-        # Update case activity
-        await db.case_activities.update_one(
-            {"meeting_id": meeting_id},
-            {"$set": {
-                "duration_minutes": duration_minutes
-            }}
-        )
-        
-        # Update KPI metrics
-        lawyer_id = case["lawyer_id"]
-        today = datetime.utcnow().date()
-        
-        await db.kpi_metrics.update_one(
-            {"lawyer_id": lawyer_id, "date": today},
-            {
-                "$inc": {
-                    "meetings_held": 1,
-                    "billable_hours": duration_minutes / 60.0
-                },
-                "$set": {"created_at": datetime.utcnow()}
-            },
-            upsert=True
-        )
+    await _update_meeting_record(db, meeting_id, duration_minutes, end_time)
+    billable_hours = await _update_case_financials(db, meeting, duration_minutes)
     
     return {
         "message": "Meeting completed successfully",

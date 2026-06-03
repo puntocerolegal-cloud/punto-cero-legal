@@ -1,5 +1,5 @@
 from datetime import datetime
-import random
+import secrets
 import string
 
 def generate_case_number() -> str:
@@ -9,7 +9,7 @@ def generate_case_number() -> str:
     Ejemplo: CASO-2025-A3B7D
     """
     year = datetime.now().year
-    random_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    random_id = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(5))
     return f"CASO-{year}-{random_id}"
 
 def generate_invoice_number() -> str:
@@ -19,5 +19,5 @@ def generate_invoice_number() -> str:
     Ejemplo: INV-2025-12345
     """
     year = datetime.now().year
-    random_id = ''.join(random.choices(string.digits, k=5))
+    random_id = ''.join(secrets.choice(string.digits) for _ in range(5))
     return f"INV-{year}-{random_id}"

@@ -123,7 +123,7 @@ class TestSales:
         assert r.status_code == 200
         g = requests.get(f"{API}/admin-ops/sales/candidates/{candidate['id']}", headers=H(admin_token), timeout=15)
         d = g.json()
-        assert d["is_verified"] is True
+        assert d["is_verified"] == True
         assert d["status"] == "ACTIVE"
 
     def test_notes_persist(self, admin_token, candidate):
@@ -153,7 +153,7 @@ class TestSeed:
         r = requests.post(f"{API}/admin-ops/seed/demo-cases", headers=H(admin_token), timeout=30)
         assert r.status_code == 200
         d = r.json()
-        assert d["ok"] is True
+        assert d["ok"] == True
         assert d["created"] in (0, 10)
 
     def test_admin_seed_invoices_idempotent(self, admin_token):
@@ -198,7 +198,7 @@ class TestOperations:
         assert r.status_code == 200
         d = r.json()
         # If no match, expect ok=False and assignment_status remains sin_asignar
-        if d.get("matched") is False:
+        if d.get("matched") == False:
             g = requests.get(f"{API}/admin-ops/operations/cases?assignment_status=sin_asignar",
                              headers=H(admin_token), timeout=15).json()
             assert any(c["id"] == target["id"] for c in g)
@@ -219,7 +219,7 @@ class TestOperations:
                           headers=H(admin_token), timeout=20)
         assert r.status_code == 200
         d = r.json()
-        assert d.get("matched") is True
+        assert d.get("matched") == True
         assert d.get("lawyer_id")
 
     def test_mark_attended_and_notes(self, admin_token):

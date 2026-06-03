@@ -72,7 +72,7 @@ export const AdminPanel = () => {
     try {
       const res = await axios.get(`${API}/admin-ops/header/stats`);
       setHeaderStats(res.data);
-    } catch (e) { /* silent */ }
+    } catch (e) { console.error('Failed to load header stats:', e); }
   }, []);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export const AdminPanel = () => {
     try {
       const res = await axios.get(`${API}/admin-ops/notifications`);
       setNotifications(res.data);
-    } catch (e) { /* silent */ }
+    } catch (e) { console.error('Failed to load notifications:', e); }
   };
 
   useEffect(() => { if (notifOpen) loadNotifications(); }, [notifOpen]);
@@ -746,17 +746,45 @@ const BillingView = () => {
     alert(`Link de pago copiado al portapapeles:\n${link}`);
   };
   const printInvoice = (inv) => {
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${inv.invoice_number}</title>
-      <style>body{font-family:system-ui;padding:40px;color:#0a0e1a}h1{color:#f97316}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}</style></head><body>
-      <h1>PUNTO CERO LEGAL</h1><h2>Factura ${inv.invoice_number}</h2>
-      <table><tr><td>Descripción</td><td>${inv.description || '—'}</td></tr>
-      <tr><td>Monto</td><td>${fmtMoney(inv.amount)}</td></tr>
-      <tr><td>Vence</td><td>${inv.due_date?.slice(0,10) || '—'}</td></tr>
-      <tr><td>Estado</td><td>${inv.status}</td></tr></table>
-      <p style="margin-top:40px;font-size:11px;color:#666">Inversiones y Variedades DJGG 2013</p>
-      </body></html>`;
     const w = window.open('', '_blank');
-    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
+    if (!w) return;
+    try {
+      const d = w.document;
+      d.title = inv.invoice_number || 'Factura';
+      const style = d.createElement('style');
+      style.textContent = `body{font-family:system-ui;padding:40px;color:#0a0e1a}h1{color:#f97316}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}`;
+      d.head.appendChild(style);
+
+      const container = d.createElement('div');
+      const h1 = d.createElement('h1'); h1.textContent = 'PUNTO CERO LEGAL';
+      const h2 = d.createElement('h2'); h2.textContent = `Factura ${inv.invoice_number || ''}`;
+      container.appendChild(h1);
+      container.appendChild(h2);
+
+      const table = d.createElement('table');
+      const rows = [
+        ['Descripción', inv.description || '—'],
+        ['Monto', fmtMoney(inv.amount)],
+        ['Vence', inv.due_date?.slice(0,10) || '—'],
+        ['Estado', inv.status || '—'],
+      ];
+      rows.forEach(([k, v]) => {
+        const tr = d.createElement('tr');
+        const tdk = d.createElement('td'); tdk.textContent = k;
+        const tdv = d.createElement('td'); tdv.textContent = v;
+        tr.appendChild(tdk); tr.appendChild(tdv); table.appendChild(tr);
+      });
+      container.appendChild(table);
+
+      const foot = d.createElement('p'); foot.style.marginTop = '40px'; foot.style.fontSize = '11px'; foot.style.color = '#666'; foot.textContent = 'Inversiones y Variedades DJGG 2013';
+      container.appendChild(foot);
+
+      d.body.appendChild(container);
+      setTimeout(() => w.print(), 500);
+    } catch (e) {
+      console.error('Failed to open print window:', e);
+      w.close();
+    }
   };
   const seedDemo = async () => {
     setSeeding(true);
@@ -950,7 +978,7 @@ const CandidateDrawer = ({ candidate, isAdminGeneral, onClose, onMutate }) => {
     try {
       const res = await axios.get(`${API}/admin-ops/sales/candidates/${candidate.id}/chat`);
       setMessages(res.data);
-    } catch (e) { /* silent */ }
+    } catch (e) { console.error('Failed to load candidate chat:', e); }
   };
   useEffect(() => { loadChat(); }, [candidate.id]);
 
@@ -975,7 +1003,7 @@ const CandidateDrawer = ({ candidate, isAdminGeneral, onClose, onMutate }) => {
     if (!draft.trim()) return;
     try {
       const res = await axios.post(`${API}/admin-ops/sales/candidates/${candidate.id}/chat`, { content: draft });
-      setMessages([...messages, res.data]);
+      setMessages(prev => [...prev, res.data]);
       setDraft('');
     } catch (e) { alert('Error'); }
   };

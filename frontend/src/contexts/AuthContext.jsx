@@ -4,27 +4,128 @@ import axios from 'axios';
 const AuthContext = createContext(null);
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const STORAGE_PASSPHRASE = process.env.REACT_APP_STORAGE_KEY || null;
+const TOKEN_KEY = 'pcl_token';
+const USER_KEY = 'pcl_user';
+
+async function _getCryptoKey() {
+  if (!STORAGE_PASSPHRASE || !window?.crypto?.subtle) return null;
+  const enc = new TextEncoder();
+  const hash = await window.crypto.subtle.digest('SHA-256', enc.encode(STORAGE_PASSPHRASE));
+  return window.crypto.subtle.importKey('raw', hash, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function encryptString(plain) {
+  const key = await _getCryptoKey();
+  if (!key) return plain;
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const cipher = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plain));
+  const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(cipher), iv.byteLength);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptString(b64) {
+  const key = await _getCryptoKey();
+  if (!key) return b64;
+  try {
+    const data = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const iv = data.slice(0, 12);
+    const cipher = data.slice(12);
+    const plain = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+    return new TextDecoder().decode(plain);
+  } catch (e) {
+    console.error('Decrypt failed:', e);
+    return null;
+  }
+}
+
+async function setStoredToken(token) {
+  if (!token) return removeStoredToken();
+  try {
+    const payload = STORAGE_PASSPHRASE ? await encryptString(token) : token;
+    localStorage.setItem(TOKEN_KEY, payload);
+  } catch (e) {
+    console.error('Failed to store token securely:', e);
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+}
+
+async function getStoredToken() {
+  const v = localStorage.getItem(TOKEN_KEY);
+  if (!v) return null;
+  if (!STORAGE_PASSPHRASE) return v;
+  return await decryptString(v);
+}
+
+function removeStoredToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+async function setStoredUser(user) {
+  try {
+    const str = JSON.stringify(user);
+    const payload = STORAGE_PASSPHRASE ? await encryptString(str) : str;
+    localStorage.setItem(USER_KEY, payload);
+  } catch (e) {
+    console.error('Failed to store user securely:', e);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+}
+
+async function getStoredUser() {
+  const v = localStorage.getItem(USER_KEY);
+  if (!v) return null;
+  if (!STORAGE_PASSPHRASE) return JSON.parse(v);
+  const dec = await decryptString(v);
+  return dec ? JSON.parse(dec) : null;
+}
+
+function removeStoredUser() {
+  localStorage.removeItem(USER_KEY);
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('pcl_token'));
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('pcl_user');
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+    let mounted = true;
+    (async () => {
+      try {
+        const t = await getStoredToken();
+        const u = await getStoredUser();
+        if (!mounted) return;
+        if (t) {
+          setToken(t);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
+        }
+        if (u) setUser(u);
+      } catch (e) {
+        console.error('Auth init failed:', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
     }
-    setLoading(false);
   }, [token]);
 
   const login = async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password });
     const { access_token, user: userData } = response.data;
-    localStorage.setItem('pcl_token', access_token);
-    localStorage.setItem('pcl_user', JSON.stringify(userData));
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    await setStoredToken(access_token);
+    await setStoredUser(userData);
     setToken(access_token);
     setUser(userData);
     return userData;
@@ -33,32 +134,30 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     const response = await axios.post(`${API}/auth/register`, userData);
     const { access_token, user: newUser } = response.data;
-    localStorage.setItem('pcl_token', access_token);
-    localStorage.setItem('pcl_user', JSON.stringify(newUser));
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    await setStoredToken(access_token);
+    await setStoredUser(newUser);
     setToken(access_token);
     setUser(newUser);
     return newUser;
   };
 
   const logout = () => {
-    localStorage.removeItem('pcl_token');
-    localStorage.removeItem('pcl_user');
+    removeStoredToken();
+    removeStoredUser();
     delete axios.defaults.headers.common['Authorization'];
     setToken(null);
     setUser(null);
   };
 
-  // Re-consulta el estado del usuario desde el backend (fuente de verdad).
-  // Útil para detectar que un admin acaba de aprobar la cuenta.
   const refreshUser = async () => {
     try {
       const res = await axios.get(`${API}/auth/me`);
       const fresh = res.data;
-      localStorage.setItem('pcl_user', JSON.stringify(fresh));
+      await setStoredUser(fresh);
       setUser(fresh);
       return fresh;
     } catch (e) {
+      console.error('refreshUser failed:', e);
       return null;
     }
   };

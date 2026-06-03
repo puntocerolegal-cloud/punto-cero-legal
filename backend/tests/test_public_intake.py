@@ -60,7 +60,7 @@ class TestClientIntake:
         r, payload = created_case
         assert r.status_code == 200, f"Expected 200, got {r.status_code} {r.text}"
         data = r.json()
-        assert data["ok"] is True
+        assert data["ok"] == True
         assert data["message"] == EXPECTED_CLIENT_MSG, f"Mensaje exacto no coincide: {data['message']!r}"
         assert "case_number" in data and data["case_number"]
         assert "case_id" in data and data["case_id"]
@@ -118,7 +118,7 @@ class TestLawyerApplication:
         r, _ = created_lawyer
         assert r.status_code == 200, f"Expected 200, got {r.status_code} {r.text}"
         data = r.json()
-        assert data["ok"] is True
+        assert data["ok"] == True
         assert data["message"] == EXPECTED_LAWYER_MSG, f"Mensaje exacto no coincide: {data['message']!r}"
         assert "candidate_id" in data and data["candidate_id"]
 
@@ -143,7 +143,7 @@ class TestLawyerApplication:
         assert payload["email"] in emails, f"Lawyer {payload['email']} not in sales (count={len(cands)})"
         match = next(c for c in cands if c.get("email") == payload["email"])
         assert match.get("status") == "PENDING_VERIFICATION"
-        assert match.get("is_verified") is False
+        assert match.get("is_verified") == False
         # role implicit (endpoint filters by role=lawyer); not always echoed in payload
 
     def test_validation_invalid_email(self):

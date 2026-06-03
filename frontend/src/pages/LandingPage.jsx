@@ -444,7 +444,7 @@ export const LandingPage = () => {
               }
             ].map((module, index) => (
               <motion.div
-                key={index}
+                key={`module-${module.title.replace(/\s+/g, '-').toLowerCase()}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -513,7 +513,7 @@ export const LandingPage = () => {
               }
             ].map((item, index) => (
               <motion.div
-                key={index}
+                key={`trust-${item.title.replace(/\s+/g, '-').toLowerCase()}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -800,7 +800,7 @@ export const LandingPage = () => {
                     description: 'Automatizamos captación, filtros y seguimiento comercial.'
                   }
                 ].map((benefit, index) => (
-                  <div key={index} className="flex gap-4 items-start">
+                  <div key={`benefit-${benefit.title.replace(/\s+/g, '-').toLowerCase()}`} className="flex gap-4 items-start">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-6 h-6 text-white" />
                     </div>
