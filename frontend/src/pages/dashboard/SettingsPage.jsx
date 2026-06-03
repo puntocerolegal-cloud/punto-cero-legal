@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Lock, Bell, Building2, CreditCard, Plug, Save, Eye, EyeOff, Check, Award } from 'lucide-react';
+import { User, Lock, Bell, Building2, CreditCard, Plug, Save, Eye, EyeOff, Check, Award, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -13,7 +13,15 @@ const tabs = [
   { id: 'notifications', label: 'Notificaciones', icon: Bell },
   { id: 'firm', label: 'Despacho', icon: Building2 },
   { id: 'subscription', label: 'Suscripción', icon: CreditCard },
+  { id: 'ai', label: 'Potencia tu IA', icon: Sparkles },
   { id: 'integrations', label: 'Integraciones', icon: Plug },
+];
+
+// IAs premium externas sugeridas
+const AI_UPGRADES = [
+  { name: 'ChatGPT Plus', url: 'https://chat.openai.com/plus', color: '#10a37f', desc: 'GPT-4o: respuestas más rápidas, razonamiento avanzado y análisis de documentos extensos.' },
+  { name: 'Claude Pro', url: 'https://claude.ai/upgrade', color: '#d97757', desc: 'Claude: ideal para redacción jurídica larga, contexto amplio y mayor precisión en matices legales.' },
+  { name: 'Gemini Advanced', url: 'https://one.google.com/about/plans', color: '#4285f4', desc: 'Gemini 1.5 Pro: contexto enorme, integración con Google Workspace y multimodalidad.' },
 ];
 
 export const SettingsPage = () => {
@@ -185,6 +193,34 @@ export const SettingsPage = () => {
                     <div className="text-sm text-[#10b981] mt-2">✓ 7 días gratis activos</div>
                   </div>
                   <Button className="bg-gradient-to-r from-[#10b981] to-[#059669] text-white">Cambiar Plan</Button>
+                </div>
+              )}
+
+              {activeTab === 'ai' && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">Potencia tu IA <Sparkles className="w-5 h-5 text-[#4285f4]" /></h2>
+                    <p className="text-sm text-white/60 mt-1">
+                      Tu asistente usa <strong>Gemini Flash gratis</strong>, incluido en todos los planes. Si necesitas más velocidad,
+                      contexto o precisión para casos complejos, puedes complementarlo con una IA premium externa:
+                    </p>
+                  </div>
+                  <div className="grid gap-3">
+                    {AI_UPGRADES.map(ai => (
+                      <div key={ai.name} className="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex-1">
+                          <div className="font-semibold" style={{ color: ai.color }}>{ai.name}</div>
+                          <div className="text-xs text-white/60 mt-0.5">{ai.desc}</div>
+                        </div>
+                        <a href={ai.url} target="_blank" rel="noopener noreferrer" data-testid={`settings-upgrade-${ai.name.replace(/\s+/g, '-').toLowerCase()}`}>
+                          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10 whitespace-nowrap">
+                            Ver plan <ExternalLink className="w-3 h-3 ml-1" />
+                          </Button>
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-white/40">Punto Cero Legal no gestiona estas suscripciones; son servicios independientes de terceros.</p>
                 </div>
               )}
 

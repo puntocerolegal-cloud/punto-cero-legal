@@ -3,12 +3,15 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from bson import ObjectId
 import os
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 import uuid
+import httpx
 
 router = APIRouter(prefix="/ai", tags=["AI Legal Assistant"])
+
+# IA base gratuita para TODOS los planes: Google Gemini Flash via API REST
+GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 
 async def get_db():
@@ -16,30 +19,9 @@ async def get_db():
     return db
 
 
-# Límite de consultas IA por mes según el plan del abogado.
-# -1 = ilimitado. Sin plan activo (trial) usa el límite "trial".
-AI_QUERY_LIMITS = {
-    "trial": 15,
-    "esencial": 50,
-    "profesional": 200,
-    "elite": 600,
-    "ilimitado": -1,
-}
-
-
 def _current_period() -> str:
     now = datetime.utcnow()
     return f"{now.year}-{now.month:02d}"
-
-
-async def _resolve_limit(lawyer_id: Optional[str], db: AsyncIOMotorDatabase) -> tuple:
-    """Devuelve (plan, limit) para el abogado. Trial si no hay plan."""
-    plan = "trial"
-    if lawyer_id and ObjectId.is_valid(lawyer_id):
-        user = await db.users.find_one({"_id": ObjectId(lawyer_id)})
-        if user and user.get("plan_id") in AI_QUERY_LIMITS:
-            plan = user["plan_id"]
-    return plan, AI_QUERY_LIMITS[plan]
 
 
 async def _get_usage(lawyer_id: str, db: AsyncIOMotorDatabase) -> int:
@@ -62,7 +44,7 @@ SYSTEM_PROMPTS = {
     "general": """Eres un asistente legal experto de Punto Cero Legal, una plataforma LegalTech premium en LATAM.
 Brindas asesoría jurídica profesional, redactas documentos legales y orientas a abogados en sus casos.
 Responde siempre en español de manera profesional, citando jurisprudencia cuando sea relevante.""",
-    
+
     "demanda": """Eres un experto en redacción de demandas judiciales. Genera el documento siguiendo la estructura procesal estándar:
 1. Encabezado del juzgado
 2. Identificación de las partes
@@ -72,7 +54,7 @@ Responde siempre en español de manera profesional, citando jurisprudencia cuand
 6. Pruebas
 7. Notificaciones
 Usa lenguaje jurídico técnico y formal.""",
-    
+
     "tutela": """Eres un experto en acciones de tutela (amparo constitucional). Redacta una tutela completa que incluya:
 1. Juez competente
 2. Datos del accionante
@@ -82,7 +64,7 @@ Usa lenguaje jurídico técnico y formal.""",
 6. Pretensiones
 7. Juramento
 Cita la Constitución y jurisprudencia relevante.""",
-    
+
     "contrato": """Eres un experto en redacción de contratos. Genera contratos profesionales con:
 1. Identificación de las partes
 2. Objeto del contrato
@@ -92,7 +74,7 @@ Cita la Constitución y jurisprudencia relevante.""",
 6. Cláusulas de incumplimiento
 7. Resolución de conflictos
 8. Firmas""",
-    
+
     "peticion": """Eres un experto en derechos de petición. Redacta peticiones que cumplan con la Ley 1755 de 2015:
 1. Designación de la autoridad
 2. Identificación del peticionario
@@ -100,7 +82,7 @@ Cita la Constitución y jurisprudencia relevante.""",
 4. Razones en que se apoya
 5. Documentos que acompañan
 6. Notificaciones""",
-    
+
     "analisis": """Eres un experto en análisis jurisprudencial. Analiza documentos legales y proporciona:
 1. Resumen ejecutivo
 2. Identificación de cuestiones jurídicas relevantes
@@ -110,52 +92,64 @@ Cita la Constitución y jurisprudencia relevante.""",
 6. Riesgos y oportunidades"""
 }
 
+
+async def _call_gemini(api_key: str, system_message: str, history: List[dict], message: str) -> str:
+    """Llama a Gemini Flash via REST. history = [{role:'user'|'model', text:str}]."""
+    contents = [{"role": h["role"], "parts": [{"text": h["text"]}]} for h in history]
+    contents.append({"role": "user", "parts": [{"text": message}]})
+    payload = {
+        "system_instruction": {"parts": [{"text": system_message}]},
+        "contents": contents,
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
+    }
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(GEMINI_URL, params={"key": api_key}, json=payload)
+    if r.status_code == 429:
+        # Límite de tasa de Gemini → señal para mostrar banner de upgrade
+        raise HTTPException(status_code=429, detail="gemini_rate_limit")
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Gemini error: {r.text[:200]}")
+    data = r.json()
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        raise HTTPException(status_code=502, detail="Respuesta vacía de Gemini")
+
+
 @router.get("/usage/{lawyer_id}", response_model=dict)
 async def get_ai_usage(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Consumo de consultas IA del mes actual y límite del plan."""
-    plan, limit = await _resolve_limit(lawyer_id, db)
+    """Consumo de consultas del mes actual (sin límites: solo informativo / banner)."""
     used = await _get_usage(lawyer_id, db)
-    return {
-        "plan": plan,
-        "limit": limit,
-        "used": used,
-        "remaining": (-1 if limit == -1 else max(0, limit - used)),
-        "unlimited": limit == -1,
-        "period": _current_period(),
-    }
+    return {"used": used, "period": _current_period(), "model": GEMINI_MODEL, "free": True}
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="AI service not configured")
-
-    # Control de límite por plan
-    plan, limit = await _resolve_limit(request.lawyer_id, db)
-    used = await _get_usage(request.lawyer_id, db) if request.lawyer_id else 0
-    if request.lawyer_id and limit != -1 and used >= limit:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Has alcanzado el límite de {limit} consultas de tu plan '{plan}' este mes. Actualiza tu plan para continuar.",
-        )
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY no configurada")
 
     session_id = request.session_id or str(uuid.uuid4())
     system_message = SYSTEM_PROMPTS.get(request.template, SYSTEM_PROMPTS["general"])
 
-    try:
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=session_id,
-            system_message=system_message
-        ).with_model("openai", "gpt-4o-mini")
+    # Memoria de conversación por sesión (Gemini REST es stateless)
+    session = await db.ai_sessions.find_one({"session_id": session_id})
+    history = session.get("messages", []) if session else []
 
-        user_message = UserMessage(text=request.message)
-        response = await chat.send_message(user_message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")
+    response_text = await _call_gemini(api_key, system_message, history, request.message)
 
-    # Contabiliza la consulta consumida (solo si hay abogado identificado)
+    # Persiste el turno en la sesión
+    new_messages = history + [
+        {"role": "user", "text": request.message},
+        {"role": "model", "text": response_text},
+    ]
+    await db.ai_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {"messages": new_messages[-40:], "updated_at": datetime.utcnow()}},
+        upsert=True,
+    )
+
+    # Conteo mensual (sin límite) para alimentar el banner de upgrade
     usage_info = None
     if request.lawyer_id:
         await db.ai_usage.update_one(
@@ -163,16 +157,11 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
             {"$inc": {"count": 1}, "$set": {"updated_at": datetime.utcnow()}},
             upsert=True,
         )
-        new_used = used + 1
-        usage_info = {
-            "plan": plan,
-            "limit": limit,
-            "used": new_used,
-            "remaining": (-1 if limit == -1 else max(0, limit - new_used)),
-            "unlimited": limit == -1,
-        }
+        used = await _get_usage(request.lawyer_id, db)
+        usage_info = {"used": used, "period": _current_period(), "free": True}
 
-    return ChatResponse(response=response, session_id=session_id, usage=usage_info)
+    return ChatResponse(response=response_text, session_id=session_id, usage=usage_info)
+
 
 @router.get("/templates")
 async def get_templates():
