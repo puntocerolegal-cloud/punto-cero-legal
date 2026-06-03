@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Receipt, Plus, TrendingUp, TrendingDown, DollarSign, FileText, Download, Eye, X } from 'lucide-react';
+import { Receipt, Plus, TrendingUp, TrendingDown, DollarSign, CreditCard, CheckCircle2, Copy, X } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -58,6 +58,33 @@ export const InvoicesPage = () => {
       loadInvoices();
     } catch (err) {
       console.error('Error creando factura:', err);
+    }
+  };
+
+  const [generating, setGenerating] = useState(null);
+
+  const handleGenerateLink = async (inv) => {
+    setGenerating(inv._id);
+    try {
+      const { data } = await axios.post(`${API}/invoices/${inv._id}/pay-link`);
+      await loadInvoices();
+      // Copia el link al portapapeles y lo muestra
+      try { await navigator.clipboard.writeText(data.payment_link); } catch (_) {}
+      window.prompt('Link de cobro MercadoPago (copiado al portapapeles):', data.payment_link);
+    } catch (err) {
+      console.error('Error generando link de cobro:', err);
+      alert('No se pudo generar el link de cobro.');
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handleMarkPaid = async (inv) => {
+    try {
+      await axios.post(`${API}/invoices/${inv._id}/mark-paid`);
+      loadInvoices();
+    } catch (err) {
+      console.error('Error marcando factura pagada:', err);
     }
   };
 
@@ -140,8 +167,17 @@ export const InvoicesPage = () => {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">
-                          <button className="p-1.5 rounded-lg hover:bg-white/10"><Eye className="w-4 h-4 text-[#3b82f6]" /></button>
-                          <button className="p-1.5 rounded-lg hover:bg-white/10"><Download className="w-4 h-4 text-[#10b981]" /></button>
+                          {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                            <>
+                              {inv.payment_link ? (
+                                <button onClick={() => { navigator.clipboard.writeText(inv.payment_link); window.prompt('Link de cobro:', inv.payment_link); }} className="p-1.5 rounded-lg hover:bg-white/10" title="Copiar link de cobro" data-testid={`copy-link-${inv._id}`}><Copy className="w-4 h-4 text-[#3b82f6]" /></button>
+                              ) : (
+                                <button onClick={() => handleGenerateLink(inv)} disabled={generating === inv._id} className="p-1.5 rounded-lg hover:bg-white/10" title="Generar link de cobro MercadoPago" data-testid={`pay-link-${inv._id}`}><CreditCard className="w-4 h-4 text-[#f97316]" /></button>
+                              )}
+                              <button onClick={() => handleMarkPaid(inv)} className="p-1.5 rounded-lg hover:bg-white/10" title="Marcar como pagada" data-testid={`mark-paid-${inv._id}`}><CheckCircle2 className="w-4 h-4 text-[#10b981]" /></button>
+                            </>
+                          )}
+                          {inv.status === 'paid' && <CheckCircle2 className="w-4 h-4 text-[#10b981]" />}
                         </div>
                       </td>
                     </tr>
