@@ -1,42 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Receipt, Plus, TrendingUp, TrendingDown, DollarSign, FileText, Download, Eye, X } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
-const mockInvoices = [
-  { id: 1, number: 'INV-2025-00342', client: 'María González', amount: 2500000, status: 'paid', date: '2025-12-10', dueDate: '2025-12-20' },
-  { id: 2, number: 'INV-2025-00341', client: 'Carlos Mendoza', amount: 1800000, status: 'sent', date: '2025-12-08', dueDate: '2025-12-18' },
-  { id: 3, number: 'INV-2025-00340', client: 'Luis Torres', amount: 3200000, status: 'overdue', date: '2025-11-20', dueDate: '2025-11-30' },
-  { id: 4, number: 'INV-2025-00339', client: 'Ana Rodríguez', amount: 1500000, status: 'draft', date: '2025-12-05', dueDate: '2025-12-15' },
-];
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const statusConfig = {
   draft: { label: 'Borrador', color: '#6b7280' },
   sent: { label: 'Enviada', color: '#3b82f6' },
   paid: { label: 'Pagada', color: '#10b981' },
   overdue: { label: 'Vencida', color: '#ef4444' },
+  cancelled: { label: 'Anulada', color: '#6b7280' },
 };
 
 export const InvoicesPage = () => {
-  const [invoices, setInvoices] = useState(mockInvoices);
+  const { user } = useAuth();
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newInvoice, setNewInvoice] = useState({ client: '', amount: '', dueDate: '', description: '' });
+
+  const loadInvoices = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/invoices/?lawyer_id=${user.id}`);
+      setInvoices(data);
+    } catch (e) {
+      console.error('Error cargando facturas:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => { loadInvoices(); }, [loadInvoices]);
 
   const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
   const pendingRevenue = invoices.filter(i => i.status === 'sent').reduce((sum, i) => sum + i.amount, 0);
   const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((sum, i) => sum + i.amount, 0);
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    const number = `INV-2025-${String(invoices.length + 343).padStart(5, '0')}`;
-    setInvoices([{ id: Date.now(), number, ...newInvoice, amount: parseFloat(newInvoice.amount), status: 'draft', date: new Date().toISOString().split('T')[0] }, ...invoices]);
-    setNewInvoice({ client: '', amount: '', dueDate: '', description: '' });
-    setShowModal(false);
+    try {
+      await axios.post(`${API}/invoices/`, {
+        lawyer_id: user.id,
+        client_name: newInvoice.client,
+        amount: parseFloat(newInvoice.amount),
+        due_date: newInvoice.dueDate ? new Date(newInvoice.dueDate).toISOString() : null,
+        description: newInvoice.description,
+        status: 'draft',
+      });
+      setNewInvoice({ client: '', amount: '', dueDate: '', description: '' });
+      setShowModal(false);
+      loadInvoices();
+    } catch (err) {
+      console.error('Error creando factura:', err);
+    }
   };
 
-  const format = (num) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(num);
+  const format = (num) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(num || 0);
 
   return (
     <DashboardLayout>
@@ -101,9 +126,9 @@ export const InvoicesPage = () => {
               </thead>
               <tbody>
                 {invoices.map(inv => {
-                  const config = statusConfig[inv.status];
+                  const config = statusConfig[inv.status] || statusConfig.draft;
                   return (
-                    <tr key={inv.id} className="border-b border-white/5 hover:bg-white/5">
+                    <tr key={inv._id} className="border-b border-white/5 hover:bg-white/5">
                       <td className="px-4 py-3 text-sm font-mono text-[#f97316]">{inv.number}</td>
                       <td className="px-4 py-3">{inv.client}</td>
                       <td className="px-4 py-3 text-sm hidden md:table-cell">{inv.date}</td>
@@ -124,6 +149,8 @@ export const InvoicesPage = () => {
                 })}
               </tbody>
             </table>
+            {loading && <div className="text-center py-8 text-white/50">Cargando facturas...</div>}
+            {!loading && invoices.length === 0 && <div className="text-center py-8 text-white/50">Aún no has emitido facturas.</div>}
           </div>
         </div>
       </div>

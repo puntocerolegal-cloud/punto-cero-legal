@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Plus, Clock, MapPin, Users, Bell, Video, FileText, Gavel, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const eventTypeConfig = {
   meeting: { label: 'Reunión', color: '#3b82f6', icon: Users },
@@ -12,19 +16,39 @@ const eventTypeConfig = {
   reminder: { label: 'Recordatorio', color: '#10b981', icon: Clock },
 };
 
-const initialEvents = [
-  { id: 1, title: 'Audiencia Caso González', type: 'hearing', date: '2025-12-13', time: '09:00', location: 'Juzgado 5 Civil', client: 'María González' },
-  { id: 2, title: 'Reunión cliente Mendoza', type: 'meeting', date: '2025-12-13', time: '14:30', location: 'Oficina / Video', client: 'Carlos Mendoza' },
-  { id: 3, title: 'Vencimiento Visa USA', type: 'deadline', date: '2025-12-15', time: '23:59', location: '—', client: 'Carlos Mendoza' },
-  { id: 4, title: 'Reunión con cliente Torres', type: 'meeting', date: '2025-12-16', time: '10:00', location: 'Video conferencia', client: 'Luis Torres' },
-  { id: 5, title: 'Audiencia Rodríguez', type: 'hearing', date: '2025-12-18', time: '11:00', location: 'Juzgado 3 Laboral', client: 'Ana Rodríguez' },
-];
+// Mapea un appointment del backend (start_time ISO) al formato visual del calendario
+const toDisplayEvent = (a) => {
+  const start = a.start_time ? new Date(a.start_time) : null;
+  return {
+    _id: a._id,
+    title: a.title,
+    type: a.event_type || 'meeting',
+    date: start ? `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}` : '',
+    time: start ? `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}` : '',
+    location: a.location || '—',
+    client: a.description || '',
+    start,
+  };
+};
 
 export const AgendaPage = () => {
-  const [events, setEvents] = useState(initialEvents);
+  const { user } = useAuth();
+  const [events, setEvents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [newEvent, setNewEvent] = useState({ title: '', type: 'meeting', date: '', time: '', location: '', client: '' });
+
+  const loadEvents = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/appointments/?lawyer_id=${user.id}`);
+      setEvents(data.map(toDisplayEvent));
+    } catch (e) {
+      console.error('Error cargando agenda:', e);
+    }
+  }, [user?.id]);
+
+  useEffect(() => { loadEvents(); }, [loadEvents]);
 
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -35,14 +59,34 @@ export const AgendaPage = () => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    setEvents([...events, { ...newEvent, id: Date.now() }]);
-    setNewEvent({ title: '', type: 'meeting', date: '', time: '', location: '', client: '' });
-    setShowModal(false);
+    try {
+      const startIso = `${newEvent.date}T${newEvent.time || '00:00'}:00`;
+      const start = new Date(startIso);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      await axios.post(`${API}/appointments/`, {
+        lawyer_id: user.id,
+        title: newEvent.title,
+        event_type: newEvent.type,
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        location: newEvent.location || null,
+        description: newEvent.client || null,
+        status: 'scheduled',
+      });
+      setNewEvent({ title: '', type: 'meeting', date: '', time: '', location: '', client: '' });
+      setShowModal(false);
+      loadEvents();
+    } catch (err) {
+      console.error('Error creando evento:', err);
+    }
   };
 
-  const upcomingEvents = [...events].sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time)).slice(0, 5);
+  const upcomingEvents = [...events]
+    .filter(e => e.start && e.start >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 5);
 
   return (
     <DashboardLayout>
@@ -88,7 +132,7 @@ export const AgendaPage = () => {
                     <div className={`text-xs ${isToday ? 'font-bold text-[#f97316]' : 'text-white/80'}`}>{day}</div>
                     <div className="flex gap-0.5 mt-1 flex-wrap">
                       {dayEvents.slice(0, 3).map(e => (
-                        <div key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ background: eventTypeConfig[e.type].color }} />
+                        <div key={e._id} className="w-1.5 h-1.5 rounded-full" style={{ background: eventTypeConfig[e.type]?.color || '#3b82f6' }} />
                       ))}
                     </div>
                   </div>
@@ -104,11 +148,12 @@ export const AgendaPage = () => {
               Próximos Eventos
             </h3>
             <div className="space-y-3">
+              {upcomingEvents.length === 0 && <div className="text-sm text-white/40">No tienes eventos próximos.</div>}
               {upcomingEvents.map(event => {
-                const config = eventTypeConfig[event.type];
+                const config = eventTypeConfig[event.type] || eventTypeConfig.meeting;
                 const Icon = config.icon;
                 return (
-                  <motion.div key={event.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="p-3 rounded-xl backdrop-blur-md bg-white/5 border-l-4 hover:bg-white/10 transition-all" style={{ borderColor: config.color }}>
+                  <motion.div key={event._id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="p-3 rounded-xl backdrop-blur-md bg-white/5 border-l-4 hover:bg-white/10 transition-all" style={{ borderColor: config.color }}>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${config.color}20` }}>
                         <Icon className="w-4 h-4" style={{ color: config.color }} />
