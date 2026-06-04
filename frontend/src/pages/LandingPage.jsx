@@ -135,7 +135,7 @@ export const LandingPage = () => {
               <a href="#modulos" className="text-white/80 hover:text-[#3b82f6] transition-colors">Módulos</a>
               <a href="#planes" className="text-white/80 hover:text-[#3b82f6] transition-colors">Planes</a>
               <a href="#abogados" className="text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
-              <a href="#partner" className="text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Partner</a>
+              <a href="#partner" className="text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Socios</a>
               <Button onClick={handleAccess} variant="outline" className="border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all" data-testid="navbar-access-btn">
                 {getAccessLabel()}
               </Button>
@@ -158,7 +158,7 @@ export const LandingPage = () => {
               <a href="#modulos" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Módulos</a>
               <a href="#planes" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Planes</a>
               <a href="#abogados" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
-              <a href="#partner" className="block text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Partner</a>
+              <a href="#partner" className="block text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Socios</a>
             </motion.div>
           )}
         </div>
