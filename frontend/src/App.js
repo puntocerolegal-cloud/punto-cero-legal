@@ -62,7 +62,8 @@ function App() {
             <Route path="/dashboard/settings" element={<ProtectedRoute require={LAWYER_ROLES}><SettingsPage /></ProtectedRoute>} />
 
             {/* === PORTAL DEL CLIENTE (clientes y abogados) === */}
-            <Route path="/portal" element={<ProtectedRoute require={CLIENT_ROLES}><PortalPage /></ProtectedRoute>} />
+            <Route path="/portal" element={<PortalPage />} />
+            <Route path="/portal/:code" element={<PortalPage />} />
 
             {/* === CENTRO DE GESTIÓN (Solo admin/socio_comercial) === */}
             <Route path="/admin" element={<ProtectedRoute require={ADMIN_ROLES}><AdminPanel /></ProtectedRoute>} />

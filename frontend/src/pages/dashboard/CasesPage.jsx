@@ -30,7 +30,7 @@ export const CasesPage = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('kanban');
   const [showModal, setShowModal] = useState(false);
-  const [newCase, setNewCase] = useState({ title: '', client_id: '', legal_area: 'Civil', status: 'open', priority: 'medium', deadline: '', description: '' });
+  const [newCase, setNewCase] = useState({ title: '', client_name: '', client_id: '', legal_area: 'Civil', status: 'open', priority: 'medium', deadline: '', description: '' });
 
   const loadCases = useCallback(async () => {
     if (!user?.id) return;
@@ -173,7 +173,7 @@ export const CasesPage = () => {
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
               <Input placeholder="Título del caso" value={newCase.title} onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input placeholder="ID del cliente" value={newCase.client_id} onChange={(e) => setNewCase({ ...newCase, client_id: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              <Input placeholder="Nombre del cliente" value={newCase.client_name} onChange={(e) => setNewCase({ ...newCase, client_name: e.target.value })} className="bg-white/10 border-white/20 text-white" />
               <select value={newCase.legal_area} onChange={(e) => setNewCase({ ...newCase, legal_area: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
                 <option value="Civil">Derecho Civil</option><option value="Penal">Penal</option><option value="Familiar">Familiar</option><option value="Corporativo">Corporativo</option><option value="Laboral">Laboral</option>
               </select>

@@ -57,7 +57,7 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Este correo ya está registrado"
         )
     
     # Create user
@@ -103,13 +103,13 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
     if not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Correo o contraseña incorrectos"
         )
     
     if user.get("status") in ["inactive", "suspended"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is not active"
+            detail="Tu cuenta no está activa. Contacta al soporte."
         )
     
     # Fuente de verdad de verificación: campo is_verified.

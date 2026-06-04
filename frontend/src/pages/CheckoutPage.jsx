@@ -57,7 +57,7 @@ export const CheckoutPage = () => {
         referral_code: referralCode
       });
       // Redirección al gateway
-      window.open(res.data.checkout_url, '_blank');
+      window.location.href = res.data.checkout_url;
       // Simulación: tras 3s confirmamos el pago
       setTimeout(async () => {
         await axios.post(`${API}/payment/confirm/${res.data.payment_id}`);
