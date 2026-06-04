@@ -24,13 +24,14 @@ class ClientIntake(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
     description: str = Field(..., min_length=8, max_length=2000)
     legal_area: str = Field(..., min_length=2, max_length=80)
-    priority: str = Field("media")  # alta | media | baja
+    priority: str = Field("media")  # urgente | media | baja
     country: str = Field(..., min_length=2, max_length=80)
+    city: Optional[str] = Field(None, max_length=120)
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
 
 
-PRIORITY_LABELS = {"alta": "alta", "media": "media", "baja": "baja", "high": "alta", "medium": "media", "low": "baja"}
+PRIORITY_LABELS = {"urgente": "alta", "alta": "alta", "media": "media", "baja": "baja", "high": "alta", "medium": "media", "low": "baja"}
 
 
 @router.post("/case-intake")
@@ -57,6 +58,7 @@ async def case_intake(payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(
         "client_phone": payload.phone,
         "client_email": payload.email,
         "client_country": payload.country,
+        "client_city": payload.city,
         "source": "landing_intake",
         "is_demo": False,
         "created_at": now,
@@ -90,6 +92,7 @@ class LawyerApplication(BaseModel):
     phone: Optional[str] = None
     specialty: str = Field(..., min_length=2, max_length=80)
     country: str = Field(..., min_length=2, max_length=80)
+    city: Optional[str] = Field(None, max_length=120)
     experience: str = Field(..., min_length=4, max_length=2000)  # texto libre
     bar_number: Optional[str] = None
     firm_name: Optional[str] = None
@@ -129,6 +132,7 @@ async def lawyer_application(payload: LawyerApplication, db: AsyncIOMotorDatabas
         "is_online": False,
         "phone": payload.phone,
         "country": payload.country,
+        "city": payload.city,
         "specialty": payload.specialty,
         "experience_years": None,  # texto libre — se parseará luego
         "description": payload.experience,
