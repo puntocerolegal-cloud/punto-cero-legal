@@ -4,7 +4,7 @@ CRUD de facturas por abogado. Colección db.invoices.
 La pasarela de cobros (MercadoPago) se añade en routes/billing endpoints
 de este mismo router (ver más abajo).
 """
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
 from typing import List, Optional
 from datetime import datetime, date
 from pydantic import BaseModel, Field
@@ -12,6 +12,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 import os
 import uuid
+import base64
 import httpx
 
 router = APIRouter(prefix="/invoices", tags=["Invoicing"])
@@ -31,17 +32,25 @@ STATUS_VALUES = ("draft", "sent", "paid", "overdue", "cancelled")
 class InvoiceIn(BaseModel):
     lawyer_id: str
     client_id: Optional[str] = None
+    case_id: Optional[str] = None
     client_name: str = Field(..., min_length=2, max_length=160)
     amount: float = Field(..., gt=0)
-    description: Optional[str] = None
-    due_date: Optional[str] = None  # ISO date
+    description: Optional[str] = None          # descripción del servicio prestado
+    service_date: Optional[str] = None         # fecha del servicio (ISO)
+    hours: Optional[float] = None              # horas facturadas
+    hourly_rate: Optional[float] = None        # honorarios por hora
+    due_date: Optional[str] = None             # ISO date
     status: str = "draft"
 
 
 class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
+    client_name: Optional[str] = None
     amount: Optional[float] = None
     description: Optional[str] = None
+    service_date: Optional[str] = None
+    hours: Optional[float] = None
+    hourly_rate: Optional[float] = None
     due_date: Optional[str] = None
 
 
@@ -57,16 +66,32 @@ def _serialize(inv):
         "number": inv.get("invoice_number"),
         "lawyer_id": inv.get("lawyer_id"),
         "client_id": inv.get("client_id"),
+        "case_id": inv.get("case_id"),
         "client": inv.get("client_name"),
         "amount": inv.get("amount", 0),
         "description": inv.get("description"),
+        "service_date": _iso(inv.get("service_date")),
+        "hours": inv.get("hours"),
+        "hourly_rate": inv.get("hourly_rate"),
         "status": inv.get("status", "draft"),
         "date": _iso(inv.get("issue_date")),
         "dueDate": _iso(inv.get("due_date")),
+        "paid_date": _iso(inv.get("paid_date")),
         "payment_link": inv.get("payment_link"),
         "payment_id": inv.get("payment_id"),
         "gateway": inv.get("gateway"),
+        "has_proof": bool(inv.get("payment_proof")),
+        "payment_proof_name": (inv.get("payment_proof") or {}).get("filename") if inv.get("payment_proof") else None,
     }
+
+
+def _parse_iso(v):
+    if not v:
+        return None
+    try:
+        return datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except Exception:
+        return None
 
 
 async def _next_invoice_number(lawyer_id: str, db: AsyncIOMotorDatabase) -> str:
@@ -97,9 +122,13 @@ async def create_invoice(payload: InvoiceIn, db: AsyncIOMotorDatabase = Depends(
     doc = {
         "lawyer_id": payload.lawyer_id,
         "client_id": payload.client_id,
+        "case_id": payload.case_id,
         "client_name": payload.client_name,
         "amount": payload.amount,
         "description": payload.description,
+        "service_date": _parse_iso(payload.service_date),
+        "hours": payload.hours,
+        "hourly_rate": payload.hourly_rate,
         "status": payload.status,
         "invoice_number": await _next_invoice_number(payload.lawyer_id, db),
         "issue_date": datetime.utcnow(),
@@ -109,6 +138,18 @@ async def create_invoice(payload: InvoiceIn, db: AsyncIOMotorDatabase = Depends(
     }
     res = await db.invoices.insert_one(doc)
     doc["_id"] = res.inserted_id
+
+    # Interconexión: registra la factura en la línea de tiempo del caso
+    if payload.case_id:
+        try:
+            await db.case_activities.insert_one({
+                "case_id": payload.case_id, "user_id": payload.lawyer_id, "activity_type": "note",
+                "stage": "Facturación", "billable": False, "duration_minutes": 0,
+                "description": f"Factura {doc['invoice_number']} emitida por {payload.amount:,.0f}.",
+                "created_at": datetime.utcnow(),
+            })
+        except Exception:
+            pass
     return _serialize(doc)
 
 
@@ -123,13 +164,18 @@ async def update_invoice(invoice_id: str, payload: InvoiceUpdate, db: AsyncIOMot
             update["paid_date"] = datetime.utcnow()
     if payload.amount is not None:
         update["amount"] = payload.amount
+    if payload.client_name is not None:
+        update["client_name"] = payload.client_name
     if payload.description is not None:
         update["description"] = payload.description
+    if payload.hours is not None:
+        update["hours"] = payload.hours
+    if payload.hourly_rate is not None:
+        update["hourly_rate"] = payload.hourly_rate
+    if payload.service_date is not None:
+        update["service_date"] = _parse_iso(payload.service_date)
     if payload.due_date is not None:
-        try:
-            update["due_date"] = datetime.fromisoformat(payload.due_date.replace("Z", "+00:00"))
-        except Exception:
-            pass
+        update["due_date"] = _parse_iso(payload.due_date)
     update["updated_at"] = datetime.utcnow()
     res = await db.invoices.update_one({"_id": ObjectId(invoice_id)}, {"$set": update})
     if res.matched_count == 0:
@@ -144,6 +190,52 @@ async def delete_invoice(invoice_id: str, db: AsyncIOMotorDatabase = Depends(get
     if res.deleted_count == 0:
         raise HTTPException(404, "Factura no encontrada")
     return None
+
+
+_PROOF_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"}
+
+
+@router.post("/{invoice_id}/attach-payment", response_model=dict)
+async def attach_payment_proof(
+    invoice_id: str,
+    mark_paid: str = Form("true"),
+    file: UploadFile = File(...),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Adjunta el comprobante de pago de una factura (imagen/PDF) y, opcionalmente,
+    la marca como pagada. Queda vinculado a la factura."""
+    if file.content_type not in _PROOF_TYPES:
+        raise HTTPException(400, "Formato no permitido. Sube una imagen o un PDF.")
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "Archivo vacío.")
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(400, "El archivo supera los 10 MB.")
+    inv = await db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not inv:
+        raise HTTPException(404, "Factura no encontrada")
+
+    proof = {
+        "filename": file.filename, "content_type": file.content_type,
+        "size_bytes": len(data), "content_b64": base64.b64encode(data).decode("ascii"),
+        "uploaded_at": datetime.utcnow(),
+    }
+    update = {"payment_proof": proof, "updated_at": datetime.utcnow()}
+    if str(mark_paid).lower() in ("true", "1", "yes"):
+        update["status"] = "paid"
+        update["paid_date"] = datetime.utcnow()
+    await db.invoices.update_one({"_id": ObjectId(invoice_id)}, {"$set": update})
+    return {"ok": True, "status": update.get("status", inv.get("status")), "message": "Comprobante adjuntado."}
+
+
+@router.get("/{invoice_id}/proof", response_model=dict)
+async def get_payment_proof(invoice_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Devuelve el comprobante de pago adjunto (para vista previa/descarga)."""
+    inv = await db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not inv or not inv.get("payment_proof"):
+        raise HTTPException(404, "Sin comprobante")
+    p = inv["payment_proof"]
+    return {"filename": p.get("filename"), "content_type": p.get("content_type"), "content_b64": p.get("content_b64")}
 
 
 # ───────────── Pasarela de cobros MercadoPago (abogado → cliente) ─────────────

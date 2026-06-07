@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Folder, Upload, Search, Download, Trash2, FolderPlus, ShieldCheck, KeyRound } from 'lucide-react';
+import { FileText, Folder, Upload, Search, Download, Trash2, FolderPlus, ShieldCheck, KeyRound, Eye, Pencil, DownloadCloud } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -111,6 +111,49 @@ export const DocumentsPage = () => {
     }
   };
 
+  const handlePreview = async (doc) => {
+    if (!doc.encrypted) { alert('Sin contenido cifrado para previsualizar.'); return; }
+    const pass = passphrase || window.prompt('Frase de cifrado para descifrar:');
+    if (!pass) return;
+    try {
+      const { data } = await axios.get(`${API}/documents/${doc._id}/content`);
+      const blob = await decryptToBlob(data, pass);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      alert('No se pudo descifrar para vista previa. ¿La frase es correcta?');
+    }
+  };
+
+  const handleRename = async (doc) => {
+    const name = window.prompt('Nuevo nombre del documento:', doc.name);
+    if (!name || name === doc.name) return;
+    try {
+      await axios.patch(`${API}/documents/${doc._id}`, { name });
+      loadData();
+    } catch (err) { alert('No se pudo renombrar.'); }
+  };
+
+  const [backingUp, setBackingUp] = useState(false);
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      const { data } = await axios.get(`${API}/backup/manual`);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-puntocero-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      alert(data.drive_uploaded
+        ? 'Copia de seguridad descargada y subida a Google Drive.'
+        : 'Copia de seguridad descargada. (Conecta Google Drive para respaldo automático en la nube.)');
+    } catch (err) { alert('No se pudo generar la copia de seguridad.'); }
+    finally { setBackingUp(false); }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pt-12 lg:pt-0">
@@ -120,8 +163,8 @@ export const DocumentsPage = () => {
             <p className="text-white/60">Gestor documental seguro con versionado automático</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" data-testid="new-folder">
-              <FolderPlus className="w-4 h-4 mr-2" /> Carpeta
+            <Button onClick={handleBackup} disabled={backingUp} variant="outline" className="border-[#10b981]/40 text-[#10b981] hover:bg-[#10b981]/10" data-testid="backup-button">
+              <DownloadCloud className="w-4 h-4 mr-2" /> {backingUp ? 'Generando...' : 'Copia de seguridad'}
             </Button>
             <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} data-testid="file-input" />
             <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold" data-testid="upload-doc">
@@ -216,8 +259,10 @@ export const DocumentsPage = () => {
                     <td className="px-4 py-3 text-sm hidden lg:table-cell">{doc.date}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <button onClick={() => handleDownload(doc)} className="p-1.5 rounded-lg hover:bg-white/10" data-testid={`download-doc-${doc._id}`}><Download className="w-4 h-4 text-[#10b981]" /></button>
-                        <button onClick={() => handleDelete(doc._id)} className="p-1.5 rounded-lg hover:bg-white/10" data-testid={`delete-doc-${doc._id}`}><Trash2 className="w-4 h-4 text-red-400" /></button>
+                        <button onClick={() => handlePreview(doc)} className="p-1.5 rounded-lg hover:bg-white/10" title="Vista previa" data-testid={`preview-doc-${doc._id}`}><Eye className="w-4 h-4 text-white/70" /></button>
+                        <button onClick={() => handleRename(doc)} className="p-1.5 rounded-lg hover:bg-white/10" title="Editar / renombrar" data-testid={`edit-doc-${doc._id}`}><Pencil className="w-4 h-4 text-[#3b82f6]" /></button>
+                        <button onClick={() => handleDownload(doc)} className="p-1.5 rounded-lg hover:bg-white/10" title="Descargar" data-testid={`download-doc-${doc._id}`}><Download className="w-4 h-4 text-[#10b981]" /></button>
+                        <button onClick={() => handleDelete(doc._id)} className="p-1.5 rounded-lg hover:bg-white/10" title="Eliminar" data-testid={`delete-doc-${doc._id}`}><Trash2 className="w-4 h-4 text-red-400" /></button>
                       </div>
                     </td>
                   </tr>

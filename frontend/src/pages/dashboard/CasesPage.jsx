@@ -30,7 +30,17 @@ export const CasesPage = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('kanban');
   const [showModal, setShowModal] = useState(false);
-  const [newCase, setNewCase] = useState({ title: '', client_name: '', client_id: '', legal_area: 'Civil', status: 'open', priority: 'medium', deadline: '', description: '' });
+  const [creating, setCreating] = useState(false);
+  const [createResult, setCreateResult] = useState(null);
+  const emptyCase = {
+    title: '', client_name: '', client_document: '', client_phone: '', client_email: '',
+    materia: 'Civil', estado: 'Activo', priority_label: 'media', counterparty_name: '',
+    assigned_to: '', deadline: '', summary: '',
+  };
+  const [newCase, setNewCase] = useState(emptyCase);
+
+  const MATERIAS = ['Civil', 'Penal', 'Laboral', 'Familia', 'Mercantil', 'Administrativo', 'Constitucional', 'Otro'];
+  const ESTADOS = ['Pendiente', 'En trámite', 'En audiencia', 'Archivada', 'Finalizada', 'En estudio', 'Activo'];
 
   const loadCases = useCallback(async () => {
     if (!user?.id) return;
@@ -48,19 +58,25 @@ export const CasesPage = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    setCreating(true);
+    setCreateResult(null);
     try {
-      await axios.post(`${API}/cases/`, {
+      const { data } = await axios.post(`${API}/cases/`, {
         ...newCase,
         lawyer_id: user.id,
-        client_id: newCase.client_id || user.id,
-        legal_area: newCase.legal_area,
-        description: newCase.description || newCase.title,
+        legal_area: newCase.materia,
+        description: newCase.summary || newCase.title,
+        deadline: newCase.deadline ? new Date(newCase.deadline).toISOString() : null,
+        source: 'manual',
       });
-      setNewCase({ title: '', client_id: '', legal_area: 'Civil', status: 'open', priority: 'medium', deadline: '', description: '' });
-      setShowModal(false);
+      setCreateResult({ case_number: data.case_number, conflict: data.conflict });
+      setNewCase(emptyCase);
       loadCases();
-    } catch (e) {
-      console.error('Error creando caso:', e);
+    } catch (err) {
+      console.error('Error creando caso:', err);
+      alert('No se pudo crear el caso.');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -165,25 +181,72 @@ export const CasesPage = () => {
       </div>
 
       {showModal && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setShowModal(false); setCreateResult(null); }}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Nuevo Caso</h2>
-              <button onClick={() => setShowModal(false)}><X className="w-5 h-5" /></button>
+              <h2 className="text-2xl font-bold">Nuevo Caso · Intake</h2>
+              <button onClick={() => { setShowModal(false); setCreateResult(null); }}><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <Input placeholder="Título del caso" value={newCase.title} onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input placeholder="Nombre del cliente" value={newCase.client_name} onChange={(e) => setNewCase({ ...newCase, client_name: e.target.value })} className="bg-white/10 border-white/20 text-white" />
-              <select value={newCase.legal_area} onChange={(e) => setNewCase({ ...newCase, legal_area: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
-                <option value="Civil">Derecho Civil</option><option value="Penal">Penal</option><option value="Familiar">Familiar</option><option value="Corporativo">Corporativo</option><option value="Laboral">Laboral</option>
-              </select>
-              <select value={newCase.priority} onChange={(e) => setNewCase({ ...newCase, priority: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
-                <option value="low">Prioridad Baja</option><option value="medium">Media</option><option value="high">Alta</option><option value="urgent">Urgente</option>
-              </select>
-              <Input type="date" value={newCase.deadline} onChange={(e) => setNewCase({ ...newCase, deadline: e.target.value })} className="bg-white/10 border-white/20 text-white" />
-              <Textarea placeholder="Descripción" value={newCase.description} onChange={(e) => setNewCase({ ...newCase, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
-              <Button type="submit" className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Crear Caso</Button>
-            </form>
+
+            {createResult ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-[#10b981]/10 border border-[#10b981]/40 p-5 text-center">
+                  <CheckCircle2 className="w-10 h-10 text-[#10b981] mx-auto mb-2" />
+                  <div className="font-bold text-lg">Caso creado</div>
+                  <div className="text-sm text-white/60">Identificador único: <span className="font-mono text-[#f97316]">{createResult.case_number}</span></div>
+                  <div className="text-xs text-white/50 mt-2">Se actualizó el directorio de clientes, la agenda y el CRM automáticamente.</div>
+                </div>
+                {createResult.conflict?.conflict && (
+                  <div className="rounded-2xl bg-red-500/10 border border-red-500/40 p-4 flex items-start gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-red-200">{createResult.conflict.message}</div>
+                  </div>
+                )}
+                <Button onClick={() => { setShowModal(false); setCreateResult(null); }} className="w-full bg-white/10 hover:bg-white/20">Cerrar</Button>
+              </div>
+            ) : (
+              <form onSubmit={handleCreate} className="space-y-4">
+                <Input placeholder="Título del caso" value={newCase.title} onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
+
+                <div className="text-xs uppercase tracking-wider text-white/40">Datos del cliente</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input placeholder="Nombre completo" value={newCase.client_name} onChange={(e) => setNewCase({ ...newCase, client_name: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
+                  <Input placeholder="Identificación / cédula" value={newCase.client_document} onChange={(e) => setNewCase({ ...newCase, client_document: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                  <Input placeholder="Teléfono" value={newCase.client_phone} onChange={(e) => setNewCase({ ...newCase, client_phone: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                  <Input type="email" placeholder="Correo" value={newCase.client_email} onChange={(e) => setNewCase({ ...newCase, client_email: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                </div>
+
+                <div className="text-xs uppercase tracking-wider text-white/40">Clasificación</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-white/50">Materia</label>
+                    <select value={newCase.materia} onChange={(e) => setNewCase({ ...newCase, materia: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                      {MATERIAS.map(m => <option key={m} value={m} className="bg-[#0f172a]">{m}</option>)}
+                    </select>
+                  </div>
+                  <div><label className="text-xs text-white/50">Estado</label>
+                    <select value={newCase.estado} onChange={(e) => setNewCase({ ...newCase, estado: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                      {ESTADOS.map(s => <option key={s} value={s} className="bg-[#0f172a]">{s}</option>)}
+                    </select>
+                  </div>
+                  <div><label className="text-xs text-white/50">Prioridad (auto si se deja)</label>
+                    <select value={newCase.priority_label} onChange={(e) => setNewCase({ ...newCase, priority_label: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                      <option value="">Automática</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>
+                    </select>
+                  </div>
+                  <div><label className="text-xs text-white/50">Fecha clave / vencimiento</label>
+                    <Input type="date" value={newCase.deadline} onChange={(e) => setNewCase({ ...newCase, deadline: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                  </div>
+                </div>
+
+                <Input placeholder="Contraparte (se verifica conflicto de intereses)" value={newCase.counterparty_name} onChange={(e) => setNewCase({ ...newCase, counterparty_name: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                <Input placeholder="Asignado a (otro abogado, opcional)" value={newCase.assigned_to} onChange={(e) => setNewCase({ ...newCase, assigned_to: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                <Textarea placeholder="Resumen de los hechos" value={newCase.summary} onChange={(e) => setNewCase({ ...newCase, summary: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+
+                <Button type="submit" disabled={creating} className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
+                  {creating ? 'Creando…' : 'Crear Caso'}
+                </Button>
+              </form>
+            )}
           </motion.div>
         </motion.div>
       )}

@@ -1,11 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 import {
   Scale, LayoutDashboard, Users, FolderKanban, BookOpen, Calendar,
-  Brain, Video, Receipt, FileText, Settings, LogOut, Menu, X, Sparkles
+  Brain, Video, Receipt, FileText, Settings, LogOut, Menu, X, Sparkles, Bell, CheckCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const NotificationBell = ({ userId }) => {
+  const [items, setItems] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [open, setOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { data } = await axios.get(`${API}/dashboard/notifications/${userId}`);
+      setItems(data.notifications || []);
+      setUnread(data.unread || 0);
+    } catch (e) { /* silencioso */ }
+  }, [userId]);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 30000); // sondea cada 30s → "tiempo real"
+    return () => clearInterval(t);
+  }, [load]);
+
+  const markAllRead = async () => {
+    try { await axios.post(`${API}/dashboard/notifications/${userId}/read-all`); setUnread(0); setItems(items.map(i => ({ ...i, read: true }))); }
+    catch (e) { /* noop */ }
+  };
+
+  return (
+    <div className="relative">
+      <button onClick={() => { setOpen(!open); if (!open) load(); }} className="relative w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20" data-testid="notification-bell">
+        <Bell className="w-5 h-5" />
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{unread > 9 ? '9+' : unread}</span>
+        )}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto z-50 bg-[#0f172a] border border-white/20 rounded-2xl shadow-2xl">
+              <div className="flex items-center justify-between p-4 border-b border-white/10 sticky top-0 bg-[#0f172a]">
+                <span className="font-bold flex items-center gap-2"><Bell className="w-4 h-4 text-[#f97316]" /> Notificaciones</span>
+                {unread > 0 && <button onClick={markAllRead} className="text-xs text-[#3b82f6] hover:underline flex items-center gap-1"><CheckCheck className="w-3 h-3" /> Marcar leídas</button>}
+              </div>
+              <div className="divide-y divide-white/5">
+                {items.length === 0 && <div className="p-6 text-center text-white/40 text-sm">Sin notificaciones</div>}
+                {items.map(n => (
+                  <div key={n._id} className={`p-3 ${n.read ? 'opacity-60' : 'bg-white/[0.03]'}`}>
+                    <div className="flex items-start gap-2">
+                      {!n.read && <span className="w-2 h-2 rounded-full bg-[#f97316] mt-1.5 flex-shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold">{n.title}</div>
+                        <div className="text-xs text-white/60">{n.message}</div>
+                        <div className="text-[10px] text-white/30 mt-1">{(n.created_at || '').slice(0, 16).replace('T', ' ')}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Inicio', path: '/dashboard' },
@@ -114,6 +183,11 @@ export const DashboardLayout = ({ children }) => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Campana de notificaciones (visible en todo el dashboard) */}
+      <div className="fixed top-4 right-4 z-50">
+        <NotificationBell userId={user?.id} />
+      </div>
 
       {/* Main Content */}
       <main className="lg:ml-72 min-h-screen">

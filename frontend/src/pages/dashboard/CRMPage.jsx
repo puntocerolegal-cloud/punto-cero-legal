@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Users, Plus, Search, Filter, Edit, Trash2, Mail, Phone, MapPin,
-  Tag, FileText, MoreVertical, X, ChevronDown
+  Users, Plus, Search, Edit, Trash2, X,
+  TrendingUp, Brain, Lightbulb, BarChart3, Receipt, Award, DollarSign
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -28,6 +28,8 @@ export const CRMPage = () => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [newLead, setNewLead] = useState({ client_name: '', client_email: '', client_phone: '', legal_area: 'Derecho Civil', status: 'new', description: '' });
+  const [report, setReport] = useState(null);
+  const [editLead, setEditLead] = useState(null);
 
   const loadLeads = useCallback(async () => {
     if (!user?.id) return;
@@ -41,7 +43,26 @@ export const CRMPage = () => {
     }
   }, [user?.id]);
 
-  useEffect(() => { loadLeads(); }, [loadLeads]);
+  const loadReport = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/dashboard/crm-report/${user.id}`);
+      setReport(data);
+    } catch (e) { /* sin datos */ }
+  }, [user?.id]);
+
+  useEffect(() => { loadLeads(); loadReport(); }, [loadLeads, loadReport]);
+
+  const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.patch(`${API}/leads/${editLead._id}`, { status: editLead.status, description: editLead.description });
+      setEditLead(null);
+      loadLeads();
+    } catch (err) { alert('No se pudo actualizar el lead.'); }
+  };
 
   const filteredLeads = leads.filter(l => {
     const matchesSearch = l.client_name?.toLowerCase().includes(search.toLowerCase()) || l.client_email?.toLowerCase().includes(search.toLowerCase());
@@ -101,6 +122,97 @@ export const CRMPage = () => {
             );
           })}
         </div>
+
+        {/* Centro de Inteligencia (CRM central) */}
+        {report && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 text-white/60 text-xs uppercase"><Receipt className="w-4 h-4" /> Casos totales</div>
+                <div className="text-3xl font-bold mt-1">{report.total_cases}</div>
+              </div>
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 text-white/60 text-xs uppercase"><Users className="w-4 h-4" /> Clientes nuevos (mes)</div>
+                <div className="text-3xl font-bold mt-1 text-[#3b82f6]">{report.new_clients_this_month}</div>
+              </div>
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 text-white/60 text-xs uppercase"><Award className="w-4 h-4" /> Tasa de éxito</div>
+                <div className="text-3xl font-bold mt-1 text-[#10b981]">{report.success_rate}%</div>
+              </div>
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 text-white/60 text-xs uppercase"><DollarSign className="w-4 h-4" /> Ingresos (6m)</div>
+                <div className="text-2xl font-bold mt-1 text-[#f97316]">{fmt(report.income_by_month.reduce((s, m) => s + m.income, 0))}</div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-4">
+              {/* Ingresos por mes */}
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-5 border border-white/10">
+                <h3 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#f97316]" /> Ingresos por mes</h3>
+                <div className="flex items-end justify-between gap-2 h-32">
+                  {report.income_by_month.map((m) => {
+                    const max = Math.max(...report.income_by_month.map(x => x.income), 1);
+                    return (
+                      <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                        <div className="w-full bg-gradient-to-t from-[#f97316] to-[#fb923c] rounded-t" style={{ height: `${Math.max((m.income / max) * 100, 2)}%` }} title={fmt(m.income)} />
+                        <div className="text-[9px] text-white/40">{m.month.slice(5)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Casos por materia */}
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-5 border border-white/10">
+                <h3 className="font-bold mb-4 flex items-center gap-2"><Brain className="w-4 h-4 text-[#3b82f6]" /> Casos por materia</h3>
+                <div className="space-y-2">
+                  {Object.entries(report.cases_by_materia).length === 0 && <div className="text-xs text-white/40">Sin casos aún.</div>}
+                  {Object.entries(report.cases_by_materia).map(([k, v]) => {
+                    const max = Math.max(...Object.values(report.cases_by_materia), 1);
+                    return (
+                      <div key={k}>
+                        <div className="flex justify-between text-xs mb-0.5"><span>{k}</span><span className="text-white/50">{v}</span></div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-[#3b82f6]" style={{ width: `${(v / max) * 100}%` }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Casos por estado */}
+              <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-5 border border-white/10">
+                <h3 className="font-bold mb-4 flex items-center gap-2"><Receipt className="w-4 h-4 text-[#10b981]" /> Casos por estado</h3>
+                <div className="space-y-2">
+                  {Object.entries(report.cases_by_estado).length === 0 && <div className="text-xs text-white/40">Sin casos aún.</div>}
+                  {Object.entries(report.cases_by_estado).map(([k, v]) => {
+                    const max = Math.max(...Object.values(report.cases_by_estado), 1);
+                    return (
+                      <div key={k}>
+                        <div className="flex justify-between text-xs mb-0.5"><span>{k}</span><span className="text-white/50">{v}</span></div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-[#10b981]" style={{ width: `${(v / max) * 100}%` }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Recomendaciones inteligentes */}
+            {report.recommendations?.length > 0 && (
+              <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/10 to-[#3b82f6]/10 rounded-2xl p-5 border border-[#f97316]/30">
+                <h3 className="font-bold mb-3 flex items-center gap-2"><Lightbulb className="w-4 h-4 text-[#f97316]" /> Recomendaciones inteligentes</h3>
+                <div className="space-y-2">
+                  {report.recommendations.map((r, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${r.priority === 'alta' ? 'bg-red-500/20 text-red-300' : r.priority === 'media' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-blue-500/20 text-blue-300'}`}>{r.priority}</span>
+                      <span className="text-white/80">{r.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search & Filter */}
         <div className="flex flex-col md:flex-row gap-3">
@@ -162,7 +274,7 @@ export const CRMPage = () => {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            <button className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`edit-lead-${lead._id}`}>
+                            <button onClick={() => setEditLead({ ...lead })} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`edit-lead-${lead._id}`}>
                               <Edit className="w-4 h-4 text-[#3b82f6]" />
                             </button>
                             <button onClick={() => handleDelete(lead._id)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`delete-lead-${lead._id}`}>
@@ -208,6 +320,28 @@ export const CRMPage = () => {
               </select>
               <Textarea placeholder="Descripción del lead" value={newLead.description} onChange={(e) => setNewLead({ ...newLead, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
               <Button type="submit" className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Crear Cliente</Button>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Modal Editar Lead */}
+      {editLead && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditLead(null)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Editar · {editLead.client_name}</h2>
+              <button onClick={() => setEditLead(null)}><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50">Estado del lead</label>
+                <select value={editLead.status} onChange={(e) => setEditLead({ ...editLead, status: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                  {Object.entries(statusConfig).map(([k, v]) => <option key={k} value={k} className="bg-[#0f172a]">{v.label}</option>)}
+                </select>
+              </div>
+              <Textarea placeholder="Descripción / notas" value={editLead.description || ''} onChange={(e) => setEditLead({ ...editLead, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              <Button type="submit" className="w-full bg-gradient-to-r from-[#3b82f6] to-[#2563eb] text-white font-bold">Guardar</Button>
             </form>
           </motion.div>
         </motion.div>

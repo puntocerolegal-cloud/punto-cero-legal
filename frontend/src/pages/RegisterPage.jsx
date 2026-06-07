@@ -6,6 +6,7 @@ import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
+import { getErrorMessage } from '../lib/utils';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -52,7 +53,7 @@ export const RegisterPage = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al registrarse');
+      setError(getErrorMessage(err, 'Error al registrarse'));
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,139 @@
+"""
+Centro de notificaciones multicanal — Punto Cero Legal.
+
+Envía notificaciones por tres canales de forma simultánea y tolerante a fallos:
+  1. In-app  → colección `notifications` (siempre funciona).
+  2. Email   → SMTP si está configurado (SMTP_HOST/USER/PASS), si no, se registra.
+  3. WhatsApp→ Twilio si está configurado (TWILIO_*), si no, se registra.
+
+El diseño es "graceful degradation": si faltan credenciales externas, la
+notificación in-app SIEMPRE se crea y los canales externos quedan en cola/log,
+de modo que el resto del sistema nunca se rompe por falta de configuración.
+"""
+from __future__ import annotations
+from datetime import datetime
+import os
+import ssl
+import smtplib
+import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+logger = logging.getLogger(__name__)
+
+
+async def create_app_notification(db, *, target: str, type: str, title: str,
+                                  message: str, **extra) -> str:
+    """Crea una notificación in-app. `target` = user_id (str) o 'admin'."""
+    doc = {
+        "target": target,
+        "user_id": target,
+        "type": type,
+        "title": title,
+        "message": message,
+        "read": False,
+        "created_at": datetime.utcnow(),
+        **extra,
+    }
+    res = await db.notifications.insert_one(doc)
+    return str(res.inserted_id)
+
+
+def send_email(to_email: str, subject: str, body_html: str) -> dict:
+    """Envía un email vía SMTP. Si no hay credenciales, registra y retorna pendiente."""
+    host = os.environ.get("SMTP_HOST")
+    user = os.environ.get("SMTP_USER")
+    password = os.environ.get("SMTP_PASS")
+    sender = os.environ.get("SMTP_FROM", user or "no-reply@puntocerolegal.com")
+    if not (host and user and password and to_email):
+        logger.info("[email pendiente] para=%s asunto=%s (SMTP no configurado)", to_email, subject)
+        return {"channel": "email", "sent": False, "reason": "smtp_not_configured"}
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = to_email
+        msg.attach(MIMEText(body_html, "html"))
+        port = int(os.environ.get("SMTP_PORT", "587"))
+        context = ssl.create_default_context()
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(user, password)
+            server.sendmail(sender, [to_email], msg.as_string())
+        return {"channel": "email", "sent": True}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Fallo enviando email a %s: %s", to_email, e)
+        return {"channel": "email", "sent": False, "reason": str(e)[:120]}
+
+
+def send_whatsapp(to_phone: str, body: str) -> dict:
+    """Envía un WhatsApp. Preferencia: Meta WhatsApp Cloud API → Twilio → cola/log.
+    Degradación elegante si faltan credenciales."""
+    if not to_phone:
+        return {"channel": "whatsapp", "sent": False, "reason": "no_phone"}
+    import httpx
+    to_digits = "".join(ch for ch in to_phone if ch.isdigit())
+
+    # 1) Meta WhatsApp Cloud API (Graph)
+    meta_token = os.environ.get("META_ACCESS_TOKEN")
+    meta_phone_id = os.environ.get("META_PHONE_NUMBER_ID")
+    if meta_token and meta_phone_id:
+        try:
+            version = os.environ.get("META_GRAPH_VERSION", "v21.0")
+            r = httpx.post(
+                f"https://graph.facebook.com/{version}/{meta_phone_id}/messages",
+                headers={"Authorization": f"Bearer {meta_token}", "Content-Type": "application/json"},
+                json={"messaging_product": "whatsapp", "to": to_digits,
+                      "type": "text", "text": {"preview_url": False, "body": body}},
+                timeout=15,
+            )
+            ok = r.status_code in (200, 201)
+            if not ok:
+                logger.warning("Meta WhatsApp error %s: %s", r.status_code, r.text[:200])
+            return {"channel": "whatsapp", "provider": "meta", "sent": ok, "status": r.status_code}
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Fallo enviando WhatsApp (Meta) a %s: %s", to_phone, e)
+            return {"channel": "whatsapp", "provider": "meta", "sent": False, "reason": str(e)[:120]}
+
+    # 2) Twilio
+    sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_wa = os.environ.get("TWILIO_WHATSAPP_FROM")  # ej: 'whatsapp:+14155238886'
+    if sid and token and from_wa:
+        try:
+            to_wa = f"whatsapp:+{to_digits}"
+            r = httpx.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+                data={"From": from_wa, "To": to_wa, "Body": body},
+                auth=(sid, token), timeout=15,
+            )
+            ok = r.status_code in (200, 201)
+            return {"channel": "whatsapp", "provider": "twilio", "sent": ok, "status": r.status_code}
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Fallo enviando WhatsApp (Twilio) a %s: %s", to_phone, e)
+            return {"channel": "whatsapp", "provider": "twilio", "sent": False, "reason": str(e)[:120]}
+
+    logger.info("[whatsapp pendiente] para=%s (Meta/Twilio no configurado)", to_phone)
+    return {"channel": "whatsapp", "sent": False, "reason": "whatsapp_not_configured"}
+
+
+def wa_link(phone: str | None, text: str = "") -> str | None:
+    """Construye un enlace wa.me (fallback manual si no hay API)."""
+    if not phone:
+        return None
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if not digits:
+        return None
+    from urllib.parse import quote
+    return f"https://wa.me/{digits}?text={quote(text)}" if text else f"https://wa.me/{digits}"
+
+
+async def notify_all(db, *, user: dict, type: str, title: str, message: str,
+                     email_html: str | None = None, whatsapp_text: str | None = None,
+                     **extra) -> dict:
+    """Dispara los tres canales para un usuario (dict con _id/email/phone)."""
+    uid = str(user.get("_id"))
+    notif_id = await create_app_notification(db, target=uid, type=type, title=title, message=message, **extra)
+    email_res = send_email(user.get("email"), title, email_html or f"<p>{message}</p>") if user.get("email") else {"channel": "email", "sent": False, "reason": "no_email"}
+    wa_res = send_whatsapp(user.get("phone"), whatsapp_text or f"*{title}*\n{message}") if user.get("phone") else {"channel": "whatsapp", "sent": False, "reason": "no_phone"}
+    return {"notification_id": notif_id, "channels": [email_res, wa_res]}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Receipt, Plus, TrendingUp, TrendingDown, DollarSign, CreditCard, CheckCircle2, Copy, X } from 'lucide-react';
+import { Receipt, Plus, TrendingUp, TrendingDown, DollarSign, CreditCard, CheckCircle2, Copy, X, Eye, Pencil, Trash2, Paperclip, Printer, Loader2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -22,7 +22,11 @@ export const InvoicesPage = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newInvoice, setNewInvoice] = useState({ client: '', amount: '', dueDate: '', description: '' });
+  const [newInvoice, setNewInvoice] = useState({ client: '', amount: '', dueDate: '', serviceDate: '', hours: '', rate: '', description: '' });
+  const [preview, setPreview] = useState(null);
+  const [editInv, setEditInv] = useState(null);
+  const [attachingId, setAttachingId] = useState(null);
+  const fileRef = React.useRef(null);
 
   const loadInvoices = useCallback(async () => {
     if (!user?.id) return;
@@ -49,11 +53,14 @@ export const InvoicesPage = () => {
         lawyer_id: user.id,
         client_name: newInvoice.client,
         amount: parseFloat(newInvoice.amount),
+        hours: newInvoice.hours ? parseFloat(newInvoice.hours) : null,
+        hourly_rate: newInvoice.rate ? parseFloat(newInvoice.rate) : null,
+        service_date: newInvoice.serviceDate ? new Date(newInvoice.serviceDate).toISOString() : null,
         due_date: newInvoice.dueDate ? new Date(newInvoice.dueDate).toISOString() : null,
         description: newInvoice.description,
         status: 'draft',
       });
-      setNewInvoice({ client: '', amount: '', dueDate: '', description: '' });
+      setNewInvoice({ client: '', amount: '', dueDate: '', serviceDate: '', hours: '', rate: '', description: '' });
       setShowModal(false);
       loadInvoices();
     } catch (err) {
@@ -88,7 +95,70 @@ export const InvoicesPage = () => {
     }
   };
 
+  const handleDelete = async (inv) => {
+    if (!window.confirm(`¿Eliminar la factura ${inv.number}?`)) return;
+    try { await axios.delete(`${API}/invoices/${inv._id}`); loadInvoices(); }
+    catch (e) { alert('No se pudo eliminar.'); }
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.patch(`${API}/invoices/${editInv._id}`, {
+        client_name: editInv.client,
+        amount: parseFloat(editInv.amount),
+        description: editInv.description,
+        status: editInv.status,
+      });
+      setEditInv(null);
+      loadInvoices();
+    } catch (e) { alert('No se pudo guardar.'); }
+  };
+
+  const handleAttach = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !attachingId) return;
+    const fd = new FormData();
+    fd.append('mark_paid', 'true');
+    fd.append('file', file);
+    try {
+      await axios.post(`${API}/invoices/${attachingId}/attach-payment`, fd);
+      loadInvoices();
+      alert('Comprobante adjuntado. Factura marcada como pagada.');
+    } catch (err) { alert('No se pudo adjuntar el comprobante.'); }
+    finally { setAttachingId(null); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
+  const triggerAttach = (inv) => { setAttachingId(inv._id); setTimeout(() => fileRef.current?.click(), 0); };
+
   const format = (num) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(num || 0);
+
+  const printInvoice = (inv) => {
+    const w = window.open('', '_blank', 'width=800,height=900');
+    if (!w) return;
+    const row = (k, v) => v ? `<tr><td style="padding:6px 10px;color:#555">${k}</td><td style="padding:6px 10px;font-weight:600">${v}</td></tr>` : '';
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${inv.number}</title>
+      <style>body{font-family:Arial,sans-serif;color:#111;padding:40px;max-width:700px;margin:auto}
+      h1{color:#f97316;margin:0} .muted{color:#777;font-size:13px} table{width:100%;border-collapse:collapse;margin-top:20px;border:1px solid #eee}
+      .total{font-size:22px;font-weight:800;margin-top:20px;text-align:right}</style></head><body>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h1>Punto Cero Legal</h1><div class="muted">Factura de servicios jurídicos</div></div>
+        <div style="text-align:right"><div style="font-weight:700">${inv.number}</div><div class="muted">${(inv.date||'').slice(0,10)}</div></div>
+      </div>
+      <table>
+        ${row('Cliente', inv.client)}
+        ${row('Descripción del servicio', inv.description)}
+        ${row('Fecha del servicio', (inv.service_date||'').slice(0,10))}
+        ${row('Horas', inv.hours)}
+        ${row('Honorarios por hora', inv.hourly_rate != null ? format(inv.hourly_rate) : '')}
+        ${row('Fecha de emisión', (inv.date||'').slice(0,10))}
+        ${row('Vencimiento', (inv.dueDate||'').slice(0,10))}
+        ${row('Estado de pago', (statusConfig[inv.status]||{}).label)}
+      </table>
+      <div class="total">TOTAL: ${format(inv.amount)}</div>
+      <script>window.onload=()=>{window.print()}</script></body></html>`);
+    w.document.close();
+  };
 
   return (
     <DashboardLayout>
@@ -167,6 +237,10 @@ export const InvoicesPage = () => {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">
+                          <button onClick={() => setPreview(inv)} className="p-1.5 rounded-lg hover:bg-white/10" title="Vista previa" data-testid={`preview-${inv._id}`}><Eye className="w-4 h-4 text-white/70" /></button>
+                          <button onClick={() => printInvoice(inv)} className="p-1.5 rounded-lg hover:bg-white/10" title="Imprimir" data-testid={`print-${inv._id}`}><Printer className="w-4 h-4 text-white/70" /></button>
+                          <button onClick={() => setEditInv({ ...inv, client: inv.client, amount: inv.amount, status: inv.status })} className="p-1.5 rounded-lg hover:bg-white/10" title="Editar" data-testid={`edit-${inv._id}`}><Pencil className="w-4 h-4 text-[#3b82f6]" /></button>
+                          <button onClick={() => triggerAttach(inv)} className="p-1.5 rounded-lg hover:bg-white/10" title="Adjuntar comprobante de pago" data-testid={`attach-${inv._id}`}><Paperclip className="w-4 h-4 text-[#10b981]" /></button>
                           {inv.status !== 'paid' && inv.status !== 'cancelled' && (
                             <>
                               {inv.payment_link ? (
@@ -177,7 +251,7 @@ export const InvoicesPage = () => {
                               <button onClick={() => handleMarkPaid(inv)} className="p-1.5 rounded-lg hover:bg-white/10" title="Marcar como pagada" data-testid={`mark-paid-${inv._id}`}><CheckCircle2 className="w-4 h-4 text-[#10b981]" /></button>
                             </>
                           )}
-                          {inv.status === 'paid' && <CheckCircle2 className="w-4 h-4 text-[#10b981]" />}
+                          <button onClick={() => handleDelete(inv)} className="p-1.5 rounded-lg hover:bg-white/10" title="Borrar" data-testid={`delete-${inv._id}`}><Trash2 className="w-4 h-4 text-red-400" /></button>
                         </div>
                       </td>
                     </tr>
@@ -200,10 +274,67 @@ export const InvoicesPage = () => {
             </div>
             <form onSubmit={handleCreate} className="space-y-3">
               <Input placeholder="Cliente" value={newInvoice.client} onChange={(e) => setNewInvoice({ ...newInvoice, client: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input type="number" placeholder="Monto" value={newInvoice.amount} onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input type="date" value={newInvoice.dueDate} onChange={(e) => setNewInvoice({ ...newInvoice, dueDate: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
-              <Input placeholder="Descripción de servicios" value={newInvoice.description} onChange={(e) => setNewInvoice({ ...newInvoice, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              <Input placeholder="Descripción del servicio prestado" value={newInvoice.description} onChange={(e) => setNewInvoice({ ...newInvoice, description: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs text-white/50">Fecha del servicio</label><Input type="date" value={newInvoice.serviceDate} onChange={(e) => setNewInvoice({ ...newInvoice, serviceDate: e.target.value })} className="bg-white/10 border-white/20 text-white" /></div>
+                <div><label className="text-xs text-white/50">Vencimiento</label><Input type="date" value={newInvoice.dueDate} onChange={(e) => setNewInvoice({ ...newInvoice, dueDate: e.target.value })} required className="bg-white/10 border-white/20 text-white" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input type="number" placeholder="Horas" value={newInvoice.hours} onChange={(e) => setNewInvoice({ ...newInvoice, hours: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                <Input type="number" placeholder="Honorarios/hora" value={newInvoice.rate} onChange={(e) => setNewInvoice({ ...newInvoice, rate: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+              </div>
+              <Input type="number" placeholder="Monto total (honorarios)" value={newInvoice.amount} onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })} required className="bg-white/10 border-white/20 text-white" />
               <Button type="submit" className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Generar Factura</Button>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Input oculto para adjuntar comprobante */}
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={handleAttach} className="hidden" />
+
+      {/* Vista previa / reporte de factura */}
+      {preview && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-2xl font-bold text-[#f97316]">{preview.number}</h2>
+              <button onClick={() => setPreview(null)}><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-xs text-white/50 mb-4">Reporte detallado del servicio</p>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-white/40">Cliente</span><span className="font-semibold">{preview.client}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Servicio</span><span className="font-semibold text-right max-w-[60%]">{preview.description || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Fecha del servicio</span><span>{(preview.service_date || '').slice(0, 10) || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Horas</span><span>{preview.hours ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Honorarios/hora</span><span>{preview.hourly_rate != null ? format(preview.hourly_rate) : '—'}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Emisión</span><span>{(preview.date || '').slice(0, 10)}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Vencimiento</span><span>{(preview.dueDate || '').slice(0, 10) || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Estado de pago</span><span className="font-semibold" style={{ color: (statusConfig[preview.status] || {}).color }}>{(statusConfig[preview.status] || {}).label}</span></div>
+              {preview.has_proof && <div className="flex justify-between"><span className="text-white/40">Comprobante</span><span className="text-[#10b981]">Adjunto ✓</span></div>}
+              <div className="flex justify-between pt-3 border-t border-white/10 text-lg"><span className="font-bold">TOTAL</span><span className="font-bold text-[#10b981]">{format(preview.amount)}</span></div>
+            </div>
+            <Button onClick={() => printInvoice(preview)} className="w-full mt-5 bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold"><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Editar factura */}
+      {editInv && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditInv(null)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-md w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Editar {editInv.number}</h2>
+              <button onClick={() => setEditInv(null)}><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="space-y-3">
+              <Input value={editInv.client} onChange={(e) => setEditInv({ ...editInv, client: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Cliente" />
+              <Input value={editInv.description || ''} onChange={(e) => setEditInv({ ...editInv, description: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Descripción" />
+              <Input type="number" value={editInv.amount} onChange={(e) => setEditInv({ ...editInv, amount: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Monto" />
+              <select value={editInv.status} onChange={(e) => setEditInv({ ...editInv, status: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                {Object.entries(statusConfig).map(([k, v]) => <option key={k} value={k} className="bg-[#0f172a]">{v.label}</option>)}
+              </select>
+              <Button type="submit" className="w-full bg-gradient-to-r from-[#3b82f6] to-[#2563eb] text-white font-bold">Guardar cambios</Button>
             </form>
           </motion.div>
         </motion.div>

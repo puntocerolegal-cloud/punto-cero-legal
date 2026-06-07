@@ -15,6 +15,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
+import { getErrorMessage } from '../lib/utils';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -988,7 +989,7 @@ const CandidateDrawer = ({ candidate, isAdminGeneral, onClose, onMutate }) => {
       await axios.post(`${API}/admin-ops/sales/candidates/${candidate.id}/${action}`);
       await onMutate();
       onClose();
-    } catch (e) { alert(e.response?.data?.detail || 'Error'); }
+    } catch (e) { alert(getErrorMessage(e, 'Error')); }
     finally { setActing(false); }
   };
 
@@ -1379,7 +1380,7 @@ const MovementModal = ({ movement, onClose, onSaved }) => {
       if (movement?.id) await axios.put(`${API}/admin-ops/accounting/movements/${movement.id}`, payload);
       else await axios.post(`${API}/admin-ops/accounting/movements`, payload);
       onSaved();
-    } catch (e) { alert(e.response?.data?.detail || 'Error guardando'); }
+    } catch (e) { alert(getErrorMessage(e, 'Error guardando')); }
     finally { setSaving(false); }
   };
   return (

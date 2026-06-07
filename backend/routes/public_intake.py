@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from utils.case_number_generator import generate_case_number
+from utils.case_number_generator import generate_case_number, next_consultation_number
 
 router = APIRouter(prefix="/public", tags=["Public Intake"])
 
@@ -39,49 +39,66 @@ async def case_intake(payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(
     """Captura una solicitud de consulta jurídica desde la landing.
     Crea el caso en estado sin_asignar/PENDING_ASSIGNMENT listo para Routing Inteligente.
     """
+    from routes import chatbot  # import perezoso para evitar ciclos
+
     priority_label = PRIORITY_LABELS.get((payload.priority or "media").lower(), "media")
     priority_engine = {"alta": "high", "media": "medium", "baja": "low"}[priority_label]
     now = datetime.utcnow()
 
+    # 2) Identificador único de consulta + teléfono validado por país
+    consultation_number = await next_consultation_number(db)
+    norm_phone = chatbot.normalize_phone(payload.phone, payload.country)
+
     case_doc = {
-        "case_number": generate_case_number(),
+        "case_number": consultation_number,          # CON-2026-001
+        "consultation_number": consultation_number,
         "title": f"Consulta {payload.legal_area} · {payload.name}",
         "description": payload.description,
         "legal_area": payload.legal_area,
         "priority": priority_engine,
         "priority_label": priority_label,
         "status": "PENDING_ASSIGNMENT",
+        "estado": "En estudio",
         "assignment_status": "sin_asignar",
         "lawyer_id": None,
         "client_id": None,
         "client_name": payload.name,
-        "client_phone": payload.phone,
+        "client_phone": norm_phone or payload.phone,
         "client_email": payload.email,
         "client_country": payload.country,
         "client_city": payload.city,
         "source": "landing_intake",
         "is_demo": False,
+        "status_timeline": chatbot.init_timeline(),  # 5 estados (recibido → en proceso)
         "created_at": now,
         "updated_at": now,
     }
     res = await db.cases.insert_one(case_doc)
     case_id = str(res.inserted_id)
+    case_doc["_id"] = case_id
 
+    # 2.b) PRIMERO al administrador: alerta en el dashboard
     await db.notifications.insert_one({
         "target": "admin",
         "type": "new_client_case",
-        "title": "Nuevo caso entrante",
-        "message": f"{payload.name} solicita asistencia en {payload.legal_area} (prioridad {priority_label}).",
+        "title": f"Nueva consulta entrante {consultation_number}",
+        "message": f"{payload.name} solicita asistencia en {payload.legal_area} (prioridad {priority_label}, {payload.country}).",
         "case_id": case_id,
         "read": False,
         "created_at": now,
     })
 
+    # 3) Activa el chatbot de WhatsApp (bienvenida según país + 1ª pregunta + timeline + correo)
+    try:
+        await chatbot.start_intake_conversation(db, case_doc)
+    except Exception:
+        pass  # nunca romper el intake por un fallo del chatbot/notificación
+
     return {
         "ok": True,
         "case_id": case_id,
-        "case_number": case_doc["case_number"],
-        "message": "Solicitud recibida. Un especialista legal revisará su caso y le contactaremos pronto.",
+        "case_number": consultation_number,
+        "message": "Solicitud recibida. Te contactaremos por WhatsApp en breve y un especialista legal revisará tu caso.",
     }
 
 

@@ -1,0 +1,72 @@
+# Render Blueprint — Punto Cero Legal (Backend FastAPI)
+# Despliega con: Render Dashboard → New → Blueprint → conecta este repo.
+# Los secretos (sync: false) NO van aquí: se cargan en el panel de Render
+# (Environment → Environment Variables). Nunca subas claves reales al repo.
+services:
+  - type: web
+    name: puntocero-legal-api
+    runtime: python
+    plan: free                      # cámbialo a "starter" para evitar cold starts
+    region: oregon                  # u "ohio"/"frankfurt"/"singapore"
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+      # ── Base de datos (MongoDB Atlas) ──
+      - key: MONGO_URL              # mongodb+srv://user:pass@cluster.xxxx.mongodb.net/?retryWrites=true&w=majority
+        sync: false
+      - key: DB_NAME
+        value: puntocero_legal
+
+      # ── Seguridad / app ──
+      - key: SECRET_KEY
+        generateValue: true         # Render genera un valor seguro automáticamente
+      - key: CORS_ORIGINS           # URL del frontend en Vercel, p.ej. https://puntocerolegal.vercel.app
+        sync: false
+      - key: APP_PUBLIC_URL         # URL pública de este servicio (la da Render tras desplegar)
+        sync: false
+
+      # ── IA ──
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # ── Meta WhatsApp Cloud API ──
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_PHONE_NUMBER_ID
+        sync: false
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: META_WHATSAPP_NUMBER
+        sync: false
+      - key: META_VERIFY_TOKEN      # el mismo token que pondrás en el panel de Meta
+        sync: false
+      - key: META_GRAPH_VERSION
+        value: v21.0
+
+      # ── Correo (SMTP) ──
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+      # ── Pagos (opcional) ──
+      - key: MP_ACCESS_TOKEN
+        sync: false

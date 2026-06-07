@@ -207,6 +207,28 @@ async def get_encrypted_content(document_id: str, db: AsyncIOMotorDatabase = Dep
     }
 
 
+class DocumentEdit(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=300)
+    folder: Optional[str] = None
+    client_name: Optional[str] = None
+    case_id: Optional[str] = None
+
+
+@router.patch("/{document_id}", response_model=dict)
+async def edit_document(document_id: str, payload: DocumentEdit, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Edita metadatos del documento (renombrar, mover de carpeta, vincular a caso/cliente).
+    El contenido cifrado no se toca: la edición es solo de metadatos (Zero-Knowledge intacto)."""
+    update = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(400, "Nada que actualizar")
+    update["updated_at"] = datetime.utcnow()
+    res = await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Documento no encontrado")
+    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
+    return _serialize(doc)
+
+
 @router.delete("/{document_id}", status_code=204)
 async def delete_document(document_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     doc = await db.documents.find_one({"_id": ObjectId(document_id)})

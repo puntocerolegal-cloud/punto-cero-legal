@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.appointment import AppointmentCreate, Appointment
 from bson import ObjectId
+
+from utils import notifier
 
 router = APIRouter(prefix="/appointments", tags=["Legal Agenda"])
 
@@ -14,14 +16,89 @@ async def get_db():
 @router.post("/", response_model=dict)
 async def create_appointment(appointment_data: AppointmentCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
     appointment_dict = appointment_data.model_dump()
-    appointment_dict["reminder_sent"] = False
+    appointment_dict["reminder_sent"] = False        # recordatorio 24h
+    appointment_dict["reminder_day_sent"] = False     # recordatorio el día del evento
     appointment_dict["created_at"] = datetime.utcnow()
     appointment_dict["updated_at"] = datetime.utcnow()
-    
+
     result = await db.appointments.insert_one(appointment_dict)
     appointment_dict["_id"] = str(result.inserted_id)
-    
+
+    # Notificación in-app inmediata de evento agendado
+    try:
+        await notifier.create_app_notification(
+            db, target=appointment_dict["lawyer_id"], type="agenda_event",
+            title="Evento agendado",
+            message=f"{appointment_dict.get('title','Evento')} programado.",
+            appointment_id=appointment_dict["_id"],
+        )
+    except Exception:
+        pass
     return appointment_dict
+
+
+@router.post("/run-reminders", response_model=dict)
+async def run_reminders(db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Escanea la agenda y envía recordatorios por 3 canales (app, email, WhatsApp):
+      • 24 horas antes del evento (reminder_sent)
+      • el mismo día del evento (reminder_day_sent)
+    Pensado para ejecutarse por cron. Idempotente vía banderas en cada cita."""
+    now = datetime.utcnow()
+    sent_24h = sent_day = 0
+
+    # Cache de usuarios para no consultar repetido
+    user_cache = {}
+
+    async def _user(lawyer_id):
+        if lawyer_id not in user_cache:
+            try:
+                user_cache[lawyer_id] = await db.users.find_one({"_id": ObjectId(lawyer_id)})
+            except Exception:
+                user_cache[lawyer_id] = None
+        return user_cache[lawyer_id]
+
+    # 1) Recordatorio 24h antes (eventos en las próximas 24h, aún no avisados)
+    window_24h = now + timedelta(hours=24)
+    pend = await db.appointments.find({
+        "status": "scheduled", "reminder_sent": {"$ne": True},
+        "start_time": {"$gte": now, "$lte": window_24h},
+    }).to_list(500)
+    for appt in pend:
+        u = await _user(appt.get("lawyer_id"))
+        if u:
+            when = appt["start_time"].strftime("%d/%m %H:%M") if isinstance(appt.get("start_time"), datetime) else ""
+            await notifier.notify_all(
+                db, user=u, type="agenda_reminder",
+                title=f"Recordatorio (24h): {appt.get('title','Evento')}",
+                message=f"Tienes «{appt.get('title','')}» el {when}.",
+                whatsapp_text=f"⏰ Recordatorio: «{appt.get('title','')}» el {when}.",
+                appointment_id=str(appt["_id"]),
+            )
+        await db.appointments.update_one({"_id": appt["_id"]}, {"$set": {"reminder_sent": True}})
+        sent_24h += 1
+
+    # 2) Recordatorio el día del evento (hoy, aún no avisado el día)
+    day_start = datetime.combine(date.today(), datetime.min.time())
+    day_end = datetime.combine(date.today(), datetime.max.time())
+    today_evts = await db.appointments.find({
+        "status": "scheduled", "reminder_day_sent": {"$ne": True},
+        "start_time": {"$gte": day_start, "$lte": day_end},
+    }).to_list(500)
+    for appt in today_evts:
+        u = await _user(appt.get("lawyer_id"))
+        if u:
+            when = appt["start_time"].strftime("%H:%M") if isinstance(appt.get("start_time"), datetime) else ""
+            await notifier.notify_all(
+                db, user=u, type="agenda_reminder",
+                title=f"Hoy: {appt.get('title','Evento')}",
+                message=f"Hoy a las {when}: {appt.get('title','')}.",
+                whatsapp_text=f"📅 Hoy {when}: {appt.get('title','')}.",
+                appointment_id=str(appt["_id"]),
+            )
+        await db.appointments.update_one({"_id": appt["_id"]}, {"$set": {"reminder_day_sent": True}})
+        sent_day += 1
+
+    return {"ok": True, "reminders_24h": sent_24h, "reminders_day_of": sent_day}
 
 @router.get("/", response_model=List[dict])
 async def get_appointments(

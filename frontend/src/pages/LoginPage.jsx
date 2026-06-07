@@ -5,6 +5,7 @@ import { Scale, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
+import { getErrorMessage } from '../lib/utils';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export const LoginPage = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión');
+      setError(getErrorMessage(err, 'Error al iniciar sesión'));
     } finally {
       setLoading(false);
     }

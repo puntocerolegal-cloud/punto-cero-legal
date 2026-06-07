@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Plus, Search, Edit, Trash2, Mail, Phone, MapPin, FileText, Briefcase, Calendar, X } from 'lucide-react';
+import { Users, Plus, Search, Trash2, Mail, Phone, MapPin, X, MessageCircle, Send, Clock, PhoneCall } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -10,6 +10,16 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+const telLink = (phone) => `tel:${(phone || '').replace(/[^\d+]/g, '')}`;
+const waLink = (phone) => `https://wa.me/${(phone || '').replace(/\D/g, '')}`;
+const mailLink = (email) => `mailto:${email || ''}`;
+
+const PRIORITY_STYLE = {
+  alta: { label: 'Alta', cls: 'bg-red-500/15 text-red-300 border-red-500/40' },
+  media: { label: 'Media', cls: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/40' },
+  baja: { label: 'Baja', cls: 'bg-blue-500/15 text-blue-300 border-blue-500/40' },
+};
+
 export const ClientsPage = () => {
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
@@ -18,6 +28,40 @@ export const ClientsPage = () => {
   const [selectedClient, setSelectedClient] = useState(null);
   const [search, setSearch] = useState('');
   const [newClient, setNewClient] = useState({ name: '', document: '', email: '', phone: '', city: '', country: 'Colombia', address: '', status: 'active', observations: '' });
+  const [clientCases, setClientCases] = useState([]);
+  const [timeline, setTimeline] = useState(null);
+  const [sendMsg, setSendMsg] = useState('');
+
+  // Al abrir un cliente: carga sus casos y la línea de tiempo del más reciente.
+  useEffect(() => {
+    setTimeline(null); setClientCases([]); setSendMsg('');
+    if (!selectedClient?._id) return;
+    (async () => {
+      try {
+        const { data: cases } = await axios.get(`${API}/cases/`, { params: { client_id: selectedClient._id } });
+        setClientCases(cases || []);
+        if (cases && cases.length) {
+          const { data: tl } = await axios.get(`${API}/cases/${cases[0]._id}/timeline`);
+          setTimeline(tl);
+        }
+      } catch (e) { /* sin casos */ }
+    })();
+  }, [selectedClient]);
+
+  const clientPriority = (() => {
+    if (!clientCases.length) return null;
+    const order = { alta: 3, media: 2, baja: 1 };
+    return clientCases.reduce((max, c) => (order[c.priority_label] || 0) > (order[max] || 0) ? c.priority_label : max, 'baja');
+  })();
+
+  const sendTimeline = async (channel) => {
+    if (!timeline?.case_id) return;
+    try {
+      const { data } = await axios.post(`${API}/cases/${timeline.case_id}/send-timeline`, { channel });
+      if (data.link) window.open(data.link, '_blank');
+      setSendMsg(data.api?.sent ? 'Enviado automáticamente.' : 'Abriendo tu app para enviar…');
+    } catch (e) { setSendMsg('No se pudo enviar.'); }
+  };
 
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
@@ -100,13 +144,19 @@ export const ClientsPage = () => {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-white/60">
-                  <Mail className="w-3.5 h-3.5" /> <span className="truncate">{client.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-white/60">
-                  <Phone className="w-3.5 h-3.5" /> <span>{client.phone}</span>
-                </div>
-                <div className="flex items-center gap-2 text-white/60">
                   <MapPin className="w-3.5 h-3.5" /> <span>{client.city}, {client.country}</span>
+                </div>
+                {/* Acciones de contacto directas */}
+                <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  {client.phone && (
+                    <>
+                      <a href={telLink(client.phone)} title="Llamar" className="w-8 h-8 rounded-lg bg-[#3b82f6]/15 hover:bg-[#3b82f6]/30 flex items-center justify-center" data-testid={`call-${client._id}`}><PhoneCall className="w-4 h-4 text-[#3b82f6]" /></a>
+                      <a href={waLink(client.phone)} target="_blank" rel="noreferrer" title="WhatsApp" className="w-8 h-8 rounded-lg bg-[#25d366]/15 hover:bg-[#25d366]/30 flex items-center justify-center" data-testid={`wa-${client._id}`}><MessageCircle className="w-4 h-4 text-[#25d366]" /></a>
+                    </>
+                  )}
+                  {client.email && (
+                    <a href={mailLink(client.email)} title="Email" className="w-8 h-8 rounded-lg bg-[#f97316]/15 hover:bg-[#f97316]/30 flex items-center justify-center" data-testid={`mail-${client._id}`}><Mail className="w-4 h-4 text-[#f97316]" /></a>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/10">
@@ -155,18 +205,63 @@ export const ClientsPage = () => {
       {selectedClient && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedClient(null)}>
           <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="bg-[#0f172a] border border-white/20 rounded-3xl p-8 max-w-lg w-full">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
+                {clientPriority && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${PRIORITY_STYLE[clientPriority]?.cls}`}>
+                    Prioridad {PRIORITY_STYLE[clientPriority]?.label}
+                  </span>
+                )}
+              </div>
               <button onClick={() => setSelectedClient(null)}><X className="w-5 h-5" /></button>
             </div>
+
+            {/* Acciones de contacto directas */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {selectedClient.phone && (
+                <>
+                  <a href={telLink(selectedClient.phone)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#3b82f6]/15 hover:bg-[#3b82f6]/30 text-[#3b82f6] text-sm font-semibold"><PhoneCall className="w-4 h-4" /> Llamar</a>
+                  <a href={waLink(selectedClient.phone)} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#25d366]/15 hover:bg-[#25d366]/30 text-[#25d366] text-sm font-semibold"><MessageCircle className="w-4 h-4" /> WhatsApp</a>
+                </>
+              )}
+              {selectedClient.email && (
+                <a href={mailLink(selectedClient.email)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f97316]/15 hover:bg-[#f97316]/30 text-[#f97316] text-sm font-semibold"><Mail className="w-4 h-4" /> Email</a>
+              )}
+            </div>
+
             <div className="space-y-3 text-sm">
               <div><span className="text-white/40">Documento:</span> {selectedClient.document}</div>
               <div><span className="text-white/40">Email:</span> {selectedClient.email}</div>
               <div><span className="text-white/40">Teléfono:</span> {selectedClient.phone}</div>
               <div><span className="text-white/40">Ubicación:</span> {selectedClient.city}, {selectedClient.country}</div>
               <div><span className="text-white/40">Dirección:</span> {selectedClient.address}</div>
-              <div><span className="text-white/40">Registro:</span> {selectedClient.registerDate}</div>
               {selectedClient.observations && <div><span className="text-white/40">Observaciones:</span> {selectedClient.observations}</div>}
+
+              {/* Línea de tiempo del caso */}
+              {timeline && (
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-[#f97316]" /> Línea de tiempo · {timeline.case_number}</h3>
+                  </div>
+                  <div className="relative pl-5 space-y-3 max-h-48 overflow-y-auto">
+                    <div className="absolute left-[7px] top-1 bottom-1 w-px bg-white/15" />
+                    {timeline.timeline.map((t, i) => (
+                      <div key={i} className="relative">
+                        <div className="absolute -left-[14px] top-1 w-3 h-3 rounded-full bg-[#f97316] border-2 border-[#0f172a]" />
+                        <div className="text-xs text-white/40">{(t.date || '').slice(0, 10)}</div>
+                        <div className="text-sm font-semibold">{t.stage}</div>
+                        <div className="text-xs text-white/60">{t.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button size="sm" onClick={() => sendTimeline('whatsapp')} className="bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30"><MessageCircle className="w-4 h-4 mr-1" /> Enviar por WhatsApp</Button>
+                    <Button size="sm" onClick={() => sendTimeline('email')} className="bg-[#f97316]/20 text-[#f97316] hover:bg-[#f97316]/30"><Send className="w-4 h-4 mr-1" /> Enviar por correo</Button>
+                  </div>
+                  {sendMsg && <div className="text-xs text-white/50 mt-2">{sendMsg}</div>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">
                 <div className="backdrop-blur-md bg-[#f97316]/10 rounded-xl p-3 border border-[#f97316]/30">
                   <div className="text-xs text-white/60">Casos Vinculados</div>

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -51,6 +51,8 @@ api_router.include_router(clients.router)
 api_router.include_router(invoices.router)
 api_router.include_router(documents.router)
 api_router.include_router(portal.router)
+api_router.include_router(backup.router)
+api_router.include_router(chatbot.router)
 
 # Inicialización de cuentas maestras al arranque
 @app.on_event("startup")
@@ -67,7 +69,7 @@ async def init_master_accounts():
         if not existing:
             await db.users.insert_one({
                 "email": m["email"],
-                "password_hash": pwd.hash(m["password"]),
+                "password_hash": pwd.hash(m["password"][:72]),
                 "full_name": m["name"],
                 "role": m["role"],
                 "status": "ACTIVE",
@@ -78,9 +80,14 @@ async def init_master_accounts():
             })
         else:
             # Backfill seguro para cuentas maestras pre-existentes
+            updates = {"status": "ACTIVE", "is_verified": True, "role": m["role"]}
+            # Repara el hash de contraseña si quedó vacío/None (cuenta maestra
+            # creada sin clave válida → de lo contrario el login es imposible).
+            if not existing.get("password_hash"):
+                updates["password_hash"] = pwd.hash(m["password"][:72])
             await db.users.update_one(
                 {"email": m["email"]},
-                {"$set": {"status": "ACTIVE", "is_verified": True, "role": m["role"]}}
+                {"$set": updates}
             )
 
 # Include the router in the main app

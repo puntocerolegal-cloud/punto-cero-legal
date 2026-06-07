@@ -6,11 +6,12 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 import os
 import uuid
 import httpx
+from bson import ObjectId
 
 router = APIRouter(prefix="/ai", tags=["AI Legal Assistant"])
 
 # IA base gratuita para TODOS los planes: Google Gemini Flash via API REST
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 
@@ -34,6 +35,41 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     template: Optional[str] = "general"
     lawyer_id: Optional[str] = None
+    country: Optional[str] = None
+
+
+# Contexto jurídico por país: marco normativo, tribunales, tratamiento y términos.
+JURISDICTIONS = {
+    "Colombia": "Operas bajo el DERECHO COLOMBIANO. Marco: Constitución de 1991, Código Civil, Código General del Proceso, Código Penal y Código Sustantivo del Trabajo. Cita jurisprudencia de la Corte Suprema de Justicia y la Corte Constitucional (sentencias C-, T-, SU-). Trata al profesional como 'abogado' o 'doctor'. Usa figuras como acción de tutela, derecho de petición y acción popular.",
+    "México": "Operas bajo el DERECHO MEXICANO. Marco: Constitución Política de los Estados Unidos Mexicanos, Código Civil Federal, Código Nacional de Procedimientos Civiles y Penales, Ley Federal del Trabajo. Cita jurisprudencia de la Suprema Corte de Justicia de la Nación (SCJN) y tesis del Semanario Judicial. Trata al profesional como 'licenciado' (Lic.). Usa figuras como el juicio de amparo.",
+    "Argentina": "Operas bajo el DERECHO ARGENTINO. Marco: Constitución Nacional, Código Civil y Comercial de la Nación (unificado), Código Penal, Ley de Contrato de Trabajo 20.744. Cita jurisprudencia de la Corte Suprema de Justicia de la Nación (CSJN). Trata al profesional como 'doctor/a' o 'abogado/a'. Usa el recurso de amparo.",
+    "Chile": "Operas bajo el DERECHO CHILENO. Marco: Constitución Política, Código Civil de Bello, Código Procesal Penal, Código del Trabajo. Cita jurisprudencia de la Corte Suprema de Chile y el Tribunal Constitucional. Usa el recurso de protección y de amparo.",
+    "Perú": "Operas bajo el DERECHO PERUANO. Marco: Constitución de 1993, Código Civil, Código Procesal Civil, Código Penal, Nueva Ley Procesal del Trabajo. Cita jurisprudencia del Tribunal Constitucional y la Corte Suprema. Trata al profesional como 'doctor'. Usa el proceso de amparo y el hábeas corpus.",
+    "España": "Operas bajo el DERECHO ESPAÑOL. Marco: Constitución de 1978, Código Civil, Ley de Enjuiciamiento Civil, Código Penal, Estatuto de los Trabajadores. Cita jurisprudencia del Tribunal Supremo y del Tribunal Constitucional. Trata al profesional como 'abogado/a' o 'letrado/a'. Usa el recurso de amparo.",
+    "Ecuador": "Operas bajo el DERECHO ECUATORIANO. Marco: Constitución de 2008, Código Civil, COGEP, COIP. Cita jurisprudencia de la Corte Nacional de Justicia y la Corte Constitucional. Usa la acción de protección.",
+    "Bolivia": "Operas bajo el DERECHO BOLIVIANO. Marco: Constitución de 2009, Código Civil, Código Procesal Civil, Código Penal. Cita jurisprudencia del Tribunal Supremo y el Tribunal Constitucional Plurinacional. Usa la acción de amparo constitucional.",
+    "Venezuela": "Operas bajo el DERECHO VENEZOLANO. Marco: Constitución de 1999, Código Civil, Código de Procedimiento Civil, COPP, LOTTT. Cita jurisprudencia del Tribunal Supremo de Justicia (TSJ). Usa el amparo constitucional.",
+    "Paraguay": "Operas bajo el DERECHO PARAGUAYO. Marco: Constitución de 1992, Código Civil, Código Procesal Civil, Código Penal, Código del Trabajo. Cita jurisprudencia de la Corte Suprema de Justicia. Usa el amparo constitucional.",
+    "Uruguay": "Operas bajo el DERECHO URUGUAYO. Marco: Constitución, Código Civil, Código General del Proceso, Código Penal. Cita jurisprudencia de la Suprema Corte de Justicia. Usa la acción de amparo.",
+    "Guatemala": "Operas bajo el DERECHO GUATEMALTECO. Marco: Constitución, Código Civil, Código Procesal Civil y Mercantil, Código Penal. Cita jurisprudencia de la Corte de Constitucionalidad y la Corte Suprema. Trata al profesional como 'licenciado'. Usa el amparo.",
+    "Honduras": "Operas bajo el DERECHO HONDUREÑO. Marco: Constitución, Código Civil, Código Procesal Civil, Código Penal. Cita jurisprudencia de la Corte Suprema de Justicia. Trata al profesional como 'licenciado'. Usa el amparo.",
+    "El Salvador": "Operas bajo el DERECHO SALVADOREÑO. Marco: Constitución, Código Civil, Código Procesal Civil y Mercantil, Código Penal. Cita jurisprudencia de la Sala de lo Constitucional de la Corte Suprema. Trata al profesional como 'licenciado'. Usa el amparo.",
+    "Nicaragua": "Operas bajo el DERECHO NICARAGÜENSE. Marco: Constitución, Código Civil, Código Procesal Civil, Código Penal. Cita jurisprudencia de la Corte Suprema de Justicia. Trata al profesional como 'licenciado'. Usa el amparo.",
+    "Costa Rica": "Operas bajo el DERECHO COSTARRICENSE. Marco: Constitución, Código Civil, Código Procesal Civil, Código Penal. Cita jurisprudencia de la Sala Constitucional (Sala IV) y la Corte Suprema. Trata al profesional como 'licenciado'. Usa el recurso de amparo.",
+    "Panamá": "Operas bajo el DERECHO PANAMEÑO. Marco: Constitución, Código Civil, Código Judicial, Código Penal. Cita jurisprudencia de la Corte Suprema de Justicia. Trata al profesional como 'licenciado'. Usa el amparo de garantías constitucionales.",
+    "Cuba": "Operas bajo el DERECHO CUBANO. Marco: Constitución de 2019, Código Civil, Ley de Procedimiento Civil, Código Penal. Cita disposiciones del Tribunal Supremo Popular.",
+    "República Dominicana": "Operas bajo el DERECHO DOMINICANO. Marco: Constitución, Código Civil (de raíz napoleónica), Código de Procedimiento Civil, Código Penal. Cita jurisprudencia de la Suprema Corte de Justicia y el Tribunal Constitucional. Usa la acción de amparo.",
+    "Puerto Rico": "Operas bajo el DERECHO DE PUERTO RICO (sistema mixto civil/common law). Marco: Constitución del ELA, Código Civil de 2020, Reglas de Procedimiento Civil. Cita jurisprudencia del Tribunal Supremo de Puerto Rico.",
+}
+DEFAULT_JURISDICTION = ("Operas en un país de LATAM. Adáptate al código civil y penal local "
+                        "correspondiente y a su máximo tribunal. Responde en español jurídico formal.")
+
+
+def _jurisdiction_prefix(country: Optional[str]) -> str:
+    ctx = JURISDICTIONS.get(country or "", DEFAULT_JURISDICTION)
+    header = f"CONTEXTO JURISDICCIONAL ({country or 'LATAM'}): {ctx}\n"
+    return header + ("Adapta SIEMPRE tu lenguaje, citas, figuras procesales y el tratamiento "
+                     "del profesional a esta jurisdicción. No mezcles normas de otros países.\n\n")
 
 class ChatResponse(BaseModel):
     response: str
@@ -130,7 +166,18 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY no configurada")
 
     session_id = request.session_id or str(uuid.uuid4())
-    system_message = SYSTEM_PROMPTS.get(request.template, SYSTEM_PROMPTS["general"])
+
+    # País: del request o del perfil del abogado en la BD.
+    country = request.country
+    if not country and request.lawyer_id:
+        try:
+            u = await db.users.find_one({"_id": ObjectId(request.lawyer_id)})
+            country = (u or {}).get("country")
+        except Exception:
+            country = None
+
+    base_prompt = SYSTEM_PROMPTS.get(request.template, SYSTEM_PROMPTS["general"])
+    system_message = _jurisdiction_prefix(country) + base_prompt
 
     # Memoria de conversación por sesión (Gemini REST es stateless)
     session = await db.ai_sessions.find_one({"session_id": session_id})

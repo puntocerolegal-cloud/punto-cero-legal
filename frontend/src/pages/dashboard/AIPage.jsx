@@ -81,6 +81,7 @@ export const AIPage = () => {
         session_id: sessionId,
         template: template,
         lawyer_id: user?.id || null,
+        country: user?.country || null,
       });
       setSessionId(data.session_id);
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);

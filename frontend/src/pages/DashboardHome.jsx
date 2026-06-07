@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, FolderKanban, Calendar, Receipt, TrendingUp, AlertCircle,
   Clock, MapPin, Briefcase, Phone, Mail, Award, IdCard, Building2,
-  ArrowUpRight, Activity, Bell, CheckCircle2, Gift, Share2, Copy, MessageCircle, X
+  ArrowUpRight, Activity, Bell, CheckCircle2, Gift, Share2, Copy, MessageCircle, X,
+  Crown, Sparkles, Zap, Check, ChevronRight, ArrowUpCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
@@ -39,6 +41,24 @@ const formatTime = (date) => {
 const fmtCurrency = (n) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
 
+// Formatea un importe en cualquier moneda local (USD, ARS, MXN, EUR, …).
+const fmtMoney = (value, currency = 'COP', decimals = 0) => {
+  try {
+    return new Intl.NumberFormat('es', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value || 0);
+  } catch (e) {
+    return `${(value || 0).toLocaleString('es')} ${currency}`;
+  }
+};
+
+// Precio localizado de un plan (con su bandera).
+const planPrice = (plan) =>
+  plan ? fmtMoney(plan.price_local ?? plan.price_cop, plan.currency || 'COP', plan.decimals ?? 0) : '';
+
 const StatCard = ({ icon: Icon, label, value, change, color, delay = 0 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -65,14 +85,34 @@ const StatCard = ({ icon: Icon, label, value, change, color, delay = 0 }) => (
   </motion.div>
 );
 
+// Iconos por plan (según su id en el catálogo).
+const PLAN_ICONS = {
+  esencial: Briefcase,
+  profesional: Award,
+  elite: Sparkles,
+  ilimitado: Crown,
+};
+
 export const DashboardHome = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [referralData, setReferralData] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [kpis, setKpis] = useState(null);
   const [apiAlerts, setApiAlerts] = useState([]);
+  const [planInfo, setPlanInfo] = useState(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+
+  const loadPlan = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/payment/my-plan`);
+      setPlanInfo(res.data);
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') console.error('No plan data', e);
+    }
+  }, []);
 
   const loadReferralData = useCallback(async () => {
     try {
@@ -105,8 +145,34 @@ export const DashboardHome = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     loadReferralData();
     loadDashboardData();
+    loadPlan();
     return () => clearInterval(timer);
-  }, [loadReferralData, loadDashboardData]);
+  }, [loadReferralData, loadDashboardData, loadPlan]);
+
+  const goToCheckout = (planId) => {
+    setShowPlanModal(false);
+    navigate(`/checkout?plan=${planId}&cycle=monthly`);
+  };
+
+  const activePlan = planInfo?.has_plan ? planInfo.plan : null;
+  const planCatalog = planInfo?.catalog || [];
+  const locale = planInfo?.locale || {
+    term: 'abogado', term_cap: 'Abogado', term_plural: 'abogados',
+    honorific: 'Dr.', flag: '🇨🇴', country: 'Colombia', currency: 'COP',
+  };
+
+  // Cuenta regresiva de la prueba gratuita (7 días desde el registro).
+  const trial = planInfo?.trial;
+  const trialMs = trial?.ends_at ? new Date(trial.ends_at).getTime() - currentTime.getTime() : null;
+  const trialLeft = trialMs == null ? null : {
+    expired: trialMs <= 0,
+    d: Math.max(0, Math.floor(trialMs / 86400000)),
+    h: Math.max(0, Math.floor((trialMs % 86400000) / 3600000)),
+    m: Math.max(0, Math.floor((trialMs % 3600000) / 60000)),
+    s: Math.max(0, Math.floor((trialMs % 60000) / 1000)),
+  };
+  const showTrial = !activePlan && trialLeft && !trialLeft.expired;
+  const pad = (n) => String(n).padStart(2, '0');
 
   const shareWhatsApp = () => {
     if (referralData) {
@@ -155,7 +221,7 @@ export const DashboardHome = () => {
         {/* Welcome Section */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-4xl lg:text-5xl font-bold mb-2">
-            {getGreeting()}, <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">{user?.full_name || 'Doctor'}</span>
+            {getGreeting()}, <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">{user?.full_name || locale.honorific}</span>
           </h1>
           <div className="flex flex-wrap items-center gap-4 text-white/60 mt-3">
             <div className="flex items-center gap-2">
@@ -195,7 +261,7 @@ export const DashboardHome = () => {
                 </div>
                 <p className="text-sm text-white/70">
                   Invita colegas y obtén <strong className="text-[#10b981]">1 mes gratis</strong> por cada referido que pague.
-                  Has referido a <strong>{referralData.total_referrals}</strong> abogados.
+                  Has referido a <strong>{referralData.total_referrals}</strong> {locale.term_plural}.
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -284,13 +350,167 @@ export const DashboardHome = () => {
 
             {/* Plan Badge */}
             <div className="lg:flex-shrink-0">
-              <div className="bg-gradient-to-r from-[#f97316] to-[#fb923c] rounded-2xl p-4 text-center">
-                <Award className="w-6 h-6 mx-auto mb-1" />
-                <div className="text-xs font-bold uppercase tracking-wider">Plan Profesional</div>
-                <div className="text-xs opacity-80 mt-1">7 días gratis</div>
+              <div
+                className="rounded-2xl p-4 text-center"
+                style={{ background: activePlan ? `linear-gradient(135deg, ${activePlan.color}, ${activePlan.color}cc)` : 'linear-gradient(135deg, #f97316, #fb923c)' }}
+              >
+                {(() => { const I = activePlan ? (PLAN_ICONS[activePlan.id] || Award) : Award; return <I className="w-6 h-6 mx-auto mb-1" />; })()}
+                <div className="text-xs font-bold uppercase tracking-wider">{activePlan ? activePlan.name : 'Plan de Prueba'}</div>
+                <div className="text-xs opacity-80 mt-1">
+                  {activePlan
+                    ? `${activePlan.flag} ${planPrice(activePlan)}/mes`
+                    : (showTrial
+                        ? `${trialLeft.d}d ${pad(trialLeft.h)}:${pad(trialLeft.m)}:${pad(trialLeft.s)}`
+                        : (trialLeft?.expired ? 'Prueba finalizada' : '7 días gratis'))}
+                </div>
               </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* Mi Plan Contratado */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Crown className="w-5 h-5 text-[#f97316]" />
+            Mi Plan
+          </h2>
+
+          {activePlan ? (
+            <div
+              className="backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 overflow-hidden relative"
+              data-testid="active-plan-card"
+            >
+              <div
+                className="absolute top-0 left-0 w-full h-1.5"
+                style={{ background: `linear-gradient(90deg, ${activePlan.color}, transparent)` }}
+              />
+              <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full blur-3xl opacity-20" style={{ background: activePlan.color }} />
+
+              <div className="relative z-10 p-6 lg:p-8">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  {/* Identidad del plan */}
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${activePlan.color}22`, border: `1px solid ${activePlan.color}55` }}
+                    >
+                      {(() => { const I = PLAN_ICONS[activePlan.id] || Award; return <I className="w-7 h-7" style={{ color: activePlan.color }} />; })()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-2xl font-bold">{activePlan.name}</h3>
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                          style={{ background: `${activePlan.color}22`, color: activePlan.color }}
+                        >
+                          {planInfo?.subscription_status === 'active' ? 'Activo' : (planInfo?.subscription_status || 'Activo')}
+                        </span>
+                      </div>
+                      {activePlan.description && (
+                        <p className="text-sm text-white/50 mt-1">{activePlan.description}</p>
+                      )}
+                      <div className="mt-2 flex items-baseline gap-2">
+                        <span className="text-2xl">{activePlan.flag}</span>
+                        <span className="text-3xl font-bold" style={{ color: activePlan.color }}>{planPrice(activePlan)}</span>
+                        <span className="text-sm text-white/50">/mes</span>
+                      </div>
+                      <div className="text-xs text-white/50 mt-1 flex items-center gap-1">
+                        <FolderKanban className="w-3.5 h-3.5" /> {activePlan.processes}
+                      </div>
+                      <div className="text-xs text-white/40 mt-1">
+                        Precio en {activePlan.currency} para tu ejercicio como {locale.term} en {locale.flag} {locale.country}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Acción */}
+                  <div className="flex-shrink-0">
+                    <Button
+                      onClick={() => setShowPlanModal(true)}
+                      className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold"
+                      data-testid="change-plan-btn"
+                    >
+                      <ArrowUpCircle className="w-4 h-4 mr-2" /> Cambiar o mejorar plan
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <div className="text-xs text-white/40 uppercase tracking-wider mb-3">Incluido en tu plan</div>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {activePlan.features.map((f) => (
+                      <div key={f} className="flex items-center gap-2 text-sm">
+                        <span
+                          className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: `${activePlan.color}22` }}
+                        >
+                          <Check className="w-3 h-3" style={{ color: activePlan.color }} />
+                        </span>
+                        <span className="text-white/80">{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="backdrop-blur-xl bg-gradient-to-br from-[#f97316]/10 to-[#3b82f6]/10 rounded-3xl border border-white/10 p-6 lg:p-8"
+              data-testid="no-plan-card"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#f97316]/20 border border-[#f97316]/40 flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-7 h-7 text-[#f97316]" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      {trialLeft?.expired ? 'Tu prueba gratuita finalizó' : 'Estás en tu prueba gratuita de 7 días'}
+                    </h3>
+                    <p className="text-sm text-white/60 mt-1 max-w-xl">
+                      {trialLeft?.expired
+                        ? 'Elige un plan para reactivar todas las herramientas de tu oficina jurídica digital.'
+                        : 'Aún no tienes un plan contratado. Aprovecha tu prueba y elige un plan cuando quieras.'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setShowPlanModal(true)}
+                  className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold flex-shrink-0"
+                  data-testid="choose-plan-btn"
+                >
+                  <Crown className="w-4 h-4 mr-2" /> Elegir un plan
+                </Button>
+              </div>
+
+              {/* Contador regresivo en tiempo real */}
+              {showTrial && (
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <div className="text-xs text-white/40 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-[#f97316]" /> Tiempo restante de tu prueba gratuita
+                  </div>
+                  <div className="grid grid-cols-4 gap-3 max-w-md" data-testid="trial-countdown">
+                    {[
+                      { v: trialLeft.d, label: 'Días' },
+                      { v: trialLeft.h, label: 'Horas' },
+                      { v: trialLeft.m, label: 'Min' },
+                      { v: trialLeft.s, label: 'Seg' },
+                    ].map((box) => (
+                      <div key={box.label} className="rounded-2xl bg-white/5 border border-white/10 py-3 text-center">
+                        <div className="text-3xl font-bold tabular-nums text-[#f97316]">{pad(box.v)}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-white/50 mt-1">{box.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* Stats Grid */}
@@ -414,6 +634,86 @@ export const DashboardHome = () => {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Modal: Cambiar o mejorar plan */}
+      <AnimatePresence>
+        {showPlanModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowPlanModal(false)}
+            data-testid="plan-modal"
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0f172a] border border-white/20 rounded-3xl p-6 lg:p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <Crown className="w-6 h-6 text-[#f97316]" /> Elige tu plan
+                  </h2>
+                  <p className="text-sm text-white/50 mt-1">Mejora o cambia tu plan cuando quieras. El cambio se aplica al confirmar el pago.</p>
+                </div>
+                <button onClick={() => setShowPlanModal(false)} data-testid="plan-modal-close"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {planCatalog.map((p) => {
+                  const isCurrent = planInfo?.plan_id === p.id;
+                  const Icon = PLAN_ICONS[p.id] || Award;
+                  return (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl border p-5 flex flex-col"
+                      style={{
+                        borderColor: isCurrent ? p.color : 'rgba(255,255,255,0.12)',
+                        background: isCurrent ? `${p.color}12` : 'rgba(255,255,255,0.03)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${p.color}22` }}>
+                          <Icon className="w-5 h-5" style={{ color: p.color }} />
+                        </div>
+                        {isCurrent && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: `${p.color}22`, color: p.color }}>
+                            Plan actual
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
+                      <div className="mt-1 mb-1 flex items-baseline gap-1.5">
+                        <span className="text-base">{p.flag}</span>
+                        <span className="text-2xl font-bold" style={{ color: p.color }}>{planPrice(p)}</span>
+                        <span className="text-xs text-white/50">/mes</span>
+                      </div>
+                      <div className="text-xs text-white/50 mb-3">{p.processes} · {p.currency}</div>
+                      <ul className="space-y-2 mb-5 flex-1">
+                        {p.features.map((f) => (
+                          <li key={f} className="flex items-start gap-2 text-xs text-white/75">
+                            <Check className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: p.color }} />
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        onClick={() => goToCheckout(p.id)}
+                        disabled={isCurrent}
+                        className="w-full font-bold disabled:opacity-40"
+                        style={{ background: isCurrent ? 'rgba(255,255,255,0.08)' : `linear-gradient(135deg, ${p.color}, ${p.color}cc)` }}
+                        data-testid={`select-plan-${p.id}`}
+                      >
+                        {isCurrent ? 'Plan actual' : (<><ChevronRight className="w-4 h-4 mr-1" /> Seleccionar</>)}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 };
