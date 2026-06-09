@@ -6,7 +6,9 @@ import { motion } from 'framer-motion';
 
 import axios from 'axios';
 
-import { 
+import { API } from '@/config/api';
+
+import {
 
   Shield, Lock, Users, Award, CheckCircle, ArrowRight, Scale, FileText, Clock,
 
@@ -172,7 +174,6 @@ export const LandingPage = () => {
 
 
 
-  const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 
 

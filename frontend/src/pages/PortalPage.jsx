@@ -4,8 +4,7 @@ import { FolderKanban, Clock, Calendar, Video, Receipt, FileText, Gavel, LogOut,
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import axios from 'axios';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { API } from '@/config/api';
 
 const statusLabels = {
   open: { label: 'Abierto', color: '#3b82f6' },

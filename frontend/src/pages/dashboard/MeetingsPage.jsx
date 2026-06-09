@@ -6,8 +6,8 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useAuth } from '../../contexts/AuthContext';
+import { API } from '@/config/api';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const JITSI_DOMAIN = 'meet.jit.si';
 
 // Carga el script de la Jitsi External API una sola vez.

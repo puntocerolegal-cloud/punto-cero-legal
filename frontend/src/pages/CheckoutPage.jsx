@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { getErrorMessage } from '../lib/utils';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { API } from '@/config/api';
 
 // Países soportados (coinciden con COUNTRY_CONFIG del backend).
 const SUPPORTED_COUNTRIES = [

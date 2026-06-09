@@ -6,8 +6,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { useAuth } from '../../contexts/AuthContext';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { API } from '@/config/api';
 
 // Sugerencias de upgrade (IAs premium externas) — abren en nueva pestaña
 const UPGRADE_LINKS = [

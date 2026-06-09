@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API } from '@/config/api';
 
 const AuthContext = createContext(null);
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const STORAGE_PASSPHRASE = process.env.REACT_APP_STORAGE_KEY || null;
 const TOKEN_KEY = 'pcl_token';
 const USER_KEY = 'pcl_user';

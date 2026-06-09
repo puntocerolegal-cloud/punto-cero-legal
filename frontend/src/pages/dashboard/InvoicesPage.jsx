@@ -6,8 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { API } from '@/config/api';
 
 const statusConfig = {
   draft: { label: 'Borrador', color: '#6b7280' },

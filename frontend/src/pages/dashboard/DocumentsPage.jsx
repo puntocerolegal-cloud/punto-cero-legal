@@ -7,8 +7,7 @@ import { Input } from '../../components/ui/input';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { encryptFile, decryptToBlob } from '../../lib/zkcrypto';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { API } from '@/config/api';
 
 const folderColors = ['#3b82f6', '#f97316', '#ec4899', '#10b981', '#8b5cf6'];
 

@@ -1,6 +1,16 @@
 // craco.config.js
 const path = require("path");
-require("dotenv").config();
+
+// Carga de variables de entorno respetando la precedencia de CRA.
+// dotenv NO sobreescribe variables ya definidas, así que el archivo de mayor
+// prioridad debe cargarse PRIMERO. En producción ".env.production" (URL de
+// Render) gana sobre ".env" (localhost para desarrollo). Antes se cargaba
+// solo ".env", lo que horneaba localhost:8000 incluso en el build de Vercel.
+const dotenv = require("dotenv");
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: ".env.production" });
+}
+dotenv.config(); // .env — desarrollo / respaldo (no sobreescribe lo ya cargado)
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build

@@ -7,8 +7,7 @@ import {
   Brain, Video, Receipt, FileText, Settings, LogOut, Menu, X, Sparkles, Bell, CheckCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { API } from '@/config/api';
 
 const NotificationBell = ({ userId }) => {
   const [items, setItems] = useState([]);
