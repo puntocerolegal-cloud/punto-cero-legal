@@ -113,6 +113,15 @@ export function getErrorMessage(err, fallback = 'Ocurrió un error. Intente de n
 
   // Sin respuesta del servidor (red caída, CORS, timeout).
   if (err?.response === undefined && err?.request) {
+    // Diagnóstico: muestra la URL real a la que se intentó llamar.
+    // Si en producción ves "localhost:8000", falta configurar
+    // REACT_APP_BACKEND_URL en Vercel y reconstruir.
+    console.error(
+      '[PCL] Backend inalcanzable. URL objetivo:',
+      err?.config?.baseURL ? err.config.baseURL + (err.config.url || '') : err?.config?.url,
+      '| REACT_APP_BACKEND_URL =', process.env.REACT_APP_BACKEND_URL,
+      '| error:', err?.message
+    );
     return 'No se pudo conectar con el servidor. Verifique su conexión.';
   }
 
