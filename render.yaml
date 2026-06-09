@@ -15,7 +15,7 @@ services:
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11.9"
+        value: "3.11.11"
 
       # ── Base de datos (MongoDB Atlas) ──
       - key: MONGO_URL              # mongodb+srv://user:pass@cluster.xxxx.mongodb.net/?retryWrites=true&w=majority
