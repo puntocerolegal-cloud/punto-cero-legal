@@ -975,13 +975,13 @@ const CandidateDrawer = ({ candidate, isAdminGeneral, onClose, onMutate }) => {
   const [draft, setDraft] = useState('');
   const [acting, setActing] = useState(false);
 
-  const loadChat = async () => {
+  const loadChat = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/admin-ops/sales/candidates/${candidate.id}/chat`);
       setMessages(res.data);
     } catch (e) { console.error('Failed to load candidate chat:', e); }
-  };
-  useEffect(() => { loadChat(); }, [candidate.id]);
+  }, [candidate.id]);
+  useEffect(() => { loadChat(); }, [loadChat]);
 
   const act = async (action) => {
     setActing(true);
