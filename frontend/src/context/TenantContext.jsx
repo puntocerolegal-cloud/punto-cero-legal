@@ -17,7 +17,7 @@ const DEFAULT_TENANT = {
   organizationId: "demo",
   tenantName: "Organización Demo",
   vertical: "Jurídico",
-  plan: "Professional",
+  plan: null,
   organization: null,
 };
 
