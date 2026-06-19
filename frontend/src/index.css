@@ -17,6 +17,19 @@ code {
         source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
+/* Dropdowns nativos (<select>): las opciones deben ser SIEMPRE legibles —
+   texto claro sobre fondo oscuro— evitando "texto blanco sobre fondo blanco"
+   del menú nativo del SO (antes solo se veían al hacer hover). Tema oscuro. */
+select option,
+select optgroup {
+    background-color: #0f172a;
+    color: #ffffff;
+}
+/* La opción deshabilitada/placeholder conserva contraste suave. */
+select option:disabled {
+    color: #94a3b8;
+}
+
 @layer base {
     :root {
         --background: 0 0% 100%;

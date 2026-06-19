@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from utils.auth import decode_token
 from bson import ObjectId
 import secrets
+import os
 
 router = APIRouter(prefix="/referrals", tags=["Referral System"])
 
@@ -45,7 +46,8 @@ async def get_my_referral_code(user = Depends(get_current_user), db: AsyncIOMoto
             {"$set": {"referral_code": code, "free_months_credits": 0, "total_referrals": 0}}
         )
     
-    base_url = "https://punto-cero-legal-2.preview.emergentagent.com"
+    # Dominio público real del frontend (configurable). Sin referencias heredadas.
+    base_url = os.environ.get("FRONTEND_URL", "https://punto-cero-legal.vercel.app").rstrip("/")
     share_url = f"{base_url}/register?ref={code}"
     
     return {

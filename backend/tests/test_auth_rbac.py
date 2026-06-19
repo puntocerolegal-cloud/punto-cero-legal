@@ -16,7 +16,7 @@ import time
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://punto-cero-legal-2.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://puntocero-legal-api.onrender.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN_GENERAL = {"email": "darwin@puntocerolegal.com", "password": "Admin2025!"}

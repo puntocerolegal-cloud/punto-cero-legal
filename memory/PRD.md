@@ -7,7 +7,7 @@ Plataforma LegalTech SaaS premium para abogados en LATAM. Landing page + Dashboa
 - Frontend: React + React Router + Framer Motion + Tailwind + Shadcn UI
 - Backend: FastAPI + MongoDB + Motor (async)
 - Auth: JWT con bcrypt
-- IA: Emergent LLM Key + OpenAI GPT-4o-mini (vía emergentintegrations)
+- IA: Google Gemini Flash (gratuito) con respaldo Claude (Anthropic)
 
 ## What's been implemented (2025-12-12)
 
