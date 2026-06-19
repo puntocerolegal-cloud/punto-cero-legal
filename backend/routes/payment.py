@@ -238,7 +238,7 @@ PLAN_CATALOG = {
     "esencial": {
         "id": "esencial",
         "name": "El Despegue",
-        "price_cop": 75000,
+        "price_cop": 112500,
         "processes": "Hasta 50 casos",
         "color": "#3b82f6",
         "description": "Para abogados independientes que inician",
@@ -250,7 +250,7 @@ PLAN_CATALOG = {
     "profesional": {
         "id": "profesional",
         "name": "El Salto Estratégico",
-        "price_cop": 140000,
+        "price_cop": 210000,
         "processes": "Hasta 150 casos",
         "color": "#f97316",
         "description": "La elección de los abogados exitosos",
@@ -263,7 +263,7 @@ PLAN_CATALOG = {
     "elite": {
         "id": "elite",
         "name": "Firma en Crecimiento",
-        "price_cop": 195000,
+        "price_cop": 562500,
         "processes": "Procesos Ilimitados",
         "color": "#8b5cf6",
         "description": "Para firmas en crecimiento",
@@ -276,7 +276,7 @@ PLAN_CATALOG = {
     "ilimitado": {
         "id": "ilimitado",
         "name": "Consolidación Empresarial",
-        "price_cop": 275000,
+        "price_cop": 2100000,
         "processes": "Procesos Ilimitados",
         "color": "#10b981",
         "description": "Para firmas y bufetes consolidados",
@@ -300,12 +300,12 @@ PAYPAL_COUNTRIES = {
     "República Dominicana": "DO", "Guatemala": "GT", "El Salvador": "SV"
 }
 
-# Precios en COP por plan
+# Precios en COP por plan (oficiales: priceUsd × 4000, alineados con la fuente única)
 PLAN_PRICES_COP = {
-    "esencial": {"monthly": 75000, "annual": 75000 * 11, "processes": 20},
-    "profesional": {"monthly": 140000, "annual": 140000 * 11, "processes": 60},
-    "elite": {"monthly": 195000, "annual": 195000 * 11, "processes": 100},
-    "ilimitado": {"monthly": 275000, "annual": 275000 * 11, "processes": -1},
+    "esencial": {"monthly": 112500, "annual": 112500 * 11, "processes": 50},
+    "profesional": {"monthly": 210000, "annual": 210000 * 11, "processes": 150},
+    "elite": {"monthly": 562500, "annual": 562500 * 11, "processes": -1},
+    "ilimitado": {"monthly": 2100000, "annual": 2100000 * 11, "processes": -1},
 }
 
 # Conversiones aproximadas (en producción usar API real)
