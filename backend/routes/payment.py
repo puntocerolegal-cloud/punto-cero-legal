@@ -16,6 +16,7 @@ from bson import ObjectId
 import uuid
 import time
 import logging
+import os
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -322,6 +323,16 @@ COUNTRY_CURRENCY = {
     "Guatemala": "USD", "El Salvador": "USD"
 }
 
+# ───────────── Mercado Pago (credenciales reales vía entorno) ─────────────
+MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN", "")
+MP_PUBLIC_KEY = os.environ.get("MP_PUBLIC_KEY", "")
+MP_API = "https://api.mercadopago.com"
+# URL pública del sistema para back_urls / notification_url (Render: APP_PUBLIC_URL).
+APP_PUBLIC_URL = (os.environ.get("APP_PUBLIC_URL", "") or "").rstrip("/")
+# Token TEST-… → sandbox_init_point; APP_USR-… → init_point (producción).
+MP_SANDBOX = MP_ACCESS_TOKEN.startswith("TEST-")
+
+
 class PaymentInitRequest(BaseModel):
     plan_id: Literal["esencial", "profesional", "elite", "ilimitado"]
     billing_cycle: Literal["monthly", "annual"] = "monthly"
@@ -343,6 +354,114 @@ class PaymentInitResponse(BaseModel):
 async def get_db():
     from server import db
     return db
+
+
+async def _create_mp_preference(tx: dict, plan_name: str) -> Optional[dict]:
+    """Crea una preferencia REAL en Mercado Pago y devuelve {url, preference_id}.
+    Reemplaza el checkout_url simulado. Sin MP_ACCESS_TOKEN devuelve None.
+    Lee el entorno en tiempo de request (server.py carga .env tras importar routers)."""
+    token = os.environ.get("MP_ACCESS_TOKEN", "")
+    base = (os.environ.get("APP_PUBLIC_URL", "") or "").rstrip("/")
+    sandbox = token.startswith("TEST-")
+    if not token:
+        return None
+    pref = {
+        "items": [{
+            "title": f"Punto Cero Legal · {plan_name}",
+            "quantity": 1,
+            "currency_id": tx["currency"],
+            "unit_price": float(tx["amount_local"]),
+        }],
+        "external_reference": tx["payment_id"],  # ← enlaza el pago con nuestra transacción
+        "payer": {"email": tx["user_email"], "name": tx["user_name"]},
+        "metadata": {
+            "payment_id": tx["payment_id"],
+            "plan_id": tx["plan_id"],
+            "billing_cycle": tx["billing_cycle"],
+        },
+    }
+    # back_urls / notification_url + auto_return requieren URL PÚBLICA https
+    # (MP rechaza auto_return con localhost). En local se omiten y la preferencia
+    # sigue siendo válida; en producción (Render https) se activa el flujo completo.
+    _public = (
+        base.startswith("https://")
+        and "localhost" not in base
+        and "127.0.0.1" not in base
+    )
+    if _public:
+        pref["back_urls"] = {
+            "success": f"{base}/dashboard?payment=success",
+            "failure": f"{base}/checkout?payment=failure",
+            "pending": f"{base}/dashboard?payment=pending",
+        }
+        pref["auto_return"] = "approved"
+        pref["notification_url"] = f"{base}/api/payment/webhook"
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
+            f"{MP_API}/checkout/preferences",
+            headers={"Authorization": f"Bearer {token}"},
+            json=pref,
+        )
+    if r.status_code not in (200, 201):
+        logger.error("MP preference error %s: %s", r.status_code, r.text[:300])
+        raise HTTPException(status_code=502, detail="No se pudo crear la preferencia de Mercado Pago")
+    data = r.json()
+    url = (data.get("sandbox_init_point") if sandbox else data.get("init_point")) or data.get("init_point")
+    return {"url": url, "preference_id": data.get("id")}
+
+
+async def _apply_payment_success(db, transaction: dict) -> bool:
+    """Activa la suscripción y aplica referidos cuando un pago queda aprobado.
+    Idempotente. Conserva EXACTAMENTE la lógica previa de confirm()."""
+    payment_id = transaction["payment_id"]
+    if transaction.get("status") == "paid":
+        return False  # ya procesado → no duplicar referidos
+
+    await db.transactions.update_one(
+        {"payment_id": payment_id},
+        {"$set": {"status": "paid", "paid_at": datetime.utcnow()}}
+    )
+
+    # Crear/actualizar usuario (activación de suscripción — lógica intacta)
+    user = await db.users.find_one({"email": transaction["user_email"]})
+    if user:
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"plan_id": transaction["plan_id"], "subscription_status": "active"}}
+        )
+        user_id = str(user["_id"])
+    else:
+        user_id = None
+
+    # APLICAR LÓGICA DE REFERIDOS (intacta)
+    reward_applied = False
+    if transaction.get("referral_code") and user_id:
+        referrer = await db.users.find_one({"referral_code": transaction["referral_code"]})
+        if referrer and str(referrer["_id"]) != user_id:
+            current_credits = referrer.get("free_months_credits", 0)
+            current_referrals = referrer.get("total_referrals", 0)
+            await db.users.update_one(
+                {"_id": referrer["_id"]},
+                {"$set": {
+                    "free_months_credits": current_credits + 1,
+                    "total_referrals": current_referrals + 1,
+                    "last_referral_at": datetime.utcnow()
+                }}
+            )
+            await db.notifications.insert_one({
+                "user_id": str(referrer["_id"]),
+                "type": "referral_reward",
+                "title": "🎉 ¡Has ganado 1 mes gratis!",
+                "message": f"{transaction['user_name']} completó su pago. Tu recompensa ya está activa.",
+                "read": False,
+                "created_at": datetime.utcnow()
+            })
+            await db.transactions.update_one(
+                {"payment_id": payment_id},
+                {"$set": {"referrer_id": str(referrer["_id"]), "reward_applied": True}}
+            )
+            reward_applied = True
+    return reward_applied
 
 @router.get("/detect-gateway")
 async def detect_gateway(country: str):
@@ -605,14 +724,30 @@ async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = D
     
     gateway = "mercado_pago" if request.country in MERCADO_PAGO_COUNTRIES else "paypal"
     payment_id = f"PCL-{uuid.uuid4().hex[:12].upper()}"
-    
-    # Generar URL de checkout según gateway
-    # En producción aquí se integraría con SDK real de Mercado Pago/PayPal
+    plan_name = request.plan_id.capitalize()
+
+    # Datos base de la transacción (necesarios para crear la preferencia real).
+    tx_base = {
+        "payment_id": payment_id,
+        "user_email": request.user_email,
+        "user_name": request.user_name,
+        "plan_id": request.plan_id,
+        "billing_cycle": request.billing_cycle,
+        "amount_local": local_amount,
+        "currency": currency,
+    }
+
+    # Mercado Pago: preferencia REAL (sustituye el checkout_url simulado).
+    preference_id = None
     if gateway == "mercado_pago":
-        checkout_url = f"https://www.mercadopago.com/checkout/v1/redirect?pref_id={payment_id}&country={MERCADO_PAGO_COUNTRIES[request.country]}"
+        pref = await _create_mp_preference(tx_base, plan_name)
+        if not pref or not pref.get("url"):
+            raise HTTPException(status_code=502, detail="No se pudo crear la preferencia de Mercado Pago")
+        checkout_url = pref["url"]
+        preference_id = pref["preference_id"]
     else:
         checkout_url = f"https://www.paypal.com/checkoutnow?token={payment_id}&country={request.country}"
-    
+
     # Guardar transacción pendiente
     transaction = {
         "payment_id": payment_id,
@@ -627,11 +762,12 @@ async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = D
         "gateway": gateway,
         "status": "pending",
         "checkout_url": checkout_url,
+        "preference_id": preference_id,
         "referral_code": request.referral_code,
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(hours=24)
     }
-    
+
     await db.transactions.insert_one(transaction)
     
     return PaymentInitResponse(
@@ -659,63 +795,51 @@ async def confirm_payment(payment_id: str, db: AsyncIOMotorDatabase = Depends(ge
     
     if transaction["status"] == "paid":
         return {"message": "Ya confirmado", "payment_id": payment_id}
-    
-    # Marcar como pagado
-    await db.transactions.update_one(
-        {"payment_id": payment_id},
-        {"$set": {"status": "paid", "paid_at": datetime.utcnow()}}
-    )
-    
-    # Crear/actualizar usuario
-    user = await db.users.find_one({"email": transaction["user_email"]})
-    if user:
-        await db.users.update_one(
-            {"_id": user["_id"]},
-            {"$set": {"plan_id": transaction["plan_id"], "subscription_status": "active"}}
-        )
-        user_id = str(user["_id"])
-    else:
-        user_id = None
-    
-    # APLICAR LÓGICA DE REFERIDOS
-    reward_applied = False
-    if transaction.get("referral_code") and user_id:
-        referrer = await db.users.find_one({"referral_code": transaction["referral_code"]})
-        if referrer and str(referrer["_id"]) != user_id:
-            # Otorgar 1 mes gratis al referente
-            current_credits = referrer.get("free_months_credits", 0)
-            current_referrals = referrer.get("total_referrals", 0)
-            
-            await db.users.update_one(
-                {"_id": referrer["_id"]},
-                {"$set": {
-                    "free_months_credits": current_credits + 1,
-                    "total_referrals": current_referrals + 1,
-                    "last_referral_at": datetime.utcnow()
-                }}
-            )
-            
-            # Crear notificación
-            await db.notifications.insert_one({
-                "user_id": str(referrer["_id"]),
-                "type": "referral_reward",
-                "title": "🎉 ¡Has ganado 1 mes gratis!",
-                "message": f"{transaction['user_name']} completó su pago. Tu recompensa ya está activa.",
-                "read": False,
-                "created_at": datetime.utcnow()
-            })
-            
-            # Marcar la transacción como referida
-            await db.transactions.update_one(
-                {"payment_id": payment_id},
-                {"$set": {"referrer_id": str(referrer["_id"]), "reward_applied": True}}
-            )
-            
-            reward_applied = True
-    
+
+    # Activación + referidos (misma lógica que usa el webhook real).
+    reward_applied = await _apply_payment_success(db, transaction)
+
     return {
         "message": "Pago confirmado exitosamente",
         "payment_id": payment_id,
         "status": "paid",
         "reward_applied_to_referrer": reward_applied
     }
+
+
+@router.post("/webhook")
+async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Webhook REAL de Mercado Pago. MP notifica un pago → consultamos su estado
+    y, si está 'approved', activamos suscripción + referidos (idempotente).
+    Devuelve siempre 200 para acusar recibo (con diagnóstico en el cuerpo)."""
+    qp = dict(request.query_params)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    topic = qp.get("type") or qp.get("topic") or body.get("type")
+    mp_payment_id = qp.get("data.id") or qp.get("id") or (body.get("data") or {}).get("id")
+    if topic != "payment" or not mp_payment_id:
+        return {"received": True, "ignored": True}
+    token = os.environ.get("MP_ACCESS_TOKEN", "")
+    if not token:
+        return {"received": True, "no_token": True}
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.get(
+                f"{MP_API}/v1/payments/{mp_payment_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if r.status_code != 200:
+            return {"received": True, "lookup_failed": r.status_code}
+        pay = r.json()
+        if pay.get("status") != "approved":
+            return {"received": True, "status": pay.get("status")}
+        transaction = await db.transactions.find_one({"payment_id": pay.get("external_reference")})
+        if not transaction:
+            return {"received": True, "tx_not_found": True}
+        applied = await _apply_payment_success(db, transaction)
+        return {"received": True, "applied": True, "reward_applied_to_referrer": applied}
+    except Exception as e:
+        logger.exception("MP webhook error")
+        return {"received": True, "error": str(e)[:200]}

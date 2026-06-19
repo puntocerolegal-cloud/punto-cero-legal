@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FolderKanban, Plus, LayoutGrid, List, Calendar, Clock, AlertTriangle, CheckCircle2, FileText, X } from 'lucide-react';
+import { FolderKanban, Plus, LayoutGrid, List, Calendar, Clock, AlertTriangle, CheckCircle2, FileText, X, Trash2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { usePageActions } from '@/components/layout/DashboardActions';
+import { ExpedienteDrawer } from '../../components/ExpedienteDrawer';
 import { API } from '@/config/api';
 
 const statusConfig = {
@@ -23,8 +26,17 @@ const priorityConfig = {
   urgent: { label: 'Urgente', color: '#ef4444' },
 };
 
+// Estados maestros de producción (control directo del abogado, persiste en BD).
+const MASTER_STATES = [
+  { value: 'Activo', label: 'Activo', color: '#10b981' },
+  { value: 'En seguimiento', label: 'En Seguimiento', color: '#3b82f6' },
+  { value: 'Archivada', label: 'Archivado', color: '#6b7280' },
+];
+
 export const CasesPage = () => {
   const { user } = useAuth();
+  // Motor de entitlements (hook en el cuerpo del componente; guardia en el handler).
+  const { requirePerform } = useEntitlement();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('kanban');
@@ -35,11 +47,15 @@ export const CasesPage = () => {
     title: '', client_name: '', client_document: '', client_phone: '', client_email: '',
     materia: 'Civil', estado: 'Activo', priority_label: 'media', counterparty_name: '',
     assigned_to: '', deadline: '', summary: '',
+    valor_servicio: '', abono_inicial: '', forma_pago: 'Transferencia',
   };
   const [newCase, setNewCase] = useState(emptyCase);
+  const [busyId, setBusyId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [drawer, setDrawer] = useState({ open: false, expedienteId: null, responsable: null });
 
   const MATERIAS = ['Civil', 'Penal', 'Laboral', 'Familia', 'Mercantil', 'Administrativo', 'Constitucional', 'Otro'];
-  const ESTADOS = ['Pendiente', 'En trámite', 'En audiencia', 'Archivada', 'Finalizada', 'En estudio', 'Activo'];
+  const ESTADOS = ['Pendiente', 'En trámite', 'En audiencia', 'Archivada', 'Finalizada', 'En estudio', 'Activo', 'En seguimiento'];
 
   const loadCases = useCallback(async () => {
     if (!user?.id) return;
@@ -55,8 +71,14 @@ export const CasesPage = () => {
 
   useEffect(() => { loadCases(); }, [loadCases]);
 
+  // ActionBar global → "+ Agregar" abre el modal de nuevo caso.
+  usePageActions({ onAdd: () => setShowModal(true) }, []);
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    // Guardia de cuota (feature "cases"). Valida el conteo actual contra el
+    // plan/Demo; sin cupo, requirePerform abre el UpgradeModal y detenemos aquí.
+    if (!requirePerform('cases', cases.length)) return;
     setCreating(true);
     setCreateResult(null);
     try {
@@ -68,6 +90,24 @@ export const CasesPage = () => {
         deadline: newCase.deadline ? new Date(newCase.deadline).toISOString() : null,
         source: 'manual',
       });
+      // Conexión Intake → Expediente: alimenta el centro financiero con facturas
+      // (usa el endpoint /invoices existente; lo recalcula la vista del expediente).
+      const valor = parseFloat(newCase.valor_servicio) || 0;
+      const abono = parseFloat(newCase.abono_inicial) || 0;
+      if (valor > 0 && data?._id) {
+        const base = { lawyer_id: user.id, case_id: data._id, client_id: data.client_id || null, client_name: newCase.client_name || 'Cliente' };
+        const remaining = valor - abono;
+        try {
+          if (abono > 0 && remaining > 0) {
+            await axios.post(`${API}/invoices/`, { ...base, amount: remaining, status: 'sent', description: `Honorarios · ${newCase.materia}` });
+            await axios.post(`${API}/invoices/`, { ...base, amount: abono, status: 'paid', description: `Abono inicial · ${newCase.forma_pago}` });
+          } else if (abono > 0) {
+            await axios.post(`${API}/invoices/`, { ...base, amount: valor, status: 'paid', description: `Pago total · ${newCase.forma_pago}` });
+          } else {
+            await axios.post(`${API}/invoices/`, { ...base, amount: valor, status: 'sent', description: `Honorarios · ${newCase.materia}` });
+          }
+        } catch (e) { /* no romper la creación del caso si falla la facturación */ }
+      }
       setCreateResult({ case_number: data.case_number, conflict: data.conflict });
       setNewCase(emptyCase);
       loadCases();
@@ -78,6 +118,69 @@ export const CasesPage = () => {
       setCreating(false);
     }
   };
+
+  // Estado maestro → cambio persistente (refleja en producción/rentabilidad global).
+  const changeEstado = useCallback(async (caseId, estado) => {
+    setBusyId(caseId);
+    try {
+      await axios.patch(`${API}/cases/${caseId}`, { estado, user_id: user?.id });
+      setToast({ type: 'success', msg: `Estado actualizado a «${estado}»` });
+      await loadCases();
+    } catch (e) {
+      setToast({ type: 'error', msg: 'No se pudo actualizar el estado' });
+    } finally {
+      setBusyId(null);
+      setTimeout(() => setToast(null), 2500);
+    }
+  }, [loadCases, user?.id]);
+
+  // Eliminar caso (persistente; el backend bloquea si hay facturas pendientes).
+  const deleteCase = useCallback(async (caseId, label) => {
+    if (!window.confirm(`¿Eliminar el caso ${label}? Esta acción es permanente.`)) return;
+    setBusyId(caseId);
+    try {
+      await axios.delete(`${API}/cases/${caseId}`);
+      setToast({ type: 'success', msg: 'Caso eliminado' });
+      await loadCases();
+    } catch (e) {
+      setToast({ type: 'error', msg: e?.response?.data?.detail || 'No se pudo eliminar' });
+    } finally {
+      setBusyId(null);
+      setTimeout(() => setToast(null), 2500);
+    }
+  }, [loadCases]);
+
+  // Aceptar caso asignado → pasa a casos activos (persistente).
+  const acceptCase = useCallback(async (caseId) => {
+    setBusyId(caseId);
+    try {
+      await axios.post(`${API}/cases/${caseId}/accept`);
+      setToast({ type: 'success', msg: 'Caso aceptado · ahora está en tus casos activos' });
+      await loadCases();
+    } catch (e) {
+      setToast({ type: 'error', msg: e?.response?.data?.detail || 'No se pudo aceptar el caso' });
+    } finally {
+      setBusyId(null);
+      setTimeout(() => setToast(null), 2800);
+    }
+  }, [loadCases]);
+
+  // Declinar caso → se libera y vuelve al administrador para reasignación.
+  const declineCase = useCallback(async (caseId, label) => {
+    const reason = window.prompt(`Motivo para declinar el caso ${label} (opcional):`);
+    if (reason === null) return; // canceló el prompt
+    setBusyId(caseId);
+    try {
+      await axios.post(`${API}/cases/${caseId}/decline`, { reason });
+      setToast({ type: 'success', msg: 'Caso declinado · devuelto al administrador' });
+      await loadCases();
+    } catch (e) {
+      setToast({ type: 'error', msg: e?.response?.data?.detail || 'No se pudo declinar el caso' });
+    } finally {
+      setBusyId(null);
+      setTimeout(() => setToast(null), 2800);
+    }
+  }, [loadCases]);
 
   return (
     <DashboardLayout>
@@ -121,9 +224,10 @@ export const CasesPage = () => {
                     {items.map(c => (
                       <motion.div key={c._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="backdrop-blur-md bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
                         <div className="text-xs text-[#f97316] font-bold mb-1">{c.case_number}</div>
-                        <div className="font-semibold mb-2">{c.title}</div>
+                        <div className="font-semibold mb-1">{c.title}</div>
+                        {c.expediente_id && <div className="text-[10px] text-[#06b6d4] font-mono mb-1">{c.expediente_id}</div>}
                         <div className="text-xs text-white/60 mb-3">{c.client_name}</div>
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center justify-between text-xs mb-2">
                           <span className="px-2 py-0.5 rounded-md font-semibold" style={{ background: `${priorityConfig[c.priority]?.color || '#f97316'}20`, color: priorityConfig[c.priority]?.color || '#f97316' }}>
                             {priorityConfig[c.priority]?.label || 'Media'}
                           </span>
@@ -131,6 +235,27 @@ export const CasesPage = () => {
                             <Calendar className="w-3 h-3" /> {c.deadline || 'S/F'}
                           </div>
                         </div>
+                        {c.acceptance_status === 'pending' && (
+                          <div className="mb-2 grid grid-cols-2 gap-1.5">
+                            <button onClick={() => acceptCase(c._id)} disabled={busyId === c._id}
+                              className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-[#10b981]/15 border border-[#10b981]/40 text-[#6ee7b7] hover:bg-[#10b981]/25 disabled:opacity-40"
+                              data-testid={`accept-case-${c._id}`}>
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Aceptar
+                            </button>
+                            <button onClick={() => declineCase(c._id, c.case_number)} disabled={busyId === c._id}
+                              className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#fca5a5] hover:bg-[#ef4444]/25 disabled:opacity-40"
+                              data-testid={`decline-case-${c._id}`}>
+                              <X className="w-3.5 h-3.5" /> Declinar
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => setDrawer({ open: true, expedienteId: c.expediente_id, responsable: c.lawyer_name || user?.full_name })}
+                          disabled={!c.expediente_id}
+                          className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold border border-[#06b6d4]/30 bg-[#06b6d4]/10 text-[#67e8f9] hover:bg-[#06b6d4]/20 disabled:opacity-40"
+                          data-testid={`ver-expediente-kanban-${c._id}`}>
+                          <FolderKanban className="w-3.5 h-3.5" /> Ver Expediente
+                        </button>
                       </motion.div>
                     ))}
                   </div>
@@ -149,6 +274,7 @@ export const CasesPage = () => {
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Prioridad</th>
                     <th className="px-4 py-3">Vencimiento</th>
+                    <th className="px-4 py-3 text-right">Estado maestro</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -157,6 +283,7 @@ export const CasesPage = () => {
                       <td className="px-4 py-3">
                         <div className="text-xs text-[#f97316] font-bold">{c.case_number}</div>
                         <div className="font-medium">{c.title}</div>
+                        {c.expediente_id && <div className="text-[11px] text-[#06b6d4] font-mono mt-0.5">{c.expediente_id}</div>}
                       </td>
                       <td className="px-4 py-3 text-sm">{c.client_name}</td>
                       <td className="px-4 py-3">
@@ -170,6 +297,45 @@ export const CasesPage = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm">{c.deadline || 'S/F'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
+                          {c.acceptance_status === 'pending' && (
+                            <>
+                              <button onClick={() => acceptCase(c._id)} disabled={busyId === c._id} title="Aceptar caso"
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-[#10b981]/15 border border-[#10b981]/40 text-[#6ee7b7] hover:bg-[#10b981]/25 disabled:opacity-40" data-testid={`accept-case-row-${c._id}`}>
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Aceptar
+                              </button>
+                              <button onClick={() => declineCase(c._id, c.case_number)} disabled={busyId === c._id} title="Declinar caso"
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#fca5a5] hover:bg-[#ef4444]/25 disabled:opacity-40" data-testid={`decline-case-row-${c._id}`}>
+                                <X className="w-3.5 h-3.5" /> Declinar
+                              </button>
+                            </>
+                          )}
+                          <select
+                            value={MASTER_STATES.some(s => s.value === c.estado) ? c.estado : (c.estado || 'Activo')}
+                            disabled={busyId === c._id}
+                            onChange={(e) => changeEstado(c._id, e.target.value)}
+                            className="px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-xs text-white focus:outline-none focus:border-[#f97316]/50 disabled:opacity-40"
+                            data-testid={`master-state-${c._id}`}
+                          >
+                            {!MASTER_STATES.some(s => s.value === c.estado) && c.estado && (
+                              <option value={c.estado} className="bg-[#0f172a]">{c.estado}</option>
+                            )}
+                            {MASTER_STATES.map(s => <option key={s.value} value={s.value} className="bg-[#0f172a]">{s.label}</option>)}
+                          </select>
+                          <button
+                            onClick={() => setDrawer({ open: true, expedienteId: c.expediente_id, responsable: c.lawyer_name || user?.full_name })}
+                            disabled={!c.expediente_id}
+                            title="Ver Expediente"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[#06b6d4]/30 bg-[#06b6d4]/10 text-[#67e8f9] hover:bg-[#06b6d4]/20 disabled:opacity-40" data-testid={`ver-expediente-${c._id}`}>
+                            <FolderKanban className="w-3.5 h-3.5" /> Ver Expediente
+                          </button>
+                          <button onClick={() => deleteCase(c._id, c.case_number)} disabled={busyId === c._id} title="Eliminar caso"
+                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400 disabled:opacity-40 disabled:cursor-not-allowed" data-testid={`delete-case-${c._id}`}>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -237,6 +403,22 @@ export const CasesPage = () => {
                   </div>
                 </div>
 
+                <div className="text-xs uppercase tracking-wider text-white/40">Honorarios y pago (alimenta el expediente)</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div><label className="text-xs text-white/50">Valor del servicio</label>
+                    <Input type="number" min="0" placeholder="0" value={newCase.valor_servicio} onChange={(e) => setNewCase({ ...newCase, valor_servicio: e.target.value })} className="bg-white/10 border-white/20 text-white" data-testid="case-valor" />
+                  </div>
+                  <div><label className="text-xs text-white/50">Abono inicial</label>
+                    <Input type="number" min="0" placeholder="0" value={newCase.abono_inicial} onChange={(e) => setNewCase({ ...newCase, abono_inicial: e.target.value })} className="bg-white/10 border-white/20 text-white" data-testid="case-abono" />
+                  </div>
+                  <div><label className="text-xs text-white/50">Forma de pago</label>
+                    <select value={newCase.forma_pago} onChange={(e) => setNewCase({ ...newCase, forma_pago: e.target.value })} className="w-full px-3 py-3 rounded-xl bg-white/10 border border-white/20 text-white" data-testid="case-forma-pago">
+                      <option className="bg-[#0f172a]">Transferencia</option><option className="bg-[#0f172a]">Efectivo</option>
+                      <option className="bg-[#0f172a]">Tarjeta</option><option className="bg-[#0f172a]">MercadoPago</option><option className="bg-[#0f172a]">Otro</option>
+                    </select>
+                  </div>
+                </div>
+
                 <Input placeholder="Contraparte (se verifica conflicto de intereses)" value={newCase.counterparty_name} onChange={(e) => setNewCase({ ...newCase, counterparty_name: e.target.value })} className="bg-white/10 border-white/20 text-white" />
                 <Input placeholder="Asignado a (otro abogado, opcional)" value={newCase.assigned_to} onChange={(e) => setNewCase({ ...newCase, assigned_to: e.target.value })} className="bg-white/10 border-white/20 text-white" />
                 <Textarea placeholder="Resumen de los hechos" value={newCase.summary} onChange={(e) => setNewCase({ ...newCase, summary: e.target.value })} className="bg-white/10 border-white/20 text-white" />
@@ -249,6 +431,21 @@ export const CasesPage = () => {
           </motion.div>
         </motion.div>
       )}
+
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[60] px-4 py-3 rounded-2xl border text-sm font-semibold backdrop-blur-md ${
+          toast.type === 'success' ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#6ee7b7]' : 'bg-[#ef4444]/15 border-[#ef4444]/40 text-[#fca5a5]'
+        }`} data-testid="cases-toast">
+          {toast.msg}
+        </div>
+      )}
+
+      <ExpedienteDrawer
+        open={drawer.open}
+        expedienteId={drawer.expedienteId}
+        responsableName={drawer.responsable}
+        onClose={() => setDrawer({ open: false, expedienteId: null, responsable: null })}
+      />
     </DashboardLayout>
   );
 };

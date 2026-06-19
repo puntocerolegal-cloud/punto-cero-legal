@@ -6,7 +6,17 @@ from models.lead import LeadCreate, Lead, LeadUpdate
 from utils.case_number_generator import generate_case_number
 from bson import ObjectId
 
+from routes.auth import get_current_user
+from security.ownership import require_owner
+
 router = APIRouter(prefix="/leads", tags=["CRM - Leads"])
+
+
+def _oid(lead_id: str) -> ObjectId:
+    """Convierte el id de ruta a ObjectId; 404 si no es válido (evita 500)."""
+    if not ObjectId.is_valid(lead_id):
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return ObjectId(lead_id)
 
 
 async def _get_lead_or_404(db, lead_id: str):
@@ -41,8 +51,14 @@ async def get_db():
     return db
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_lead(lead_data: LeadCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_lead(
+    lead_data: LeadCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
     lead_dict = lead_data.model_dump()
+    # El dueño se asigna desde el token, no desde el payload del cliente.
+    lead_dict["lawyer_id"] = str(current_user["_id"])
     lead_dict["assigned_date"] = datetime.utcnow()
     lead_dict["created_at"] = datetime.utcnow()
     lead_dict["updated_at"] = datetime.utcnow()
@@ -54,50 +70,67 @@ async def create_lead(lead_data: LeadCreate, db: AsyncIOMotorDatabase = Depends(
     return lead_dict
 
 @router.get("/", response_model=List[dict])
-async def get_leads(lawyer_id: str = None, status: str = None, db: AsyncIOMotorDatabase = Depends(get_db)):
-    query = {}
-    if lawyer_id:
-        query["lawyer_id"] = lawyer_id
+async def get_leads(
+    status: str = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    # La identidad viene del token, NO de un query param manipulable.
+    query = {"lawyer_id": str(current_user["_id"])}
     if status:
         query["status"] = status
-    
+
     leads = await db.leads.find(query).sort("created_at", -1).to_list(1000)
     for lead in leads:
         lead["_id"] = str(lead["_id"])
     return leads
 
 @router.get("/{lead_id}", response_model=dict)
-async def get_lead(lead_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
+async def get_lead(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = _oid(lead_id)
+    lead = await db.leads.find_one({"_id": oid})
+    # 404 si no existe · 403 si no pertenece al abogado autenticado.
+    require_owner(lead, current_user)
     lead["_id"] = str(lead["_id"])
     return lead
 
 @router.patch("/{lead_id}", response_model=dict)
-async def update_lead(lead_id: str, lead_update: LeadUpdate, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def update_lead(
+    lead_id: str,
+    lead_update: LeadUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = _oid(lead_id)
+    lead = await db.leads.find_one({"_id": oid})
+    require_owner(lead, current_user)
+
     update_data = {k: v for k, v in lead_update.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
-    
-    result = await db.leads.update_one(
-        {"_id": ObjectId(lead_id)},
-        {"$set": update_data}
-    )
-    
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Lead not found")
-    
-    lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
+
+    await db.leads.update_one({"_id": oid}, {"$set": update_data})
+
+    lead = await db.leads.find_one({"_id": oid})
     lead["_id"] = str(lead["_id"])
     return lead
 
 @router.post("/{lead_id}/convert", response_model=dict)
-async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def convert_lead_to_case(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
     """
     INTEGRACIÓN CRÍTICA: CRM → Gestión de Casos
     Convierte un lead en un caso automáticamente
     """
-    lead = await _get_lead_or_404(db, lead_id)
+    oid = _oid(lead_id)
+    lead = await db.leads.find_one({"_id": oid})
+    require_owner(lead, current_user)
 
     if lead.get("status") == "converted":
         raise HTTPException(status_code=400, detail="Lead already converted")
@@ -121,11 +154,19 @@ async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(
         client_id = str(client_result.inserted_id)
 
     case_data = _create_case_payload(lead, client_id, lead_id)
+    case_data["client_name"] = lead.get("client_name")
+    case_data["client_email"] = lead.get("client_email")
+    case_data["client_phone"] = lead.get("client_phone")
+    case_data["estado"] = "Activo"
     case_result = await db.cases.insert_one(case_data)
     case_id = str(case_result.inserted_id)
 
+    # INTEGRACIÓN: crear automáticamente la Biblioteca de Expediente del caso
+    from utils.expediente import init_expediente
+    folders = await init_expediente(db, case_id, lead["lawyer_id"])
+
     await db.leads.update_one(
-        {"_id": ObjectId(lead_id)},
+        {"_id": oid},
         {"$set": {
             "status": "converted",
             "converted_to": case_id,
@@ -137,12 +178,19 @@ async def convert_lead_to_case(lead_id: str, db: AsyncIOMotorDatabase = Depends(
         "message": "Lead converted successfully",
         "case_id": case_id,
         "case_number": case_data["case_number"],
-        "client_id": client_id
+        "client_id": client_id,
+        "expediente_folders": folders,
     }
 
 @router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_lead(lead_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    result = await db.leads.delete_one({"_id": ObjectId(lead_id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Lead not found")
+async def delete_lead(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    oid = _oid(lead_id)
+    lead = await db.leads.find_one({"_id": oid})
+    # Misma validación de ownership que update.
+    require_owner(lead, current_user)
+    await db.leads.delete_one({"_id": oid})
     return None

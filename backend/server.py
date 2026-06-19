@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -53,6 +53,13 @@ api_router.include_router(documents.router)
 api_router.include_router(portal.router)
 api_router.include_router(backup.router)
 api_router.include_router(chatbot.router)
+api_router.include_router(organizations.router)  # Punto Cero OS — Organizaciones (multi-tenant)
+api_router.include_router(partners.router)        # Punto Cero OS — Partners (multi-tenant)
+api_router.include_router(implementations.router) # Punto Cero OS — Implementaciones (multi-tenant)
+api_router.include_router(subscriptions.router)   # Punto Cero OS — Suscripciones (multi-tenant)
+api_router.include_router(billing.router)         # Punto Cero OS — Facturación (multi-tenant)
+api_router.include_router(analytics.router)       # Punto Cero OS — Analytics (consolidado, solo lectura)
+api_router.include_router(integration.router)     # Organismo único — CRM↔Casos↔Factura↔Documentos
 
 # Inicialización de cuentas maestras al arranque
 @app.on_event("startup")
@@ -89,6 +96,21 @@ async def init_master_accounts():
                 {"email": m["email"]},
                 {"$set": updates}
             )
+
+    # Punto Cero OS — índices multi-tenant (idempotente).
+    try:
+        from services.organization_service import ensure_indexes as ensure_org_indexes
+        from services.partner_service import ensure_indexes as ensure_partner_indexes
+        from services.implementation_service import ensure_indexes as ensure_impl_indexes
+        from services.subscription_service import ensure_indexes as ensure_sub_indexes
+        from services.billing_service import ensure_indexes as ensure_billing_indexes
+        await ensure_org_indexes(db)
+        await ensure_partner_indexes(db)
+        await ensure_impl_indexes(db)
+        await ensure_sub_indexes(db)
+        await ensure_billing_indexes(db)
+    except Exception as e:
+        logging.getLogger(__name__).warning("No se pudieron crear índices del OS: %s", e)
 
 # Include the router in the main app
 app.include_router(api_router)

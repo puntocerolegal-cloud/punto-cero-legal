@@ -7,6 +7,21 @@ const STORAGE_PASSPHRASE = process.env.REACT_APP_STORAGE_KEY || null;
 const TOKEN_KEY = 'pcl_token';
 const USER_KEY = 'pcl_user';
 
+// Modo Demo/Local (solo desarrollo): cuando el backend (puerto 8000) no está
+// disponible y NO hay sesión almacenada, se inyecta un admin simulado para
+// validar toda la UI sin pasar por el login. En build de producción
+// (NODE_ENV==='production') este bloque se elimina por tree-shaking → cero impacto.
+const DEV_MODE = process.env.NODE_ENV === 'development';
+const DEV_MOCK_USER = {
+  id: 'dev-admin-principal',
+  full_name: 'Admin Principal (Demo)',
+  email: 'demo@puntocero.local',
+  role: 'admin_general',     // ADMIN_ROLES → acceso completo al System OS
+  is_verified: true,
+  status: 'ACTIVE',
+  country: 'Colombia',
+};
+
 async function _getCryptoKey() {
   if (!STORAGE_PASSPHRASE || !window?.crypto?.subtle) return null;
   const enc = new TextEncoder();
@@ -102,7 +117,13 @@ export const AuthProvider = ({ children }) => {
           setToken(t);
           axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
         }
-        if (u) setUser(u);
+        if (u) {
+          setUser(u);
+        } else if (DEV_MODE && !t) {
+          // Sin sesión real en desarrollo → acceso directo con admin simulado
+          // (no se hace fetch a /api/auth/login; el login real sigue intacto).
+          setUser(DEV_MOCK_USER);
+        }
       } catch (e) {
         console.error('Auth init failed:', e);
       } finally {

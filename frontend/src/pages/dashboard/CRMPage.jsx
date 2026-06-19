@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Users, Plus, Search, Edit, Trash2, X,
+  Users, Plus, Search, Edit, Trash2, X, FolderKanban,
   TrendingUp, Brain, Lightbulb, BarChart3, Receipt, Award, DollarSign
 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -10,6 +10,10 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePageActions } from '@/components/layout/DashboardActions';
+import { useCaseContext } from '../../contexts/CaseContext';
+import { ContextFilterChip } from '../../components/layout/ContextFilterChip';
+import { CasesChart } from '@/shared/charts';
 import { API } from '@/config/api';
 
 const statusConfig = {
@@ -21,6 +25,7 @@ const statusConfig = {
 
 export const CRMPage = () => {
   const { user } = useAuth();
+  const { active } = useCaseContext();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -29,6 +34,8 @@ export const CRMPage = () => {
   const [newLead, setNewLead] = useState({ client_name: '', client_email: '', client_phone: '', legal_area: 'Derecho Civil', status: 'new', description: '' });
   const [report, setReport] = useState(null);
   const [editLead, setEditLead] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const loadLeads = useCallback(async () => {
     if (!user?.id) return;
@@ -66,7 +73,9 @@ export const CRMPage = () => {
   const filteredLeads = leads.filter(l => {
     const matchesSearch = l.client_name?.toLowerCase().includes(search.toLowerCase()) || l.client_email?.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = filterStatus === 'all' || l.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    // Filtro por contexto global: cliente del expediente activo.
+    const matchesContext = !active?.client_name || (l.client_name || '').trim().toLowerCase() === active.client_name.trim().toLowerCase();
+    return matchesSearch && matchesFilter && matchesContext;
   });
 
   const handleCreate = async (e) => {
@@ -90,9 +99,27 @@ export const CRMPage = () => {
     }
   };
 
+  // INTEGRACIÓN CRM → Caso: convierte el lead y crea su Biblioteca de Expediente.
+  const convertToCase = async (lead) => {
+    setBusyId(lead._id);
+    try {
+      const { data } = await axios.post(`${API}/leads/${lead._id}/convert`);
+      setToast({ type: 'success', msg: `Caso ${data.case_number} creado · expediente con ${data.expediente_folders?.length || 5} carpetas` });
+      loadLeads();
+    } catch (e) {
+      setToast({ type: 'error', msg: e?.response?.data?.detail || 'No se pudo convertir el lead' });
+    } finally {
+      setBusyId(null);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  usePageActions({ onAdd: () => setShowModal(true) }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pt-12 lg:pt-0">
+        <ContextFilterChip />
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">CRM Jurídico</h1>
@@ -102,6 +129,12 @@ export const CRMPage = () => {
             <Plus className="w-4 h-4 mr-2" /> Nuevo Cliente
           </Button>
         </div>
+
+        {/* Gráfico de rendimiento — leads por estado (métrica inmediata) */}
+        <CasesChart
+          title="Rendimiento · Leads por estado"
+          data={Object.entries(statusConfig).map(([k, c]) => ({ label: c.label, value: leads.filter((l) => l.status === k).length, color: c.color }))}
+        />
 
         {/* Pipeline Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -273,6 +306,14 @@ export const CRMPage = () => {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
+                            {lead.status === 'converted' ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-[#10b981] font-semibold px-2"><FolderKanban className="w-3.5 h-3.5" /> Caso creado</span>
+                            ) : (
+                              <button onClick={() => convertToCase(lead)} disabled={busyId === lead._id} title="Convertir a Caso"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[#10b981]/30 bg-[#10b981]/10 text-[#6ee7b7] hover:bg-[#10b981]/20 disabled:opacity-40" data-testid={`convert-lead-${lead._id}`}>
+                                <FolderKanban className="w-3.5 h-3.5" /> {busyId === lead._id ? 'Convirtiendo…' : 'Convertir a Caso'}
+                              </button>
+                            )}
                             <button onClick={() => setEditLead({ ...lead })} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" data-testid={`edit-lead-${lead._id}`}>
                               <Edit className="w-4 h-4 text-[#3b82f6]" />
                             </button>
@@ -344,6 +385,14 @@ export const CRMPage = () => {
             </form>
           </motion.div>
         </motion.div>
+      )}
+
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[60] px-4 py-3 rounded-2xl border text-sm font-semibold backdrop-blur-md ${
+          toast.type === 'success' ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#6ee7b7]' : 'bg-[#ef4444]/15 border-[#ef4444]/40 text-[#fca5a5]'
+        }`} data-testid="crm-toast">
+          {toast.msg}
+        </div>
       )}
     </DashboardLayout>
   );

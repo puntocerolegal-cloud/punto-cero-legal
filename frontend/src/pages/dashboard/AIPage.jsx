@@ -6,6 +6,8 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { useCaseContext } from '../../contexts/CaseContext';
 import { API } from '@/config/api';
 
 // Sugerencias de upgrade (IAs premium externas) — abren en nueva pestaña
@@ -29,6 +31,13 @@ const templates = [
 
 export const AIPage = () => {
   const { user } = useAuth();
+  // Motor de entitlements: límite de consultas IA (Demo = 10).
+  const { requirePerform } = useEntitlement();
+  // Contexto global: la IA trabaja automáticamente sobre el expediente activo.
+  const { active } = useCaseContext();
+  const [expedientes, setExpedientes] = useState([]);
+  const [selectedExpId, setSelectedExpId] = useState(active?.expediente_id || '');
+  const [expCtx, setExpCtx] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,6 +67,19 @@ export const AIPage = () => {
 
   useEffect(() => { loadUsage(); }, [loadUsage]);
 
+  // Conexión IA → Expediente: lista para el selector + contexto (materia/resumen).
+  useEffect(() => {
+    if (!user?.id) return;
+    axios.get(`${API}/integration/expedientes?lawyer_id=${user.id}`)
+      .then(r => setExpedientes(r.data?.expedientes || [])).catch(() => {});
+  }, [user?.id]);
+  useEffect(() => { if (active?.expediente_id) setSelectedExpId(active.expediente_id); }, [active?.expediente_id]);
+  useEffect(() => {
+    if (!selectedExpId) { setExpCtx(null); return; }
+    axios.get(`${API}/integration/expediente/${selectedExpId}`)
+      .then(r => setExpCtx(r.data?.ai_context || null)).catch(() => setExpCtx(null));
+  }, [selectedExpId]);
+
   // Banner de upgrade: tras 10 consultas en el mes o si Gemini reporta límite de tasa
   const showUpgrade = !dismissed && (forceUpgrade || (usage?.used || 0) >= UPGRADE_THRESHOLD);
 
@@ -69,6 +91,9 @@ export const AIPage = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
+    // Guardia de cuota IA: valida las consultas del usuario contra el plan/Demo
+    // antes de llamar a la API. Sin cupo, abre el UpgradeModal y detiene aquí.
+    if (!requirePerform('ai', messages.filter((m) => m.role === 'user').length)) return;
     const userMsg = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -81,6 +106,12 @@ export const AIPage = () => {
         template: template,
         lawyer_id: user?.id || null,
         country: user?.country || null,
+        // Contexto automático del expediente seleccionado/activo (sin pedirlo).
+        expediente_id: expCtx?.expediente_id || active?.expediente_id || null,
+        case_id: expCtx?.case_id || active?.case_id || null,
+        client_id: expCtx?.client_id || active?.client_id || null,
+        materia: expCtx?.materia || null,
+        resumen: expCtx?.resumen || null,
       });
       setSessionId(data.session_id);
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
@@ -162,9 +193,23 @@ export const AIPage = () => {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${currentTemplate.color}20` }}>
                 <currentTemplate.icon className="w-5 h-5" style={{ color: currentTemplate.color }} />
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="font-semibold">{currentTemplate.name}</div>
                 <div className="text-xs text-white/50">{currentTemplate.description}</div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <select value={selectedExpId} onChange={(e) => setSelectedExpId(e.target.value)}
+                  className="px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-xs text-white max-w-[180px]" data-testid="ai-expediente-select">
+                  <option value="" className="bg-[#0f172a]">Sin expediente</option>
+                  {expedientes.map((e) => (
+                    <option key={e.expediente_id} value={e.expediente_id} className="bg-[#0f172a]">{e.expediente_id} · {e.client_name || e.case_number}</option>
+                  ))}
+                </select>
+                {selectedExpId && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#06b6d4]/40 bg-[#06b6d4]/10 text-[#67e8f9] text-xs font-semibold" data-testid="ai-context-banner">
+                    Trabajando sobre {selectedExpId}
+                  </span>
+                )}
               </div>
             </div>
 

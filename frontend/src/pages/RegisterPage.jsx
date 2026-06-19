@@ -27,6 +27,7 @@ export const RegisterPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   useEffect(() => {
     if (refFromUrl) {
@@ -40,9 +41,14 @@ export const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!acceptedLegal) {
+      setError('Debes aceptar el Contrato de Suscripción Profesional y las políticas para registrarte.');
+      return;
+    }
     setLoading(true);
     try {
-      const newUser = await register(formData);
+      // Campos de aceptación legal (aditivos; no alteran la autenticación).
+      const newUser = await register({ ...formData, accepted_legal: true, accepted_at: new Date().toISOString() });
       // Si requiere verificación → /verificacion-pendiente
       if (newUser?.is_verified === false || newUser?.status === 'PENDING_VERIFICATION') {
         navigate('/verificacion-pendiente');
@@ -142,7 +148,18 @@ export const RegisterPage = () => {
               <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Mínimo 8 caracteres" minLength={8} required data-testid="register-password" />
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6" data-testid="register-submit">
+            <label className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer">
+              <input type="checkbox" checked={acceptedLegal} onChange={(e) => setAcceptedLegal(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-[#f97316] flex-shrink-0" required data-testid="register-accept-legal" />
+              <span className="text-xs text-white/70 leading-relaxed">
+                He leído y acepto el <Link to="/subscription-agreement" target="_blank" className="text-[#f97316] hover:underline">Contrato de Suscripción Profesional</Link>,
+                los <Link to="/terms" target="_blank" className="text-[#f97316] hover:underline">Términos y Condiciones</Link>,
+                la <Link to="/privacy" target="_blank" className="text-[#f97316] hover:underline">Política de Privacidad</Link> y
+                la <Link to="/cookies" target="_blank" className="text-[#f97316] hover:underline">Política de Cookies</Link>.
+              </span>
+            </label>
+
+            <Button type="submit" disabled={loading || !acceptedLegal} className="w-full bg-gradient-to-r from-[#f97316] to-[#fb923c] hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] text-white font-bold py-6 disabled:opacity-50 disabled:cursor-not-allowed" data-testid="register-submit">
               {loading ? 'Creando cuenta...' : 'Crear Cuenta · Solicitar Verificación'}
               {!loading && <ArrowRight className="ml-2 w-5 h-5" />}
             </Button>

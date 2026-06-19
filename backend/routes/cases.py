@@ -31,12 +31,12 @@ async def get_db():
 
 # Materias (categorías) y estados admitidos
 MATERIAS = ["Civil", "Penal", "Laboral", "Familia", "Mercantil", "Administrativo", "Constitucional", "Otro"]
-ESTADOS = ["Pendiente", "En trámite", "En audiencia", "Archivada", "Finalizada", "En estudio", "Activo"]
+ESTADOS = ["Pendiente", "En trámite", "En audiencia", "Archivada", "Finalizada", "En estudio", "Activo", "En seguimiento"]
 
 # Mapeo estado (es) → status interno (para KPIs/dashboard existentes)
 ESTADO_TO_STATUS = {
     "Pendiente": "open", "En estudio": "open", "Activo": "open",
-    "En trámite": "in_progress", "En audiencia": "in_progress",
+    "En trámite": "in_progress", "En audiencia": "in_progress", "En seguimiento": "in_progress",
     "Archivada": "archived", "Finalizada": "closed",
 }
 
@@ -194,6 +194,10 @@ async def create_case(payload: dict, db: AsyncIOMotorDatabase = Depends(get_db))
     result = await db.cases.insert_one(case_doc)
     case_id = str(result.inserted_id)
 
+    # 5.b) Biblioteca de Expediente automática (Documentos ↔ Caso)
+    from utils.expediente import init_expediente
+    await init_expediente(db, case_id, lawyer_id)
+
     # 6) Línea de tiempo: primer hito
     await db.case_activities.insert_one({
         "case_id": case_id, "user_id": lawyer_id, "activity_type": "note",
@@ -237,6 +241,8 @@ async def create_case(payload: dict, db: AsyncIOMotorDatabase = Depends(get_db))
 @router.get("/", response_model=List[dict])
 async def get_cases(lawyer_id: str = None, client_id: str = None, status: str = None,
                     db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Devolución automática (3h sin aceptar) — verificación perezosa al listar.
+    await auto_return_expired(db)
     query = {}
     if lawyer_id:
         query["lawyer_id"] = lawyer_id
@@ -486,6 +492,115 @@ async def update_case(case_id: str, updates: dict, db: AsyncIOMotorDatabase = De
         })
     case = await db.cases.find_one({"_id": ObjectId(case_id)})
     return _serialize_case(case)
+
+
+# ───────────── Aceptación / Rechazo / Devolución automática ─────────────
+ACCEPTANCE_TIMEOUT_HOURS = 3
+
+
+async def auto_return_expired(db) -> int:
+    """Devolución automática: libera los casos ASIGNADOS y aún PENDIENTES de
+    aceptación cuya asignación supera ACCEPTANCE_TIMEOUT_HOURS (3h). Vuelven al
+    Dashboard Administrativo como 'sin_asignar' para reasignación. Idempotente."""
+    threshold = datetime.utcnow() - timedelta(hours=ACCEPTANCE_TIMEOUT_HOURS)
+    expired = await db.cases.find({
+        "assignment_status": "asignado",
+        "acceptance_status": "pending",
+        "assigned_at": {"$lte": threshold},
+    }).to_list(500)
+    now = datetime.utcnow()
+    for c in expired:
+        prev_lawyer = c.get("lawyer_id")
+        await db.cases.update_one(
+            {"_id": c["_id"]},
+            {"$set": {
+                "lawyer_id": None,
+                "assignment_status": "sin_asignar",
+                "acceptance_status": "auto_returned",
+                "returned_at": now,
+                "decline_reason": f"Devolución automática ({ACCEPTANCE_TIMEOUT_HOURS}h sin respuesta)",
+                "updated_at": now,
+            }},
+        )
+        await db.case_activities.insert_one({
+            "case_id": str(c["_id"]), "user_id": prev_lawyer, "activity_type": "note",
+            "stage": "Devolución automática", "billable": False, "duration_minutes": 0,
+            "description": f"El caso volvió al administrador tras {ACCEPTANCE_TIMEOUT_HOURS}h sin aceptación.",
+            "created_at": now,
+        })
+        await notifier.create_app_notification(
+            db, target="admin", type="case_auto_returned",
+            title="Caso devuelto automáticamente",
+            message=f"{c.get('case_number','Caso')} regresó sin asignar ({ACCEPTANCE_TIMEOUT_HOURS}h sin respuesta del abogado).",
+            case_id=str(c["_id"]),
+        )
+    return len(expired)
+
+
+@router.post("/{case_id}/accept", response_model=dict)
+async def accept_case(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """El abogado ACEPTA el caso asignado: queda definitivo en sus casos activos."""
+    case = await db.cases.find_one({"_id": ObjectId(case_id)})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    if not case.get("lawyer_id"):
+        raise HTTPException(400, "El caso no está asignado a ningún abogado")
+    now = datetime.utcnow()
+    await db.cases.update_one(
+        {"_id": ObjectId(case_id)},
+        {"$set": {
+            "acceptance_status": "accepted",
+            "accepted_at": now,
+            "assignment_status": "asignado",
+            "estado": case.get("estado") if case.get("estado") not in (None, "En estudio") else "Activo",
+            "updated_at": now,
+        }},
+    )
+    await db.case_activities.insert_one({
+        "case_id": case_id, "user_id": case.get("lawyer_id"), "activity_type": "note",
+        "stage": "Caso aceptado", "billable": False, "duration_minutes": 0,
+        "description": "El abogado aceptó el caso; pasa a sus casos activos.", "created_at": now,
+    })
+    await notifier.create_app_notification(
+        db, target="admin", type="case_accepted",
+        title="Caso aceptado", message=f"{case.get('case_number','Caso')} fue aceptado por el abogado.",
+        case_id=case_id,
+    )
+    return {"ok": True, "acceptance_status": "accepted", "accepted_at": now.isoformat()}
+
+
+@router.post("/{case_id}/decline", response_model=dict)
+async def decline_case(case_id: str, payload: dict = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """El abogado DECLINA el caso: se libera y vuelve al admin para reasignación."""
+    case = await db.cases.find_one({"_id": ObjectId(case_id)})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    reason = ((payload or {}).get("reason") or "").strip() or "Sin motivo especificado"
+    prev_lawyer = case.get("lawyer_id")
+    now = datetime.utcnow()
+    await db.cases.update_one(
+        {"_id": ObjectId(case_id)},
+        {"$set": {
+            "lawyer_id": None,
+            "assignment_status": "sin_asignar",
+            "acceptance_status": "declined",
+            "declined_at": now,
+            "declined_by": prev_lawyer,
+            "decline_reason": reason,
+            "updated_at": now,
+        }},
+    )
+    await db.case_activities.insert_one({
+        "case_id": case_id, "user_id": prev_lawyer, "activity_type": "note",
+        "stage": "Caso declinado", "billable": False, "duration_minutes": 0,
+        "description": f"El abogado declinó el caso. Motivo: {reason}", "created_at": now,
+    })
+    await notifier.create_app_notification(
+        db, target="admin", type="case_declined",
+        title="Caso declinado", message=f"{case.get('case_number','Caso')} fue declinado y está disponible para reasignación. Motivo: {reason}",
+        case_id=case_id,
+    )
+    return {"ok": True, "assignment_status": "sin_asignar", "reason": reason}
 
 
 @router.post("/{case_id}/start-meeting", response_model=dict)

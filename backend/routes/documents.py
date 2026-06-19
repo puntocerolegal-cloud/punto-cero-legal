@@ -42,6 +42,7 @@ def _serialize(d):
         "client": d.get("client_name") or "—",
         "client_id": d.get("client_id"),
         "case_id": d.get("case_id"),
+        "expediente_id": d.get("expediente_id"),
         "folder": d.get("folder"),
         "encrypted": d.get("encrypted", False),
         "storage": d.get("storage", "metadata"),
@@ -55,6 +56,7 @@ class DocumentMeta(BaseModel):
     client_id: Optional[str] = None
     client_name: Optional[str] = None
     case_id: Optional[str] = None
+    expediente_id: Optional[str] = None
     folder: Optional[str] = None
 
 
@@ -74,6 +76,7 @@ class EncryptedUpload(BaseModel):
     client_id: Optional[str] = None
     client_name: Optional[str] = None
     case_id: Optional[str] = None
+    expediente_id: Optional[str] = None
     folder: Optional[str] = None
 
 
@@ -152,6 +155,7 @@ async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDa
         "client_id": payload.client_id,
         "client_name": payload.client_name,
         "case_id": payload.case_id,
+        "expediente_id": payload.expediente_id,
         "folder": payload.folder or "Casos Activos",
         "encrypted": True,
         "iv_b64": payload.iv_b64,

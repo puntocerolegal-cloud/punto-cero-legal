@@ -7,12 +7,16 @@ import os
 import uuid
 import httpx
 from bson import ObjectId
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["AI Legal Assistant"])
 
 # IA base gratuita para TODOS los planes: Google Gemini Flash via API REST
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+# Modelo de respaldo (integración existente con Anthropic) — solo si Gemini falla.
+CLAUDE_FALLBACK_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-8")
 
 
 async def get_db():
@@ -36,6 +40,12 @@ class ChatRequest(BaseModel):
     template: Optional[str] = "general"
     lawyer_id: Optional[str] = None
     country: Optional[str] = None
+    # Contexto del expediente activo (la IA trabaja sin re-solicitarlo).
+    expediente_id: Optional[str] = None
+    case_id: Optional[str] = None
+    client_id: Optional[str] = None
+    materia: Optional[str] = None
+    resumen: Optional[str] = None
 
 
 # Contexto jurídico por país: marco normativo, tribunales, tratamiento y términos.
@@ -152,6 +162,42 @@ async def _call_gemini(api_key: str, system_message: str, history: List[dict], m
         raise HTTPException(status_code=502, detail="Respuesta vacía de Gemini")
 
 
+def _call_claude(system_message: str, history: List[dict], message: str) -> Optional[str]:
+    """Respaldo con Anthropic (integración ya existente en el sistema). Devuelve None
+    si no hay clave/SDK, para no romper el flujo principal gratuito (Gemini)."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    try:
+        import anthropic  # import perezoso: el sistema funciona sin la dependencia
+        client = anthropic.Anthropic()
+        msgs = [{"role": ("assistant" if h.get("role") == "model" else "user"), "content": h["text"]}
+                for h in history if h.get("text")]
+        msgs.append({"role": "user", "content": message})
+        resp = client.messages.create(
+            model=CLAUDE_FALLBACK_MODEL, max_tokens=1500,
+            system=system_message, messages=msgs,
+        )
+        parts = [b.text for b in resp.content if getattr(b, "type", "") == "text"]
+        return "\n".join(parts).strip() or None
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Respaldo Claude no disponible: %s", e)
+        return None
+
+
+async def _generate_reply(api_key: Optional[str], system_message: str, history: List[dict], message: str):
+    """Genera la respuesta: Gemini (gratuito, primario) y, si falla, Claude (respaldo).
+    Devuelve (texto, proveedor). Conserva el modelo gratuito como principal."""
+    if api_key:
+        try:
+            return await _call_gemini(api_key, system_message, history, message), "gemini"
+        except Exception as e:  # 429/502/503/timeout de Gemini → intentamos respaldo
+            logger.warning("Gemini falló (%s); intento respaldo Claude.", e)
+    txt = _call_claude(system_message, history, message)
+    if txt:
+        return txt, "claude"
+    raise HTTPException(status_code=502, detail="El asistente IA no está disponible temporalmente. Intenta de nuevo en unos segundos.")
+
+
 @router.get("/usage/{lawyer_id}", response_model=dict)
 async def get_ai_usage(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     """Consumo de consultas del mes actual (sin límites: solo informativo / banner)."""
@@ -162,8 +208,8 @@ async def get_ai_usage(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY no configurada")
+    if not api_key and not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=500, detail="No hay ningún proveedor de IA configurado (GEMINI_API_KEY / ANTHROPIC_API_KEY)")
 
     session_id = request.session_id or str(uuid.uuid4())
 
@@ -179,11 +225,22 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
     base_prompt = SYSTEM_PROMPTS.get(request.template, SYSTEM_PROMPTS["general"])
     system_message = _jurisdiction_prefix(country) + base_prompt
 
+    # Contexto del expediente activo → la IA opera sobre él sin volver a preguntar.
+    if request.expediente_id or request.materia or request.resumen:
+        ctx = ["\n\n--- CONTEXTO DEL EXPEDIENTE ACTIVO (no solicitarlo de nuevo) ---"]
+        if request.expediente_id: ctx.append(f"Expediente: {request.expediente_id}")
+        if request.case_id: ctx.append(f"Caso (case_id): {request.case_id}")
+        if request.client_id: ctx.append(f"Cliente (client_id): {request.client_id}")
+        if request.materia: ctx.append(f"Materia: {request.materia}")
+        if request.resumen: ctx.append(f"Resumen del caso: {request.resumen}")
+        ctx.append("Responde considerando este expediente como contexto vigente.")
+        system_message += "\n".join(ctx)
+
     # Memoria de conversación por sesión (Gemini REST es stateless)
     session = await db.ai_sessions.find_one({"session_id": session_id})
     history = session.get("messages", []) if session else []
 
-    response_text = await _call_gemini(api_key, system_message, history, request.message)
+    response_text, _provider = await _generate_reply(api_key, system_message, history, request.message)
 
     # Persiste el turno en la sesión
     new_messages = history + [

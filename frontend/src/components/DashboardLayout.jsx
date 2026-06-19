@@ -1,78 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import {
-  Scale, LayoutDashboard, Users, FolderKanban, BookOpen, Calendar,
-  Brain, Video, Receipt, FileText, Settings, LogOut, Menu, X, Sparkles, Bell, CheckCheck
+  LayoutDashboard, Users, FolderKanban, BookOpen, Calendar,
+  Brain, Video, Receipt, FileText, Settings, LogOut, Menu, X, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '@/config/api';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { useCaseContext } from '../contexts/CaseContext';
+import { NotificationBell } from './layout/NotificationBell';
+import { HeaderAlerts } from './layout/HeaderAlerts';
+import { SupportButton } from './layout/SupportButton';
 
-const NotificationBell = ({ userId }) => {
-  const [items, setItems] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [open, setOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const { data } = await axios.get(`${API}/dashboard/notifications/${userId}`);
-      setItems(data.notifications || []);
-      setUnread(data.unread || 0);
-    } catch (e) { /* silencioso */ }
-  }, [userId]);
-
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 30000); // sondea cada 30s → "tiempo real"
-    return () => clearInterval(t);
-  }, [load]);
-
-  const markAllRead = async () => {
-    try { await axios.post(`${API}/dashboard/notifications/${userId}/read-all`); setUnread(0); setItems(items.map(i => ({ ...i, read: true }))); }
-    catch (e) { /* noop */ }
-  };
-
-  return (
-    <div className="relative">
-      <button onClick={() => { setOpen(!open); if (!open) load(); }} className="relative w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20" data-testid="notification-bell">
-        <Bell className="w-5 h-5" />
-        {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{unread > 9 ? '9+' : unread}</span>
-        )}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-              className="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto z-50 bg-[#0f172a] border border-white/20 rounded-2xl shadow-2xl">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 sticky top-0 bg-[#0f172a]">
-                <span className="font-bold flex items-center gap-2"><Bell className="w-4 h-4 text-[#f97316]" /> Notificaciones</span>
-                {unread > 0 && <button onClick={markAllRead} className="text-xs text-[#3b82f6] hover:underline flex items-center gap-1"><CheckCheck className="w-3 h-3" /> Marcar leídas</button>}
-              </div>
-              <div className="divide-y divide-white/5">
-                {items.length === 0 && <div className="p-6 text-center text-white/40 text-sm">Sin notificaciones</div>}
-                {items.map(n => (
-                  <div key={n._id} className={`p-3 ${n.read ? 'opacity-60' : 'bg-white/[0.03]'}`}>
-                    <div className="flex items-start gap-2">
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-[#f97316] mt-1.5 flex-shrink-0" />}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold">{n.title}</div>
-                        <div className="text-xs text-white/60">{n.message}</div>
-                        <div className="text-[10px] text-white/30 mt-1">{(n.created_at || '').slice(0, 16).replace('T', ' ')}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+// Color por estado oficial (DEMO/TRIAL/ACTIVO/PENDIENTE_PAGO/VENCIDO/CANCELADO).
+const STATE_COLOR = {
+  DEMO: '#06b6d4', TRIAL: '#f59e0b', ACTIVO: '#10b981',
+  PENDIENTE_PAGO: '#f97316', VENCIDO: '#ef4444', CANCELADO: '#64748b',
 };
 
 const menuItems = [
@@ -88,119 +30,127 @@ const menuItems = [
   { icon: Settings, label: 'Configuración', path: '/dashboard/settings' },
 ];
 
+// Título profesional según el país del abogado (terminología local).
+const TITLE_BY_COUNTRY = {
+  "México": "Lic.", "Guatemala": "Lic.", "Honduras": "Abg.", "El Salvador": "Lic.",
+  "Nicaragua": "Lic.", "Costa Rica": "Lic.", "Panamá": "Lic.",
+  "Argentina": "Abg.", "Paraguay": "Abg.", "Uruguay": "Dr.", "Chile": "Abg.",
+  "Colombia": "Dr.", "Perú": "Dr.", "Bolivia": "Dr.", "Ecuador": "Ab.",
+  "Venezuela": "Abg.", "España": "Ltdo.", "República Dominicana": "Lic.",
+};
+const titleFor = (country) => TITLE_BY_COUNTRY[country] || "Dr.";
+const greetingFor = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
+};
+const lastName = (fullName) => {
+  const parts = String(fullName || "").trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1] : (parts[0] || "");
+};
+
 export const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+  const apellido = lastName(user?.full_name);
+  const titulo = titleFor(user?.country);
+
+  // Contexto global de expediente (cliente/expediente activo).
+  const { active, clear } = useCaseContext();
+
+  // Fuente ÚNICA de verdad (frontend): plan y estado desde SubscriptionContext.
+  const { access } = useSubscription();
+  const planActual = access?.plan?.name || '—';
+  const estadoActual = access?.status || 'ACTIVO';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] text-white">
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center"
-        data-testid="sidebar-toggle"
-      >
+    <div className="min-h-screen bg-[#0f172a] text-white">
+      {/* Marca de agua institucional — fija, centrada, opacidad baja, detrás del
+          contenido (no afecta layout, scroll ni legibilidad). Para usar una foto
+          de oficina, déjala en public/ y cambia la ruta del src. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
+        <img src="/logo-pd-system.png" alt=""
+          className="w-[62vmin] max-w-[640px] object-contain opacity-[0.035] select-none" draggable="false" />
+      </div>
+
+      <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 w-9 h-9 rounded-lg bg-white/10 backdrop-blur flex items-center justify-center">
         {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 h-full w-72 z-40 backdrop-blur-xl bg-[#0f172a]/95 border-r border-white/10 transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center gap-2 mb-4">
-              <Scale className="w-8 h-8 text-[#f97316]" />
-              <span className="text-xl font-bold">Punto Cero Legal</span>
-            </div>
-            <div className="backdrop-blur-md bg-gradient-to-r from-[#f97316]/20 to-[#3b82f6]/20 rounded-xl p-3 border border-[#f97316]/30">
-              <div className="text-xs text-white/60 uppercase tracking-wider">Plan Profesional</div>
-              <div className="font-semibold text-sm mt-1">{user?.full_name || 'Cargando...'}</div>
-              <div className="flex items-center gap-1 mt-2">
-                <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
-                <span className="text-xs text-[#10b981]">Suscripción Activa</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 overflow-y-auto custom-scrollbar">
-            <ul className="space-y-1">
-              {menuItems.map((item) => (
-                <li key={item.path}>
-                  <NavLink
-                    to={item.path}
-                    end={item.path === '/dashboard'}
-                    onClick={() => setSidebarOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
-                        isActive
-                          ? 'bg-gradient-to-r from-[#f97316]/20 to-[#3b82f6]/20 text-white border border-[#f97316]/30'
-                          : 'text-white/60 hover:text-white hover:bg-white/5'
-                      }`
-                    }
-                    data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-                  >
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm font-medium">{item.label}</span>
-                    {item.highlight && (
-                      <Sparkles className="w-3 h-3 text-[#f97316] ml-auto" />
-                    )}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          {/* Logout */}
-          <div className="p-4 border-t border-white/10">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-all"
-              data-testid="logout-button"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="text-sm font-medium">Cerrar Sesión</span>
-            </button>
+      {/* Sidebar (w-64 compacto) */}
+      <aside className={`fixed top-0 left-0 h-full w-64 z-40 flex flex-col bg-[#0f172a] border-r border-white/10 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="p-5 border-b border-white/10 flex items-center gap-3">
+          <img src="/logo-pd-system.png" alt="PD System Multiservicios"
+            className="w-12 h-12 object-contain rounded-lg flex-shrink-0" />
+          <div className="leading-tight">
+            <div className="font-bold text-sm">Punto Cero</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Oficina Virtual</div>
           </div>
         </div>
+        <nav className="flex-1 p-3 overflow-y-auto">
+          {menuItems.map((item) => (
+            <NavLink key={item.path} to={item.path} end={item.path === '/dashboard'} onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm transition-all ${isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
+              <item.icon className="w-4.5 h-4.5 flex-shrink-0" />
+              <span>{item.label}</span>
+              {item.highlight && <Sparkles className="w-3 h-3 text-[#f97316] ml-auto" />}
+            </NavLink>
+          ))}
+        </nav>
+        <button onClick={() => { logout(); navigate('/'); }} className="m-3 flex items-center gap-2 px-3 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 text-sm">
+          <LogOut className="w-4.5 h-4.5" /> Cerrar Sesión
+        </button>
       </aside>
 
-      {/* Backdrop for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Campana de notificaciones (visible en todo el dashboard) */}
-      <div className="fixed top-4 right-4 z-50">
-        <NotificationBell userId={user?.id} />
-      </div>
+      {/* Main — ml-64 sin espacio muerto; relative z-10 sobre la marca de agua */}
+      <main className="relative z-10 lg:ml-64 min-h-screen">
+        {/* Cabecera personalizada — saludo destacado del abogado conectado */}
+        <header className="px-6 lg:px-8 pt-6 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.25em] text-white/40">Punto Cero System OS · Oficina Virtual</div>
+            <h1 className="text-3xl lg:text-4xl font-extrabold mt-1.5 leading-tight">
+              {greetingFor()},{' '}
+              <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
+                {titulo} {user?.full_name || apellido || 'Abogado'}
+              </span>
+            </h1>
+          </div>
+          {/* Plan + Estado + Campana · fuente única SubscriptionContext */}
+          <div className="flex items-center gap-2.5">
+            {/* Contexto global activo (cliente/expediente) — filtra los módulos */}
+            {active && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#06b6d4]/40 bg-[#06b6d4]/10 text-[#67e8f9] text-xs font-semibold" data-testid="active-context">
+                {active.expediente_id || active.client_name}
+                <button onClick={clear} title="Quitar filtro" className="hover:text-white">✕</button>
+              </span>
+            )}
+            <div className="flex items-center gap-2 text-xs" data-testid="dashboard-plan-status">
+              <span className="px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-white/70">
+                Plan: <span className="text-white font-semibold">{planActual}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-semibold"
+                style={{ color: STATE_COLOR[estadoActual] || '#64748b', borderColor: `${STATE_COLOR[estadoActual] || '#64748b'}40`, background: `${STATE_COLOR[estadoActual] || '#64748b'}14` }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATE_COLOR[estadoActual] || '#64748b' }} />
+                {estadoActual}
+              </span>
+            </div>
+            <SupportButton />
+            <HeaderAlerts />
+            <NotificationBell />
+          </div>
+        </header>
 
-      {/* Main Content */}
-      <main className="lg:ml-72 min-h-screen">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="p-6 lg:p-10"
-        >
-          {children}
-        </motion.div>
+        {/* Contenido del módulo */}
+        <div className="px-6 lg:px-8 py-5">{children}</div>
       </main>
     </div>
   );
 };
 
+// Esta línea es la que soluciona el error de "export default not found"
 export default DashboardLayout;

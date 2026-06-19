@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 import { motion } from 'framer-motion';
 
 import axios from 'axios';
 
 import { API } from '@/config/api';
+import { PLANS } from '@/modules/plans/mockData'; // Fuente oficial única del catálogo comercial
 
 import {
 
@@ -288,7 +289,7 @@ export const LandingPage = () => {
 
             >
 
-              <Scale className="w-8 h-8 text-[#f97316]" />
+              <img src="/logo-pd-system.png" alt="Punto Cero Legal" className="w-11 h-11 object-contain rounded-lg" />
 
               <span className="text-2xl font-bold text-white">Punto Cero Legal</span>
 
@@ -1233,7 +1234,7 @@ export const LandingPage = () => {
 
                 name: 'El Despegue',
 
-                priceMonthly: 75000,
+                priceMonthly: PLANS.find(p => p.slug === 'despegue').priceUsd * 4000,
 
                 processes: 'Hasta 50 casos',
 
@@ -1241,7 +1242,7 @@ export const LandingPage = () => {
 
                 color: '#3b82f6',
 
-                features: ['Directorio de Clientes', 'Hasta 50 casos activos', 'CRM Básico', 'Agenda Personal', 'IA Redacción'],
+                features: PLANS.find(p => p.slug === 'despegue').features,
 
                 icon: Briefcase
 
@@ -1253,7 +1254,7 @@ export const LandingPage = () => {
 
                 name: 'El Salto Estratégico',
 
-                priceMonthly: 140000,
+                priceMonthly: PLANS.find(p => p.slug === 'salto-estrategico').priceUsd * 4000,
 
                 processes: 'Hasta 150 casos',
 
@@ -1263,7 +1264,7 @@ export const LandingPage = () => {
 
                 featured: true,
 
-                features: ['Directorio de Clientes', 'Hasta 150 casos activos', 'CRM Avanzado', 'Agenda Bidireccional', 'IA Análisis de Documentos', 'Sala de Conferencias HD', 'Facturación Automática'],
+                features: PLANS.find(p => p.slug === 'salto-estrategico').features,
 
                 icon: Award
 
@@ -1275,7 +1276,7 @@ export const LandingPage = () => {
 
                 name: 'Firma en Crecimiento',
 
-                priceMonthly: 195000,
+                priceMonthly: PLANS.find(p => p.slug === 'firma-crecimiento').priceUsd * 4000,
 
                 processes: 'Procesos ilimitados',
 
@@ -1283,7 +1284,7 @@ export const LandingPage = () => {
 
                 color: '#8b5cf6',
 
-                features: ['Directorio de Clientes', 'Procesos Ilimitados', 'CRM Pro Automatizado', 'Multi Agenda', 'IA Pro Jurisprudencia', 'Conferencias HD con Grabación', 'Inteligencia Financiera'],
+                features: PLANS.find(p => p.slug === 'firma-crecimiento').features,
 
                 icon: Sparkles
 
@@ -1295,7 +1296,7 @@ export const LandingPage = () => {
 
                 name: 'Consolidación Empresarial',
 
-                priceMonthly: 275000,
+                priceMonthly: PLANS.find(p => p.slug === 'consolidacion-empresarial').priceUsd * 4000,
 
                 processes: 'Procesos ilimitados',
 
@@ -1305,7 +1306,7 @@ export const LandingPage = () => {
 
                 premium: true,
 
-                features: ['Directorio de Clientes', 'Procesos Ilimitados', 'CRM Empresarial', 'API Personalizada', 'IA Ilimitada', 'Soporte Dedicado', 'SLA Garantizado'],
+                features: PLANS.find(p => p.slug === 'consolidacion-empresarial').features,
 
                 icon: Crown
 
@@ -2329,17 +2330,17 @@ export const LandingPage = () => {
 
             <section aria-labelledby="footer-brand">
 
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3">
 
-                <Scale className="w-6 h-6 text-[#f97316]" aria-hidden="true" />
+                <img src="/logo-pd-system.png" alt="Punto Cero" className="w-9 h-9 object-contain rounded" aria-hidden="true" />
 
-                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO</h3>
+                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO MULTISERVICIOS</h3>
 
               </div>
 
-              <p className="text-white/40 text-[11px] mb-3 italic leading-relaxed">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#f97316] mb-3">
 
-                Bajo la firma comercial Inversiones y Variedades DJGG 2013
+                Punto Cero System OS · Oficina Virtual
 
               </p>
 
@@ -2433,31 +2434,41 @@ export const LandingPage = () => {
 
                 <li>
 
-                  <a href="#privacidad" className="hover:text-[#3b82f6] transition-colors" aria-label="Política de Privacidad">
+                  <Link to="/privacy" className="hover:text-[#3b82f6] transition-colors" aria-label="Política de Privacidad">
 
                     Política de Privacidad
 
-                  </a>
+                  </Link>
 
                 </li>
 
                 <li>
 
-                  <a href="#cookies" className="hover:text-[#3b82f6] transition-colors" aria-label="Política de Cookies">
+                  <Link to="/cookies" className="hover:text-[#3b82f6] transition-colors" aria-label="Política de Cookies">
 
                     Política de Cookies
 
-                  </a>
+                  </Link>
 
                 </li>
 
                 <li>
 
-                  <a href="#terminos" className="hover:text-[#3b82f6] transition-colors" aria-label="Términos y Condiciones">
+                  <Link to="/terms" className="hover:text-[#3b82f6] transition-colors" aria-label="Términos y Condiciones">
 
                     Términos y Condiciones
 
-                  </a>
+                  </Link>
+
+                </li>
+
+                <li>
+
+                  <Link to="/subscription-agreement" className="hover:text-[#3b82f6] transition-colors" aria-label="Contrato de Suscripción Profesional">
+
+                    Contrato de Suscripción Profesional
+
+                  </Link>
 
                 </li>
 
@@ -2577,7 +2588,7 @@ export const LandingPage = () => {
 
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white/60 text-sm">
 
-            <p>&copy; 2025 PUNTO CERO LEGAL · Inversiones y Variedades DJGG 2013. Todos los derechos reservados.</p>
+            <p>&copy; 2026 PUNTO CERO LEGAL · Todos los derechos reservados.</p>
 
             <p className="text-white/40 text-xs">Hecho con dedicación para LATAM</p>
 

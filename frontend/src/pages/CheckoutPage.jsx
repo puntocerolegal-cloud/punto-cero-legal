@@ -91,11 +91,9 @@ export const CheckoutPage = () => {
         user_name: user.full_name,
         referral_code: referralCode,
       });
+      // Redirige a Mercado Pago. La confirmación llega por el WEBHOOK real de MP
+      // + back_urls (ya no se simula con setTimeout/confirm).
       window.location.href = res.data.checkout_url;
-      setTimeout(async () => {
-        await axios.post(`${API}/payment/confirm/${res.data.payment_id}`);
-        navigate('/dashboard?payment=success');
-      }, 3000);
     } catch (e) {
       alert('Error al procesar pago: ' + getErrorMessage(e, e.message));
       setProcessing(false);

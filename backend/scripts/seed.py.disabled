@@ -1,0 +1,209 @@
+"""
+Seed server-side — Punto Cero System OS.
+Pobla 58 registros REALES y crea un admin de depuración, sin tocar datos
+operativos reales (p. ej. CON-2026-001).
+
+Estrategia segura:
+  1) RESPALDO de todas las colecciones objetivo a backend/scripts/backup_<ts>/.
+  2) LIMPIEZA SELECTIVA: borra únicamente documentos marcados con
+     seed_batch == BATCH (idempotente). NUNCA borra documentos reales.
+  3) INSERTA 58 registros marcados + el usuario admin_debug_seed.
+
+Desglose (58): 20 casos · 5 suscripciones · 10 partners ("panthers") ·
+               3 socios comerciales (usuarios) · 20 vendedores (usuarios).
+
+Uso:  (desde backend/, con el venv activo)
+      python scripts/seed.py
+"""
+import os
+import json
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+# Importa el MISMO hasher de la app para que el login valide (passlib/bcrypt).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # backend/ al path
+from utils.auth import get_password_hash  # noqa: E402
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env")
+
+BATCH = "debug_seed_58"
+TENANT = "tenant-seed-001"
+NOW = datetime.utcnow()
+
+TARGET_COLLECTIONS = ["cases", "os_subscriptions", "partners", "users", "billing", "implementations", "organizations"]
+
+COUNTRIES = ["Colombia", "Venezuela", "Perú", "Bolivia", "Nicaragua"]
+LEGAL_AREAS = ["Civil", "Penal", "Laboral", "Familia", "Mercantil"]
+PLANS = ["essential", "professional", "enterprise"]
+VERTICALS = ["Jurídico", "Medicina", "Odontología"]
+STAGES = ["lead", "contactado", "calificado", "propuesta", "negociacion", "convertido"]
+
+
+def backup(db):
+    stamp = NOW.strftime("%Y%m%d_%H%M%S")
+    folder = BACKEND_DIR / "scripts" / f"backup_{stamp}"
+    folder.mkdir(parents=True, exist_ok=True)
+    total = 0
+    for name in db.list_collection_names():
+        docs = list(db[name].find({}))
+        for d in docs:
+            d["_id"] = str(d["_id"])
+        (folder / f"{name}.json").write_text(json.dumps(docs, default=str, ensure_ascii=False, indent=2), encoding="utf-8")
+        total += len(docs)
+    return folder, total
+
+
+def clean_seed(db):
+    removed = 0
+    for name in TARGET_COLLECTIONS:
+        res = db[name].delete_many({"seed_batch": BATCH})
+        removed += res.deleted_count
+    # admin de depuración (idempotente por email)
+    db.users.delete_many({"full_name": "Admin Debug Seed"})
+    return removed
+
+
+def seed_vendedores(db):
+    docs = []
+    for i in range(1, 21):
+        docs.append({
+            "seed_batch": BATCH, "tenant_id": TENANT,
+            "full_name": f"Dr. Vendedor {i:02d}", "email": f"vendedor{i:02d}@seed.puntocero.com",
+            "role": "lawyer", "is_seed": True, "is_vendedor": True,
+            "specialty": LEGAL_AREAS[i % len(LEGAL_AREAS)], "country": COUNTRIES[i % len(COUNTRIES)],
+            "status": "ACTIVE", "is_verified": True, "is_online": i % 3 == 0,
+            "created_at": NOW, "updated_at": NOW,
+        })
+    res = db.users.insert_many(docs)
+    ids = [str(x) for x in res.inserted_ids]
+    return ids, [d["full_name"] for d in docs]
+
+
+def seed_socios(db):
+    docs = []
+    for i in range(1, 4):
+        docs.append({
+            "seed_batch": BATCH, "tenant_id": TENANT,
+            "full_name": f"Socio Comercial {i}", "email": f"socio{i}@seed.puntocero.com",
+            "role": "socio_comercial", "password_hash": get_password_hash("socio123"),
+            "is_seed": True, "status": "ACTIVE", "is_verified": True,
+            "country": COUNTRIES[i % len(COUNTRIES)], "created_at": NOW, "updated_at": NOW,
+        })
+    db.users.insert_many(docs)
+
+
+def seed_cases(db, vendedor_ids, vendedor_names):
+    docs = []
+    for i in range(1, 21):
+        country = COUNTRIES[i % len(COUNTRIES)]
+        area = LEGAL_AREAS[i % len(LEGAL_AREAS)]
+        sold = i > 6  # los primeros 6 quedan sin asignar; el resto "vendidos"/asignados
+        idx = i % len(vendedor_names)
+        prio = ["alta", "media", "baja"][i % 3]
+        docs.append({
+            "seed_batch": BATCH,
+            "case_number": f"SEED-2026-{i:03d}",
+            "consultation_number": f"SEED-2026-{i:03d}",
+            "title": f"Consulta {area} · Cliente {i:02d}",
+            "description": f"Caso de demostración real ({area}) en {country}. Requiere asistencia jurídica.",
+            "legal_area": area,
+            "priority": {"alta": "high", "media": "medium", "baja": "low"}[prio],
+            "priority_label": prio,
+            "status": "PENDING_ASSIGNMENT" if not sold else "IN_PROGRESS",
+            "estado": "En estudio" if not sold else "En trámite",
+            "assignment_status": "sin_asignar" if not sold else ("atendido" if i % 2 == 0 else "asignado"),
+            "lawyer_id": vendedor_ids[idx] if sold else None,   # enlace real → operations/cases hidrata lawyer_name
+            "lawyer_name": vendedor_names[idx] if sold else None,
+            "client_id": None,
+            "client_name": f"Cliente {i:02d}",
+            "client_phone": "+570000000000",
+            "client_email": f"cliente{i:02d}@seed.puntocero.com",
+            "client_country": country,
+            "client_city": "Capital",
+            "source": "seed_script",
+            "is_demo": False,
+            "status_timeline": [],
+            "created_at": NOW - timedelta(days=i),
+            "updated_at": NOW,
+        })
+    db.cases.insert_many(docs)
+
+
+def seed_partners(db):
+    docs = []
+    for i in range(1, 11):
+        docs.append({
+            "seed_batch": BATCH, "tenantId": TENANT, "organizationId": None,
+            "companyName": f"Partner {i:02d} SAS", "contactName": f"Contacto {i:02d}",
+            "email": f"partner{i:02d}@seed.puntocero.com", "phone": "+571111111111",
+            "vertical": VERTICALS[i % len(VERTICALS)],
+            "status": "active" if i % 3 else "pending",
+            "stage": STAGES[i % len(STAGES)],
+            "commissionRate": 10 + (i % 6) * 2, "projectedRevenue": 1000000 * i,  # 10–20%
+            "createdAt": NOW - timedelta(days=i * 2), "updatedAt": NOW, "createdBy": "seed",
+        })
+    db.partners.insert_many(docs)
+
+
+def seed_subscriptions(db):
+    docs = []
+    for i in range(1, 6):
+        plan = PLANS[i % len(PLANS)]
+        monthly = {"essential": 112500, "professional": 210000, "enterprise": 562500}[plan]
+        docs.append({
+            "seed_batch": BATCH, "tenantId": TENANT, "organizationId": None,
+            "companyName": f"Suscripción {i} · Bufete {i:02d}", "vertical": VERTICALS[i % len(VERTICALS)],
+            "plan": plan, "status": ["active", "trial", "active", "pending", "active"][i - 1],
+            "billingCycle": "monthly", "usersIncluded": 5 * i, "usersUsed": 2 * i,
+            "monthlyAmount": monthly, "annualAmount": monthly * 12,
+            "startDate": (NOW - timedelta(days=30 * i)).date().isoformat(),
+            "renewalDate": (NOW + timedelta(days=30)).date().isoformat(),
+            "expirationDate": (NOW + timedelta(days=365)).date().isoformat(),
+            "autoRenew": True, "createdAt": NOW, "updatedAt": NOW, "createdBy": "seed",
+        })
+    db.os_subscriptions.insert_many(docs)
+
+
+def seed_admin(db):
+    db.users.insert_one({
+        "full_name": "Admin Debug Seed", "email": "admin_debug_seed@puntocero.com",
+        "role": "admin",  # mapea a SUPER_ADMIN en utils/tenant.py → visión cross-tenant
+        "password_hash": get_password_hash("admin123"),
+        "status": "ACTIVE", "is_verified": True, "is_seed": True,
+        "created_at": NOW, "updated_at": NOW,
+    })
+
+
+def main():
+    client = MongoClient(os.environ["MONGO_URL"])
+    db = client[os.environ["DB_NAME"]]
+
+    folder, backed = backup(db)
+    removed = clean_seed(db)
+
+    vend_ids, vend_names = seed_vendedores(db)   # 20
+    seed_socios(db)                              # 3
+    seed_cases(db, vend_ids, vend_names)         # 20 (sold → lawyer_id real)
+    seed_partners(db)                  # 10
+    seed_subscriptions(db)             # 5
+    seed_admin(db)                     # +1 admin debug
+
+    inserted = 20 + 3 + 20 + 10 + 5
+    print(json.dumps({
+        "backup_folder": str(folder),
+        "backup_docs": backed,
+        "seed_docs_removed_prev": removed,
+        "inserted": inserted,
+        "breakdown": {"casos": 20, "suscripciones": 5, "partners": 10, "socios": 3, "vendedores": 20},
+        "admin_debug": {"email": "admin_debug_seed@puntocero.com", "password": "admin123", "role": "admin->SUPER_ADMIN"},
+        "tenant_id": TENANT,
+    }, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

@@ -397,7 +397,30 @@ async def process_inbound(db, phone_or_caseid: str, body: str, by_case_id: bool 
     query = {"case_id": phone_or_caseid} if by_case_id else {"phone": phone_or_caseid}
     session = await db.chat_sessions.find_one({**query, "status": "active"}, sort=[("created_at", -1)])
     if not session:
-        return None
+        # Item 7: WhatsApp entrante sin sesión activa → buscar el caso por teléfono,
+        # crear la sesión automáticamente (reutiliza start_intake_conversation) y continuar.
+        if by_case_id:
+            return None
+        digits = "".join(ch for ch in str(phone_or_caseid) if ch.isdigit())[-10:]
+        case = await db.cases.find_one({"client_phone": phone_or_caseid}, sort=[("created_at", -1)])
+        if not case and digits:
+            case = await db.cases.find_one({"client_phone": {"$regex": f"{digits}$"}}, sort=[("created_at", -1)])
+        if not case:
+            return None
+        now0 = datetime.utcnow()
+        await db.case_activities.insert_one({
+            "case_id": str(case["_id"]), "user_id": None, "activity_type": "note",
+            "stage": "Chatbot", "description": f"Cliente inició conversación por WhatsApp: {body[:300]}",
+            "billable": False, "duration_minutes": 0, "created_at": now0,
+        })
+        await notifier.create_app_notification(
+            db, target="admin", type="client_message",
+            title=f"Nuevo contacto WhatsApp · {case.get('case_number')}",
+            message=f"{case.get('client_name','Cliente')}: {body[:120]}",
+            case_id=str(case["_id"]),
+        )
+        new_session = await start_intake_conversation(db, case)
+        return (new_session.get("history") or [{}])[0].get("text")
     case = await db.cases.find_one({"_id": ObjectId(session["case_id"])})
 
     now = datetime.utcnow()
@@ -413,6 +436,14 @@ async def process_inbound(db, phone_or_caseid: str, body: str, by_case_id: bool 
         "stage": "Chatbot", "description": f"Cliente respondió: {body[:300]}",
         "billable": False, "duration_minutes": 0, "created_at": now,
     })
+
+    # Item 9: alerta visible al administrador por cada respuesta del cliente.
+    await notifier.create_app_notification(
+        db, target="admin", type="client_message",
+        title=f"Respuesta del cliente · {session.get('consultation_number') or (case or {}).get('case_number','')}",
+        message=f"{session.get('client_name','Cliente')}: {body[:120]}",
+        case_id=session["case_id"],
+    )
 
     q_index = session["q_index"] + 1
     questions = session["questions"]

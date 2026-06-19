@@ -88,3 +88,8 @@ android-sdk/frontend/node_modules/.cache/default-development/0.pack
 
 # Snapshots/zips
 *.zip
+
+# Despliegue: artefactos que NO deben ir al repo
+backend/scripts/backup_*/
+evidencia_fase3/
+backend/session_evidence.json

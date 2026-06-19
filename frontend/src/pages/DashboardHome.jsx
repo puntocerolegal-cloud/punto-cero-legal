@@ -9,16 +9,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
+import { ExpedienteDrawer } from '../components/ExpedienteDrawer';
+import { TrialAgreementGate } from '../components/legal/TrialAgreementGate';
+// Fuente ÚNICA oficial de planes — la MISMA que usa el Dashboard Administrativo (SubscriptionCenter).
+import { PLANS, CURRENCIES, DEFAULT_CURRENCY_CODE } from '@/modules/plans/mockData';
+import { findCurrency, localPrice, formatMoney } from '@/modules/plans/currency';
 import { Button } from '../components/ui/button';
 import axios from 'axios';
 import { API } from '@/config/api';
-
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Buenos días';
-  if (hour < 19) return 'Buenas tardes';
-  return 'Buenas noches';
-};
 
 const formatDate = (date) => {
   return date.toLocaleDateString('es-CO', {
@@ -84,12 +82,18 @@ const StatCard = ({ icon: Icon, label, value, change, color, delay = 0 }) => (
   </motion.div>
 );
 
-// Iconos por plan (según su id en el catálogo).
+// Iconos y colores por plan oficial (slug en modules/plans/mockData.js). Solo presentación.
 const PLAN_ICONS = {
-  esencial: Briefcase,
-  profesional: Award,
-  elite: Sparkles,
-  ilimitado: Crown,
+  'despegue': Briefcase,
+  'salto-estrategico': Award,
+  'firma-crecimiento': Sparkles,
+  'consolidacion-empresarial': Crown,
+};
+const PLAN_COLORS = {
+  'despegue': '#3b82f6',
+  'salto-estrategico': '#f97316',
+  'firma-crecimiento': '#8b5cf6',
+  'consolidacion-empresarial': '#10b981',
 };
 
 export const DashboardHome = () => {
@@ -103,6 +107,31 @@ export const DashboardHome = () => {
   const [apiAlerts, setApiAlerts] = useState([]);
   const [planInfo, setPlanInfo] = useState(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [expData, setExpData] = useState(null);
+  const [showExpModal, setShowExpModal] = useState(false);
+  const [drawerExp, setDrawerExp] = useState(null);
+  const [activity, setActivity] = useState([]);
+
+  // Actividad Reciente: SOLO eventos del abogado autenticado (notificaciones per-usuario).
+  const loadActivity = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/dashboard/notifications/${user.id}`);
+      setActivity(data.notifications || []);
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') console.error('No activity', e);
+    }
+  }, [user?.id]);
+
+  const loadExpedientes = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/integration/expedientes?lawyer_id=${user.id}`);
+      setExpData(data);
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') console.error('No expedientes', e);
+    }
+  }, [user?.id]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -145,8 +174,23 @@ export const DashboardHome = () => {
     loadReferralData();
     loadDashboardData();
     loadPlan();
+    loadExpedientes();
+    loadActivity();
     return () => clearInterval(timer);
-  }, [loadReferralData, loadDashboardData, loadPlan]);
+  }, [loadReferralData, loadDashboardData, loadPlan, loadExpedientes, loadActivity]);
+
+  // Agregados de inteligencia de expedientes (fuente: /integration/expedientes).
+  const exps = expData?.expedientes || [];
+  const facturasPendientes = exps.reduce((s, e) => s + (e.indicators?.facturas_pendientes || 0), 0);
+  const facturasPagadas = exps.reduce((s, e) => s + (e.indicators?.facturas_pagadas || 0), 0);
+  const rentProm = exps.length ? Math.round(exps.reduce((s, e) => s + (e.indicators?.financial?.rentabilidad || 0), 0) / exps.length) : 0;
+  const expedienteCards = [
+    { key: 'activos', label: 'Expedientes Activos', value: expData?.casos_activos ?? '—', icon: FolderKanban, color: '#06b6d4' },
+    { key: 'ingresos', label: 'Ingresos Totales', value: fmtCurrency(expData?.ingresos_totales || 0), icon: TrendingUp, color: '#10b981' },
+    { key: 'pendientes', label: 'Facturas Pendientes', value: facturasPendientes, icon: Receipt, color: '#f59e0b' },
+    { key: 'pagadas', label: 'Facturas Pagadas', value: facturasPagadas, icon: CheckCircle2, color: '#3b82f6' },
+    { key: 'rentabilidad', label: 'Rentabilidad Promedio', value: `${rentProm}%`, icon: Activity, color: '#8b5cf6' },
+  ];
 
   const goToCheckout = (planId) => {
     setShowPlanModal(false);
@@ -154,7 +198,10 @@ export const DashboardHome = () => {
   };
 
   const activePlan = planInfo?.has_plan ? planInfo.plan : null;
-  const planCatalog = planInfo?.catalog || [];
+  // Catálogo mostrado = fuente oficial (idéntico al Dashboard Administrativo).
+  // Moneda por defecto COP (misma que SubscriptionCenter) vía priceUsd × tasa.
+  const planCurrency = findCurrency(CURRENCIES, DEFAULT_CURRENCY_CODE) || CURRENCIES[0];
+  const planCatalog = PLANS;
   const locale = planInfo?.locale || {
     term: 'abogado', term_cap: 'Abogado', term_plural: 'abogados',
     honorific: 'Dr.', flag: '🇨🇴', country: 'Colombia', currency: 'COP',
@@ -194,35 +241,43 @@ export const DashboardHome = () => {
     { icon: TrendingUp, label: 'Facturación Total', value: kpis ? fmtCurrency(kpis.total_revenue) : '—', color: '#14b8a6' },
   ];
 
-  const recentActivity = [
-    { type: 'case', text: 'Nuevo caso registrado: Divorcio Express', time: 'Hace 5 min', color: '#3b82f6' },
-    { type: 'meeting', text: 'Reunión completada con cliente Juan Pérez', time: 'Hace 1 hora', color: '#10b981' },
-    { type: 'invoice', text: 'Factura #INV-2025-00342 pagada', time: 'Hace 2 horas', color: '#f97316' },
-    { type: 'document', text: 'Documento firmado: Contrato de servicios', time: 'Hace 3 horas', color: '#8b5cf6' },
-  ];
+  // Color por tipo de evento (solo presentación).
+  const ACTIVITY_COLOR = {
+    case_created: '#3b82f6', new_client_case: '#3b82f6', case_assigned: '#3b82f6', case_assigned_manual: '#3b82f6',
+    case_accepted: '#10b981', case_declined: '#ef4444', case_auto_returned: '#f97316',
+    client_message: '#10b981', client_document: '#8b5cf6', chatbot_report: '#f97316', referral_reward: '#f97316',
+  };
+  const timeAgo = (iso) => {
+    if (!iso) return '';
+    const diff = Math.max(0, (currentTime.getTime() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return 'hace un momento';
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+    return `hace ${Math.floor(diff / 86400)} d`;
+  };
+  // Actividad Reciente — exclusiva del abogado autenticado (sin datos demo).
+  const recentActivity = activity.slice(0, 6).map((n) => ({
+    text: n.title || n.message,
+    time: timeAgo(n.created_at),
+    color: ACTIVITY_COLOR[n.type] || '#64748b',
+  }));
 
   const priorityIcon = { high: Calendar, medium: Receipt, low: Users };
-  const alerts = apiAlerts.length > 0
-    ? apiAlerts.slice(0, 5).map(a => ({
-        priority: a.priority,
-        text: a.message,
-        icon: priorityIcon[a.priority] || AlertCircle
-      }))
-    : [
-        { priority: 'high', text: 'Audiencia mañana 9:00 AM - Caso López', icon: Calendar },
-        { priority: 'medium', text: '3 facturas próximas a vencer', icon: Receipt },
-        { priority: 'low', text: '5 nuevos leads sin contactar', icon: Users },
-      ];
+  // Alertas Inteligentes — solo las reales del abogado (endpoint filtra por lawyer_id). Sin fallback demo.
+  const alerts = apiAlerts.slice(0, 5).map((a) => ({
+    priority: a.priority,
+    text: a.message,
+    icon: priorityIcon[a.priority] || AlertCircle,
+  }));
 
   return (
     <DashboardLayout>
+      {/* Aceptación obligatoria del Contrato antes de usar el período de prueba */}
+      <TrialAgreementGate />
       <div className="space-y-8 pt-12 lg:pt-0">
-        {/* Welcome Section */}
+        {/* Contexto (ubicación · fecha · hora) — el saludo vive solo en la cabecera del layout */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl lg:text-5xl font-bold mb-2">
-            {getGreeting()}, <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">{user?.full_name || locale.honorific}</span>
-          </h1>
-          <div className="flex flex-wrap items-center gap-4 text-white/60 mt-3">
+          <div className="flex flex-wrap items-center gap-4 text-white/60">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-[#3b82f6]" />
               <span>{user?.country || 'Colombia'}</span>
@@ -239,6 +294,26 @@ export const DashboardHome = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* Inteligencia de Expedientes — tarjetas clicables (fuente: /integration/expedientes) */}
+        <div>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <FolderKanban className="w-5 h-5 text-[#06b6d4]" /> Inteligencia de Expedientes
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {expedienteCards.map((c) => (
+              <button key={c.key} onClick={() => setShowExpModal(true)}
+                className="text-left backdrop-blur-xl bg-white/5 rounded-2xl p-5 border border-white/10 hover:bg-white/10 hover:scale-[1.02] transition-all"
+                data-testid={`exp-card-${c.key}`}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: `${c.color}20`, border: `1px solid ${c.color}40` }}>
+                  <c.icon className="w-5 h-5" style={{ color: c.color }} />
+                </div>
+                <div className="text-2xl font-bold">{c.value}</div>
+                <div className="text-xs text-white/60 mt-1">{c.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Referral Rewards Banner */}
         {referralData && (
@@ -543,21 +618,22 @@ export const DashboardHome = () => {
                 Ver todo <ArrowUpRight className="w-3 h-3" />
               </button>
             </div>
-            <ul className="space-y-3">
-              {recentActivity.map((activity, i) => (
-                <li key={`${activity.type}-${i}`} className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
-                  <div
-                    className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                    style={{ background: activity.color }}
-                  />
-                  <div className="flex-1">
-                    <div className="text-sm">{activity.text}</div>
-                    <div className="text-xs text-white/40 mt-0.5">{activity.time}</div>
-                  </div>
-                  <CheckCircle2 className="w-4 h-4 text-white/30 flex-shrink-0 mt-1" />
-                </li>
-              ))}
-            </ul>
+            {recentActivity.length === 0 ? (
+              <div className="py-8 text-center text-sm text-white/40" data-testid="activity-empty">Sin actividad reciente</div>
+            ) : (
+              <ul className="space-y-3">
+                {recentActivity.map((item, i) => (
+                  <li key={i} className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
+                    <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: item.color }} />
+                    <div className="flex-1">
+                      <div className="text-sm">{item.text}</div>
+                      <div className="text-xs text-white/40 mt-0.5">{item.time}</div>
+                    </div>
+                    <CheckCircle2 className="w-4 h-4 text-white/30 flex-shrink-0 mt-1" />
+                  </li>
+                ))}
+              </ul>
+            )}
           </motion.div>
 
           {/* Alerts */}
@@ -571,33 +647,37 @@ export const DashboardHome = () => {
               <Bell className="w-5 h-5 text-[#f97316]" />
               Alertas Inteligentes
             </h3>
-            <ul className="space-y-3">
-              {alerts.map((alert, i) => (
-                <li
-                  key={`alert-${alert.priority}-${i}`}
-                  className={`p-3 rounded-xl border ${
-                    alert.priority === 'high'
-                      ? 'bg-red-500/10 border-red-500/30'
-                      : alert.priority === 'medium'
-                      ? 'bg-yellow-500/10 border-yellow-500/30'
-                      : 'bg-blue-500/10 border-blue-500/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <alert.icon
-                      className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                        alert.priority === 'high'
-                          ? 'text-red-400'
-                          : alert.priority === 'medium'
-                          ? 'text-yellow-400'
-                          : 'text-blue-400'
-                      }`}
-                    />
-                    <span className="text-sm">{alert.text}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {alerts.length === 0 ? (
+              <div className="py-8 text-center text-sm text-white/40" data-testid="alerts-empty">No existen alertas pendientes</div>
+            ) : (
+              <ul className="space-y-3">
+                {alerts.map((alert, i) => (
+                  <li
+                    key={`alert-${alert.priority}-${i}`}
+                    className={`p-3 rounded-xl border ${
+                      alert.priority === 'high'
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : alert.priority === 'medium'
+                        ? 'bg-yellow-500/10 border-yellow-500/30'
+                        : 'bg-blue-500/10 border-blue-500/30'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <alert.icon
+                        className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                          alert.priority === 'high'
+                            ? 'text-red-400'
+                            : alert.priority === 'medium'
+                            ? 'text-yellow-400'
+                            : 'text-blue-400'
+                        }`}
+                      />
+                      <span className="text-sm">{alert.text}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </motion.div>
         </div>
       </div>
@@ -660,48 +740,50 @@ export const DashboardHome = () => {
 
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {planCatalog.map((p) => {
-                  const isCurrent = planInfo?.plan_id === p.id;
-                  const Icon = PLAN_ICONS[p.id] || Award;
+                  const color = PLAN_COLORS[p.slug] || '#f97316';
+                  const isCurrent = planInfo?.plan_id === p.slug;
+                  const Icon = PLAN_ICONS[p.slug] || Award;
+                  const casos = p.limits?.max_cases === -1 ? 'Procesos ilimitados' : `Hasta ${p.limits?.max_cases} casos`;
                   return (
                     <div
-                      key={p.id}
+                      key={p.slug}
                       className="rounded-2xl border p-5 flex flex-col"
                       style={{
-                        borderColor: isCurrent ? p.color : 'rgba(255,255,255,0.12)',
-                        background: isCurrent ? `${p.color}12` : 'rgba(255,255,255,0.03)',
+                        borderColor: isCurrent ? color : 'rgba(255,255,255,0.12)',
+                        background: isCurrent ? `${color}12` : 'rgba(255,255,255,0.03)',
                       }}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${p.color}22` }}>
-                          <Icon className="w-5 h-5" style={{ color: p.color }} />
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}22` }}>
+                          <Icon className="w-5 h-5" style={{ color }} />
                         </div>
                         {isCurrent && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: `${p.color}22`, color: p.color }}>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: `${color}22`, color }}>
                             Plan actual
                           </span>
                         )}
                       </div>
                       <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
                       <div className="mt-1 mb-1 flex items-baseline gap-1.5">
-                        <span className="text-base">{p.flag}</span>
-                        <span className="text-2xl font-bold" style={{ color: p.color }}>{planPrice(p)}</span>
+                        <span className="text-2xl font-bold" style={{ color }}>{formatMoney(localPrice(p, planCurrency), planCurrency?.currency_code || 'USD')}</span>
                         <span className="text-xs text-white/50">/mes</span>
                       </div>
-                      <div className="text-xs text-white/50 mb-3">{p.processes} · {p.currency}</div>
+                      <div className="text-[11px] text-white/40 mb-1">Base {formatMoney(p.priceUsd, 'USD')} · {planCurrency?.country}</div>
+                      <div className="text-xs text-white/50 mb-3">{casos}</div>
                       <ul className="space-y-2 mb-5 flex-1">
                         {p.features.map((f) => (
                           <li key={f} className="flex items-start gap-2 text-xs text-white/75">
-                            <Check className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: p.color }} />
+                            <Check className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color }} />
                             <span>{f}</span>
                           </li>
                         ))}
                       </ul>
                       <Button
-                        onClick={() => goToCheckout(p.id)}
+                        onClick={() => goToCheckout(p.slug)}
                         disabled={isCurrent}
                         className="w-full font-bold disabled:opacity-40"
-                        style={{ background: isCurrent ? 'rgba(255,255,255,0.08)' : `linear-gradient(135deg, ${p.color}, ${p.color}cc)` }}
-                        data-testid={`select-plan-${p.id}`}
+                        style={{ background: isCurrent ? 'rgba(255,255,255,0.08)' : `linear-gradient(135deg, ${color}, ${color}cc)` }}
+                        data-testid={`select-plan-${p.slug}`}
                       >
                         {isCurrent ? 'Plan actual' : (<><ChevronRight className="w-4 h-4 mr-1" /> Seleccionar</>)}
                       </Button>
@@ -713,6 +795,47 @@ export const DashboardHome = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal: lista de expedientes (al hacer clic en una tarjeta) */}
+      <AnimatePresence>
+        {showExpModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowExpModal(false)} data-testid="expedientes-modal">
+            <motion.div initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0f172a] border border-white/20 rounded-3xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-2xl font-bold flex items-center gap-2"><FolderKanban className="w-6 h-6 text-[#06b6d4]" /> Expedientes</h2>
+                <button onClick={() => setShowExpModal(false)}><X className="w-5 h-5" /></button>
+              </div>
+              {exps.length === 0 ? (
+                <div className="text-center py-10 text-white/40">Aún no hay expedientes. Crea un caso para generarlo automáticamente.</div>
+              ) : (
+                <div className="space-y-2">
+                  {exps.map((e) => (
+                    <button key={e.expediente_id} onClick={() => { setDrawerExp(e.expediente_id); setShowExpModal(false); }}
+                      className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                      data-testid={`exp-row-${e.expediente_id}`}>
+                      <div className="min-w-0">
+                        <div className="font-mono text-xs text-[#06b6d4]">{e.expediente_id} · {e.case_number}</div>
+                        <div className="font-semibold truncate">{e.client_name || e.title}</div>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                        <span className="text-[#10b981] font-semibold">{fmtCurrency(e.indicators?.financial?.ingresos || 0)}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/70">{e.estado}</span>
+                        <ChevronRight className="w-4 h-4 text-white/40" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ExpedienteDrawer open={!!drawerExp} expedienteId={drawerExp} responsableName={user?.full_name} onClose={() => setDrawerExp(null)} />
     </DashboardLayout>
   );
 };

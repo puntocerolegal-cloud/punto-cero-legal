@@ -6,6 +6,10 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { usePageActions } from '@/components/layout/DashboardActions';
+import { useCaseContext } from '../../contexts/CaseContext';
+import { ContextFilterChip } from '../../components/layout/ContextFilterChip';
 import { API } from '@/config/api';
 
 const JITSI_DOMAIN = 'meet.jit.si';
@@ -28,6 +32,10 @@ const roomFromMeeting = (m) => m.room_id || (m.meeting_link ? m.meeting_link.spl
 
 export const MeetingsPage = () => {
   const { user } = useAuth();
+  // Motor de entitlements: límite de videoconferencias (Demo = 1).
+  const { requirePerform } = useEntitlement();
+  const { active } = useCaseContext();
+  const activeCaseId = active?.case_id || null;
   const [meetings, setMeetings] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [activeMeeting, setActiveMeeting] = useState(null);
@@ -41,9 +49,10 @@ export const MeetingsPage = () => {
     if (!user?.id) return;
     try {
       const { data } = await axios.get(`${API}/meetings/`, { params: { host_id: user.id } });
-      setMeetings(data || []);
+      const list = data || [];
+      setMeetings(activeCaseId ? list.filter(m => m.case_id === activeCaseId) : list);
     } catch (e) { /* sin datos aún */ }
-  }, [user?.id]);
+  }, [user?.id, activeCaseId]);
 
   useEffect(() => {
     loadMeetings();
@@ -107,8 +116,13 @@ export const MeetingsPage = () => {
     } catch (e) { return null; }
   };
 
+  // ActionBar global → "+ Agregar" abre el modal de programar reunión.
+  usePageActions({ onAdd: () => setShowModal(true) }, []);
+
   const createMeeting = async (e) => {
     e.preventDefault();
+    // Guardia de cuota de video (plan/Demo) antes de programar la reunión.
+    if (!requirePerform('video', meetings.length)) return;
     const iso = new Date(`${newMeeting.date}T${newMeeting.time || '09:00'}`).toISOString();
     await persistMeeting({
       title: newMeeting.title, scheduled_time: iso,
@@ -120,6 +134,9 @@ export const MeetingsPage = () => {
   };
 
   const startInstantMeeting = async () => {
+    // Guardia de cuota de video también en la reunión instantánea (evita el
+    // "escape" de abrir una sala local cuando no hay cupo).
+    if (!requirePerform('video', meetings.length)) return;
     const created = await persistMeeting({ title: 'Reunión Instantánea', status: 'in_progress' });
     setActiveMeeting(created || { title: 'Reunión Instantánea', room_id: `PCL-${Math.random().toString(36).slice(2, 8).toUpperCase()}` });
   };
@@ -157,6 +174,7 @@ export const MeetingsPage = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6 pt-12 lg:pt-0">
+        <ContextFilterChip />
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">Sala de Conferencias</h1>

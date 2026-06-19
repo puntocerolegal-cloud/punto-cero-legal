@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Lock, Bell, Building2, CreditCard, Plug, Save, Eye, EyeOff, Check, Award, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
+// Fuente ÚNICA oficial de planes (misma que Landing/Admin/Dashboard).
+import { CURRENCIES, DEFAULT_CURRENCY_CODE } from '@/modules/plans/mockData';
+import { findCurrency, localPrice, formatMoney } from '@/modules/plans/currency';
 
 const tabs = [
   { id: 'profile', label: 'Perfil', icon: User },
@@ -26,6 +30,11 @@ const AI_UPGRADES = [
 
 export const SettingsPage = () => {
   const { user } = useAuth();
+  // Plan/estado reales del abogado (fuente única: SubscriptionContext + PLANS oficiales).
+  const { access } = useSubscription();
+  const currentPlan = access?.plan || null;
+  const planCurrency = findCurrency(CURRENCIES, DEFAULT_CURRENCY_CODE) || CURRENCIES[0];
+  const planPriceLabel = currentPlan ? formatMoney(localPrice(currentPlan, planCurrency), planCurrency?.currency_code || 'USD') : '—';
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -185,12 +194,11 @@ export const SettingsPage = () => {
                       <Award className="w-8 h-8 text-[#f97316]" />
                       <div>
                         <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Actual</div>
-                        <div className="text-2xl font-bold">Profesional</div>
+                        <div className="text-2xl font-bold" data-testid="settings-plan-name">{currentPlan?.name || '—'}</div>
                       </div>
                     </div>
-                    <p className="text-white/70 text-sm mb-4">Tu suscripción se renueva el 12 de enero de 2026</p>
-                    <div className="text-3xl font-bold mb-1">$99.000 <span className="text-base font-normal text-white/60">/mes</span></div>
-                    <div className="text-sm text-[#10b981] mt-2">✓ 7 días gratis activos</div>
+                    <p className="text-white/70 text-sm mb-4">Estado de la suscripción: <span className="font-semibold">{access?.status || '—'}</span></p>
+                    <div className="text-3xl font-bold mb-1" data-testid="settings-plan-price">{planPriceLabel} <span className="text-base font-normal text-white/60">/mes</span></div>
                   </div>
                   <Button className="bg-gradient-to-r from-[#10b981] to-[#059669] text-white">Cambiar Plan</Button>
                 </div>

@@ -294,6 +294,10 @@ async def list_operations_cases(
     admin=Depends(get_admin),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
+    # Devolución automática (3h sin aceptar) antes de listar la cola del admin.
+    from routes.cases import auto_return_expired
+    await auto_return_expired(db)
+
     query = {}
     if priority and priority != "all":
         query["priority_label"] = priority
@@ -330,6 +334,9 @@ async def _serialize_case(c: dict, db) -> dict:
         "priority": c.get("priority", "medium"),
         "priority_label": c.get("priority_label", PRIORITY_MAP_IN.get(c.get("priority", "medium"), "media")),
         "assignment_status": c.get("assignment_status", "sin_asignar" if not c.get("lawyer_id") else "asignado"),
+        "acceptance_status": c.get("acceptance_status"),
+        "assigned_at": c["assigned_at"].isoformat() if isinstance(c.get("assigned_at"), datetime) else None,
+        "decline_reason": c.get("decline_reason"),
         "status": c.get("status", "open"),
         "lawyer_id": c.get("lawyer_id"),
         "lawyer_name": lawyer_name,
@@ -383,6 +390,7 @@ async def auto_assign_case(case_id: str, admin=Depends(get_admin), db: AsyncIOMo
         {"$set": {
             "lawyer_id": chosen_id,
             "assignment_status": "asignado",
+            "acceptance_status": "pending",   # pendiente de que el abogado acepte/decline
             "assigned_at": datetime.utcnow(),
             "assigned_by": admin["_id"],
             "updated_at": datetime.utcnow(),
@@ -421,6 +429,7 @@ async def manual_assign_case(case_id: str, payload: dict, admin=Depends(get_admi
         {"$set": {
             "lawyer_id": lawyer_id,
             "assignment_status": "asignado",
+            "acceptance_status": "pending",   # pendiente de que el abogado acepte/decline
             "assigned_at": datetime.utcnow(),
             "assigned_by": admin["_id"],
             "updated_at": datetime.utcnow(),

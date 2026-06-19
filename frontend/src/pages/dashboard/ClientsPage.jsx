@@ -7,6 +7,8 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { usePageActions } from '@/components/layout/DashboardActions';
 import { API } from '@/config/api';
 
 const telLink = (phone) => `tel:${(phone || '').replace(/[^\d+]/g, '')}`;
@@ -21,6 +23,9 @@ const PRIORITY_STYLE = {
 
 export const ClientsPage = () => {
   const { user } = useAuth();
+  // Motor de entitlements: el hook se invoca en el cuerpo del componente (Rules
+  // of Hooks); el guardia de cuota se aplica dentro del handler de creación.
+  const { requirePerform } = useEntitlement();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -78,8 +83,15 @@ export const ClientsPage = () => {
 
   const filtered = clients.filter(c => (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.document || '').includes(search));
 
+  // ActionBar global → "+ Agregar" abre el modal de nuevo cliente.
+  usePageActions({ onAdd: () => setShowModal(true) }, []);
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    // Guardia de cuota (feature del motor: "crm" → límite de clientes). Se pasa
+    // el conteo actual para validar contra el plan/Demo. Si no hay cupo,
+    // requirePerform dispara el UpgradeModal y detenemos el handler.
+    if (!requirePerform('crm', clients.length)) return;
     try {
       await axios.post(`${API}/clients/`, { ...newClient, lawyer_id: user.id });
       setNewClient({ name: '', document: '', email: '', phone: '', city: '', country: 'Colombia', address: '', status: 'active', observations: '' });

@@ -6,6 +6,10 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePageActions } from '@/components/layout/DashboardActions';
+import { useCaseContext } from '../../contexts/CaseContext';
+import { ContextFilterChip } from '../../components/layout/ContextFilterChip';
+import { CasesChart } from '@/shared/charts';
 import { API } from '@/config/api';
 
 const statusConfig = {
@@ -18,6 +22,8 @@ const statusConfig = {
 
 export const InvoicesPage = () => {
   const { user } = useAuth();
+  const { active } = useCaseContext();
+  const activeCaseId = active?.case_id || null;
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -31,13 +37,13 @@ export const InvoicesPage = () => {
     if (!user?.id) return;
     try {
       const { data } = await axios.get(`${API}/invoices/?lawyer_id=${user.id}`);
-      setInvoices(data);
+      setInvoices(activeCaseId ? data.filter(i => i.case_id === activeCaseId) : data);
     } catch (e) {
       console.error('Error cargando facturas:', e);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, activeCaseId]);
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
 
@@ -159,18 +165,31 @@ export const InvoicesPage = () => {
     w.document.close();
   };
 
+  usePageActions({ onAdd: () => setShowModal(true) }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pt-12 lg:pt-0">
+        <ContextFilterChip />
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Facturación</h1>
+            <h1 className="text-3xl font-bold mb-2">Facturación y Contabilidad</h1>
             <p className="text-white/60">Gestión financiera de tu práctica legal</p>
           </div>
           <Button onClick={() => setShowModal(true)} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold" data-testid="add-invoice-button">
             <Plus className="w-4 h-4 mr-2" /> Nueva Factura
           </Button>
         </div>
+
+        {/* Gráfico de rendimiento — ingresos por estado de pago (métrica inmediata) */}
+        <CasesChart
+          title="Ingresos por estado de pago"
+          data={[
+            { label: "Pagado", value: totalRevenue, color: "#10b981" },
+            { label: "Pendiente", value: pendingRevenue, color: "#f59e0b" },
+            { label: "Vencido", value: overdueRevenue, color: "#ef4444" },
+          ]}
+        />
 
         {/* Financial Cards */}
         <div className="grid md:grid-cols-3 gap-4">

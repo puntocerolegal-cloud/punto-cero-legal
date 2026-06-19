@@ -6,6 +6,10 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { usePageActions } from '@/components/layout/DashboardActions';
+import { useCaseContext } from '../../contexts/CaseContext';
+import { ContextFilterChip } from '../../components/layout/ContextFilterChip';
 import { API } from '@/config/api';
 
 const eventTypeConfig = {
@@ -32,6 +36,10 @@ const toDisplayEvent = (a) => {
 
 export const AgendaPage = () => {
   const { user } = useAuth();
+  // Motor de entitlements (hook en el cuerpo del componente; guardia en el handler).
+  const { requirePerform } = useEntitlement();
+  const { active } = useCaseContext();
+  const activeCaseId = active?.case_id || null;
   const [events, setEvents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -41,11 +49,12 @@ export const AgendaPage = () => {
     if (!user?.id) return;
     try {
       const { data } = await axios.get(`${API}/appointments/?lawyer_id=${user.id}`);
-      setEvents(data.map(toDisplayEvent));
+      const scoped = activeCaseId ? data.filter(a => a.case_id === activeCaseId) : data;
+      setEvents(scoped.map(toDisplayEvent));
     } catch (e) {
       console.error('Error cargando agenda:', e);
     }
-  }, [user?.id]);
+  }, [user?.id, activeCaseId]);
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
 
@@ -58,8 +67,14 @@ export const AgendaPage = () => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
 
+  // ActionBar global → "+ Agregar" abre el modal de nueva cita.
+  usePageActions({ onAdd: () => setShowModal(true) }, []);
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    // Guardia de cuota (feature "agenda" → límite de citas). Valida el conteo
+    // actual; sin cupo, requirePerform abre el UpgradeModal y detenemos aquí.
+    if (!requirePerform('agenda', events.length)) return;
     try {
       const startIso = `${newEvent.date}T${newEvent.time || '00:00'}:00`;
       const start = new Date(startIso);
@@ -90,6 +105,7 @@ export const AgendaPage = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6 pt-12 lg:pt-0">
+        <ContextFilterChip />
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">Agenda Inteligente</h1>

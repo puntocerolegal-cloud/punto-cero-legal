@@ -6,6 +6,9 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { usePageActions } from '@/components/layout/DashboardActions';
+import { useCaseContext } from '../../contexts/CaseContext';
 import { encryptFile, decryptToBlob } from '../../lib/zkcrypto';
 import { API } from '@/config/api';
 
@@ -13,6 +16,12 @@ const folderColors = ['#3b82f6', '#f97316', '#ec4899', '#10b981', '#8b5cf6'];
 
 export const DocumentsPage = () => {
   const { user } = useAuth();
+  // Motor de entitlements: límite de documentos (Demo = 5).
+  const { requirePerform } = useEntitlement();
+  // Filtro global por expediente activo.
+  const { active } = useCaseContext();
+  const [expedientes, setExpedientes] = useState([]);
+  const [selectedExpId, setSelectedExpId] = useState(active?.expediente_id || '');
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
   const [storage, setStorage] = useState(null);
@@ -35,7 +44,7 @@ export const DocumentsPage = () => {
       const [docsRes, foldersRes, storageRes] = await Promise.all([
         axios.get(`${API}/documents/?lawyer_id=${user.id}`),
         axios.get(`${API}/documents/folders/${user.id}`),
-        axios.get(`${API}/documents/storage/${user.id}`),
+        axios.get(`${API}/integration/storage/${user.id}`),
       ]);
       setDocuments(docsRes.data);
       setFolders(foldersRes.data);
@@ -49,11 +58,31 @@ export const DocumentsPage = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filtered = documents.filter(d => (d.name || '').toLowerCase().includes(search.toLowerCase()));
+  // Conexión Documentos → Expediente: lista de expedientes para el selector destino.
+  useEffect(() => {
+    if (!user?.id) return;
+    axios.get(`${API}/integration/expedientes?lawyer_id=${user.id}`)
+      .then(r => setExpedientes(r.data?.expedientes || []))
+      .catch(() => {});
+  }, [user?.id]);
+  useEffect(() => { if (active?.expediente_id) setSelectedExpId(active.expediente_id); }, [active?.expediente_id]);
+
+  const filtered = documents.filter(d =>
+    (d.name || '').toLowerCase().includes(search.toLowerCase()) &&
+    (!active?.case_id || d.case_id === active.case_id)
+  );
+
+  // ActionBar global → "+ Agregar" dispara la subida de documento.
+  usePageActions({ onAdd: () => fileInputRef.current?.click() }, []);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Guardia de cuota de documentos (plan/Demo) antes de cifrar/subir.
+    if (!requirePerform('documents', documents.length)) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     if (!passphrase) {
       alert('Configura tu frase de cifrado antes de subir documentos. Sin ella, nadie (ni el servidor) puede leer tus archivos.');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -63,9 +92,15 @@ export const DocumentsPage = () => {
     try {
       // Cifrado Zero-Knowledge en el navegador: el servidor solo recibe ciphertext
       const encrypted = await encryptFile(file, passphrase);
+      // Destino: expediente seleccionado o el activo del contexto global.
+      const target = expedientes.find(e => e.expediente_id === selectedExpId) || (active?.case_id ? active : null);
       await axios.post(`${API}/documents/upload`, {
         lawyer_id: user.id,
-        folder: 'Casos Activos',
+        folder: 'Otros',
+        expediente_id: target?.expediente_id || null,
+        case_id: target?.case_id || null,
+        client_id: target?.client_id || null,
+        client_name: target?.client_name || null,
         ...encrypted,
       });
       await loadData();
@@ -134,6 +169,19 @@ export const DocumentsPage = () => {
     } catch (err) { alert('No se pudo renombrar.'); }
   };
 
+  // Almacenamiento descentralizado: vincula un correo de respaldo cuando el cloud
+  // del suscriptor (su correo de registro) se llena.
+  const linkBackupEmail = async () => {
+    const email = window.prompt('Almacenamiento lleno. Vincula un correo de respaldo (o personal) para seguir guardando expedientes:');
+    if (!email) return;
+    try {
+      await axios.post(`${API}/integration/storage/backup-email`, { lawyer_id: user.id, backup_email: email });
+      loadData();
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'No se pudo vincular el correo de respaldo. Verifica el formato.');
+    }
+  };
+
   const [backingUp, setBackingUp] = useState(false);
   const handleBackup = async () => {
     setBackingUp(true);
@@ -172,6 +220,13 @@ export const DocumentsPage = () => {
           </div>
         </div>
 
+        {/* Filtro global por expediente activo */}
+        {active?.case_id && (
+          <div className="rounded-xl border border-[#06b6d4]/30 bg-[#06b6d4]/[0.06] px-4 py-2.5 text-xs text-[#67e8f9]" data-testid="docs-context-filter">
+            Mostrando solo documentos del expediente <span className="font-semibold">{active.expediente_id || active.case_number}</span> · {active.client_name}
+          </div>
+        )}
+
         {/* Zero-Knowledge passphrase */}
         <div className="backdrop-blur-xl bg-gradient-to-r from-[#10b981]/10 to-[#3b82f6]/10 rounded-2xl p-4 border border-[#10b981]/30">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
@@ -193,16 +248,35 @@ export const DocumentsPage = () => {
           </div>
         </div>
 
-        {/* Storage Info */}
+        {/* Storage Info — almacenamiento descentralizado por suscriptor */}
         <div className="backdrop-blur-xl bg-gradient-to-r from-[#3b82f6]/10 to-[#f97316]/10 rounded-2xl p-4 border border-white/10">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-semibold">Almacenamiento utilizado</span>
             <span className="text-sm text-white/60">{storage ? `${storage.used_human} de ${storage.quota_human}` : '—'}</span>
           </div>
+          {storage?.storage_email && (
+            <div className="text-[11px] text-white/40 mb-2">
+              Cloud vinculado a <span className="text-white/70">{storage.storage_email}</span>
+              {storage.backup_email && <> · respaldo: <span className="text-white/70">{storage.backup_email}</span></>}
+            </div>
+          )}
           <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-[#3b82f6] to-[#f97316]" style={{ width: `${Math.min(storage?.percent || 0, 100)}%` }} />
           </div>
         </div>
+
+        {/* Disparador de capacidad: solicita correo de respaldo al llenarse */}
+        {storage?.trigger?.needs_backup_email && (
+          <div className="backdrop-blur-xl bg-[#ef4444]/10 rounded-2xl p-4 border border-[#ef4444]/40 flex flex-col md:flex-row md:items-center gap-3" data-testid="storage-trigger">
+            <div className="w-10 h-10 rounded-xl bg-[#ef4444]/20 flex items-center justify-center flex-shrink-0">
+              <DownloadCloud className="w-5 h-5 text-[#ef4444]" />
+            </div>
+            <div className="flex-1 text-sm text-[#fca5a5]">{storage.trigger.message}</div>
+            <Button onClick={linkBackupEmail} className="bg-gradient-to-r from-[#ef4444] to-[#f97316] text-white font-bold flex-shrink-0" data-testid="link-backup-email">
+              Vincular correo de respaldo
+            </Button>
+          </div>
+        )}
 
         {/* Folders */}
         {folders.length > 0 && (
@@ -219,6 +293,19 @@ export const DocumentsPage = () => {
             </div>
           </div>
         )}
+
+        {/* Expediente destino — todo documento guarda expediente_id / case_id / client_id */}
+        <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10 flex flex-col md:flex-row md:items-center gap-3">
+          <div className="text-sm font-semibold flex items-center gap-2 flex-shrink-0"><Folder className="w-4 h-4 text-[#06b6d4]" /> Expediente destino</div>
+          <select value={selectedExpId} onChange={(e) => setSelectedExpId(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm" data-testid="doc-expediente-select">
+            <option value="" className="bg-[#0f172a]">— Sin expediente (general) —</option>
+            {expedientes.map((e) => (
+              <option key={e.expediente_id} value={e.expediente_id} className="bg-[#0f172a]">{e.expediente_id} · {e.client_name || e.case_number}</option>
+            ))}
+          </select>
+          <span className="text-[11px] text-white/40">Se guarda expediente_id, case_id y client_id en cada archivo.</span>
+        </div>
 
         {/* Search */}
         <div className="relative">
