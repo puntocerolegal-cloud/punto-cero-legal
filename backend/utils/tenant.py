@@ -45,7 +45,13 @@ async def get_tenant_context(
     # Resolución del tenant: cabecera tiene prioridad; respaldo al del usuario.
     tenant_id = x_tenant_id or user_tenant
 
-    if os_role != SUPER_ADMIN:
+    # Admin de plataforma = SUPER_ADMIN, o un OWNER/ADMIN SIN tenant propio asignado
+    # (el Administrador Maestro de Punto Cero). Estos tienen VISIÓN CROSS-TENANT total
+    # y no requieren X-Tenant-ID → garantiza visibilidad completa de todos los datos.
+    # Un OWNER/ADMIN CON tenant fijo sigue aislado a su tenant (sin cambios).
+    is_platform_admin = (os_role == SUPER_ADMIN) or (os_role in (OWNER, ADMIN) and not user_tenant)
+
+    if not is_platform_admin:
         if not tenant_id:
             raise HTTPException(status_code=400, detail="Falta la cabecera X-Tenant-ID")
         # Aislamiento: si el usuario tiene tenant asignado, debe coincidir.
@@ -59,7 +65,7 @@ async def get_tenant_context(
         "tenant_id": tenant_id,
         "organization_id": x_organization_id,
         "can_write": os_role in WRITE_ROLES,
-        "is_super_admin": os_role == SUPER_ADMIN,
+        "is_super_admin": is_platform_admin,
     }
 
 

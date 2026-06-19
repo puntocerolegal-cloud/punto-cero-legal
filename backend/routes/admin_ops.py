@@ -309,21 +309,23 @@ async def list_operations_cases(
 
 
 async def _serialize_case(c: dict, db) -> dict:
-    lawyer_name = None
-    lawyer_phone = None
+    lawyer_name = lawyer_phone = lawyer_email = lawyer_country = None
     if c.get("lawyer_id"):
         lawyer = await db.users.find_one({"_id": ObjectId(c["lawyer_id"])}) if ObjectId.is_valid(str(c["lawyer_id"])) else None
         if lawyer:
             lawyer_name = with_dr_prefix(lawyer.get("full_name"))
             lawyer_phone = lawyer.get("phone")
+            lawyer_email = lawyer.get("email")
+            lawyer_country = lawyer.get("country")
 
-    client_name = None
-    client_phone = None
+    client_name = client_phone = client_email = client_country = None
     if c.get("client_id"):
         client = await db.users.find_one({"_id": ObjectId(c["client_id"])}) if ObjectId.is_valid(str(c["client_id"])) else None
         if client:
             client_name = client.get("full_name")
             client_phone = client.get("phone")
+            client_email = client.get("email")
+            client_country = client.get("country")
 
     return {
         "id": str(c["_id"]),
@@ -338,12 +340,21 @@ async def _serialize_case(c: dict, db) -> dict:
         "assigned_at": c["assigned_at"].isoformat() if isinstance(c.get("assigned_at"), datetime) else None,
         "decline_reason": c.get("decline_reason"),
         "status": c.get("status", "open"),
+        "estado": c.get("estado"),
         "lawyer_id": c.get("lawyer_id"),
         "lawyer_name": lawyer_name,
         "lawyer_phone": lawyer_phone,
+        "lawyer_email": lawyer_email,
+        "lawyer_country": lawyer_country,
+        # Datos del cliente — visibilidad total (email/teléfono/país/ciudad).
         "client_id": c.get("client_id"),
         "client_name": client_name or c.get("client_name", "Cliente"),
         "client_phone": client_phone or c.get("client_phone"),
+        "client_email": client_email or c.get("client_email"),
+        "client_country": client_country or c.get("client_country"),
+        "client_city": c.get("client_city"),
+        "currency": c.get("currency") or c.get("client_currency"),
+        "source": c.get("source"),
         "private_notes": c.get("private_notes", ""),
         "created_at": c["created_at"].isoformat() if isinstance(c.get("created_at"), datetime) else None,
     }

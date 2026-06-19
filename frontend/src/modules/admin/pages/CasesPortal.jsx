@@ -110,7 +110,7 @@ export function CasesPortal() {
               const busy = busyId === cid;
               return (
               <tr key={c._id || c.case_number} onClick={() => setSelected(c)} className="border-b border-white/5 hover:bg-white/[0.04] cursor-pointer">
-                <td className="p-3 pl-5"><div className="text-white font-medium truncate max-w-[240px]">{c.title || "—"}</div><div className="text-[11px] text-white/40">{c.client_name}</div></td>
+                <td className="p-3 pl-5"><div className="text-white font-medium truncate max-w-[240px]">{c.title || "—"}</div><div className="text-[11px] text-white/40">{c.client_name}</div>{c.client_email && <div className="text-[11px] text-white/30 truncate max-w-[240px]">{c.client_email}</div>}</td>
                 <td className="p-3 font-mono text-[11px] text-white/60">{c.case_number}</td>
                 <td className="p-3 text-white/70">{c.legal_area || "—"}</td>
                 <td className="p-3 text-white/70">{c.client_country || "—"}</td>
