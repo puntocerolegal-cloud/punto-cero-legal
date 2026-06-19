@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import { AdminOSLayout } from "./AdminOSLayout";
 import { ExecutiveDashboard } from "./pages/ExecutiveDashboard";
 import { SalesRoomModule } from "./pages/SalesRoomModule";
+import { MasterControl } from "./pages/MasterControl";
 import { CasesPortal } from "./pages/CasesPortal";
 import { CountrySegmentation } from "./pages/CountrySegmentation";
 import { InventoryModule } from "../inventory/InventoryModule";
@@ -44,6 +45,7 @@ export function AdminModule() {
       <Route index element={<AdminOSLayout title="Dashboard Ejecutivo"><ExecutiveDashboard /></AdminOSLayout>} />
       <Route path="sales-room" element={<AdminOSLayout title="Sala de Ventas"><SalesRoomModule /></AdminOSLayout>} />
       <Route path="cases-portal" element={<AdminOSLayout title="Portal de Casos"><CasesPortal /></AdminOSLayout>} />
+      <Route path="master" element={<AdminOSLayout title="Control Maestro"><MasterControl /></AdminOSLayout>} />
       <Route path="countries" element={<AdminOSLayout title="Segmentación por Países"><CountrySegmentation /></AdminOSLayout>} />
       <Route path="organizations" element={<AdminOSLayout title="Organizaciones"><OrganizationsDashboard /></AdminOSLayout>} />
       <Route path="users" element={<AdminOSLayout title="Usuarios"><UsersDashboard /></AdminOSLayout>} />

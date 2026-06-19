@@ -28,6 +28,7 @@ export const MODULE_GROUPS = [
 export const MODULE_REGISTRY = [
   // OPERACIONES (Cian)
   { key: "executive",     label: "Dashboard Ejecutivo",   to: "/admin",                     icon: LayoutDashboard, end: true, area: "os", group: "operaciones", requiredFeature: null, flag: null },
+  { key: "master",        label: "Control Maestro",       to: "/admin/master",              icon: ShieldCheck,     area: "os", group: "operaciones", requiredFeature: null, flag: null },
   { key: "cases-portal",  label: "Portal de Casos",       to: "/admin/cases-portal",        icon: FolderKanban,    area: "os", group: "operaciones", requiredFeature: null, flag: null },
   { key: "sales-room",    label: "Sala de Ventas",        to: "/admin/sales-room",          icon: Megaphone,       area: "os", group: "operaciones", requiredFeature: null, flag: null },
   { key: "countries",     label: "Segmentación por Países", to: "/admin/countries",         icon: Globe,           area: "os", group: "operaciones", requiredFeature: null, flag: null },

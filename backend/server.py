@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -60,6 +60,7 @@ api_router.include_router(subscriptions.router)   # Punto Cero OS — Suscripcio
 api_router.include_router(billing.router)         # Punto Cero OS — Facturación (multi-tenant)
 api_router.include_router(analytics.router)       # Punto Cero OS — Analytics (consolidado, solo lectura)
 api_router.include_router(integration.router)     # Organismo único — CRM↔Casos↔Factura↔Documentos
+api_router.include_router(admin_master.router)    # Administrador Maestro — control total + auditoría
 
 # Inicialización de cuentas maestras al arranque
 @app.on_event("startup")
