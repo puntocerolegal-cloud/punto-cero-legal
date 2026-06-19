@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -195,7 +196,7 @@ async def _generate_reply(api_key: Optional[str], system_message: str, history: 
     txt = _call_claude(system_message, history, message)
     if txt:
         return txt, "claude"
-    raise HTTPException(status_code=502, detail="El asistente IA no está disponible temporalmente. Intenta de nuevo en unos segundos.")
+    raise RuntimeError("El asistente IA no está disponible temporalmente (Gemini sin clave/caído y respaldo Claude no disponible).")
 
 
 @router.get("/usage/{lawyer_id}", response_model=dict)
@@ -207,64 +208,88 @@ async def get_ai_usage(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key and not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(status_code=500, detail="No hay ningún proveedor de IA configurado (GEMINI_API_KEY / ANTHROPIC_API_KEY)")
+    try:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+        # Si no hay Gemini pero sí Anthropic → se usará Claude automáticamente (vía
+        # _generate_reply). Solo es error real si NO hay ningún proveedor.
+        if not api_key and not anthropic_key:
+            logger.error("AI CHAT: sin proveedor (GEMINI_API_KEY / ANTHROPIC_API_KEY)")
+            return JSONResponse(status_code=503, content={
+                "success": False,
+                "error": "No hay ningún proveedor de IA configurado (GEMINI_API_KEY / ANTHROPIC_API_KEY)",
+            })
 
-    session_id = request.session_id or str(uuid.uuid4())
+        session_id = request.session_id or str(uuid.uuid4())
 
-    # País: del request o del perfil del abogado en la BD.
-    country = request.country
-    if not country and request.lawyer_id:
+        # País: del request o del perfil del abogado en la BD (tolerante a fallos).
+        country = request.country
+        if not country and request.lawyer_id:
+            try:
+                u = await db.users.find_one({"_id": ObjectId(request.lawyer_id)})
+                country = (u or {}).get("country")
+            except Exception:
+                country = None
+
+        base_prompt = SYSTEM_PROMPTS.get(request.template, SYSTEM_PROMPTS["general"])
+        system_message = _jurisdiction_prefix(country) + base_prompt
+
+        # Contexto del expediente activo → la IA opera sobre él sin volver a preguntar.
+        if request.expediente_id or request.materia or request.resumen:
+            ctx = ["\n\n--- CONTEXTO DEL EXPEDIENTE ACTIVO (no solicitarlo de nuevo) ---"]
+            if request.expediente_id: ctx.append(f"Expediente: {request.expediente_id}")
+            if request.case_id: ctx.append(f"Caso (case_id): {request.case_id}")
+            if request.client_id: ctx.append(f"Cliente (client_id): {request.client_id}")
+            if request.materia: ctx.append(f"Materia: {request.materia}")
+            if request.resumen: ctx.append(f"Resumen del caso: {request.resumen}")
+            ctx.append("Responde considerando este expediente como contexto vigente.")
+            system_message += "\n".join(ctx)
+
+        # Memoria de conversación por sesión (Gemini REST es stateless).
+        # Si MongoDB falla, se continúa SIN memoria (nunca 500 por memoria).
+        history = []
         try:
-            u = await db.users.find_one({"_id": ObjectId(request.lawyer_id)})
-            country = (u or {}).get("country")
-        except Exception:
-            country = None
+            session = await db.ai_sessions.find_one({"session_id": session_id})
+            history = session.get("messages", []) if session else []
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ai_sessions lectura falló; continúo sin memoria: %s", e)
 
-    base_prompt = SYSTEM_PROMPTS.get(request.template, SYSTEM_PROMPTS["general"])
-    system_message = _jurisdiction_prefix(country) + base_prompt
+        # Generación (Gemini primario → Claude respaldo). Aquí sí puede fallar la IA.
+        response_text, _provider = await _generate_reply(api_key, system_message, history, request.message)
 
-    # Contexto del expediente activo → la IA opera sobre él sin volver a preguntar.
-    if request.expediente_id or request.materia or request.resumen:
-        ctx = ["\n\n--- CONTEXTO DEL EXPEDIENTE ACTIVO (no solicitarlo de nuevo) ---"]
-        if request.expediente_id: ctx.append(f"Expediente: {request.expediente_id}")
-        if request.case_id: ctx.append(f"Caso (case_id): {request.case_id}")
-        if request.client_id: ctx.append(f"Cliente (client_id): {request.client_id}")
-        if request.materia: ctx.append(f"Materia: {request.materia}")
-        if request.resumen: ctx.append(f"Resumen del caso: {request.resumen}")
-        ctx.append("Responde considerando este expediente como contexto vigente.")
-        system_message += "\n".join(ctx)
+        # Persiste el turno (tolerante: un fallo de Mongo NO rompe la respuesta).
+        try:
+            new_messages = history + [
+                {"role": "user", "text": request.message},
+                {"role": "model", "text": response_text},
+            ]
+            await db.ai_sessions.update_one(
+                {"session_id": session_id},
+                {"$set": {"messages": new_messages[-40:], "updated_at": datetime.utcnow()}},
+                upsert=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ai_sessions escritura falló; respondo sin persistir memoria: %s", e)
 
-    # Memoria de conversación por sesión (Gemini REST es stateless)
-    session = await db.ai_sessions.find_one({"session_id": session_id})
-    history = session.get("messages", []) if session else []
+        # Conteo mensual (tolerante a fallos de Mongo).
+        usage_info = None
+        if request.lawyer_id:
+            try:
+                await db.ai_usage.update_one(
+                    {"lawyer_id": request.lawyer_id, "period": _current_period()},
+                    {"$inc": {"count": 1}, "$set": {"updated_at": datetime.utcnow()}},
+                    upsert=True,
+                )
+                used = await _get_usage(request.lawyer_id, db)
+                usage_info = {"used": used, "period": _current_period(), "free": True}
+            except Exception as e:  # noqa: BLE001
+                logger.warning("ai_usage falló (ignorado): %s", e)
 
-    response_text, _provider = await _generate_reply(api_key, system_message, history, request.message)
+        return ChatResponse(response=response_text, session_id=session_id, usage=usage_info)
 
-    # Persiste el turno en la sesión
-    new_messages = history + [
-        {"role": "user", "text": request.message},
-        {"role": "model", "text": response_text},
-    ]
-    await db.ai_sessions.update_one(
-        {"session_id": session_id},
-        {"$set": {"messages": new_messages[-40:], "updated_at": datetime.utcnow()}},
-        upsert=True,
-    )
-
-    # Conteo mensual (sin límite) para alimentar el banner de upgrade
-    usage_info = None
-    if request.lawyer_id:
-        await db.ai_usage.update_one(
-            {"lawyer_id": request.lawyer_id, "period": _current_period()},
-            {"$inc": {"count": 1}, "$set": {"updated_at": datetime.utcnow()}},
-            upsert=True,
-        )
-        used = await _get_usage(request.lawyer_id, db)
-        usage_info = {"used": used, "period": _current_period(), "free": True}
-
-    return ChatResponse(response=response_text, session_id=session_id, usage=usage_info)
+    except Exception as e:  # noqa: BLE001 — manejador global: nunca 500 silencioso
+        logger.exception("AI CHAT ERROR")
+        return JSONResponse(status_code=503, content={"success": False, "error": str(e)})
 
 
 @router.get("/templates")
