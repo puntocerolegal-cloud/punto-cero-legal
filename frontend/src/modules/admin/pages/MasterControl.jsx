@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
-import { ShieldCheck, History, Users, RefreshCw } from "lucide-react";
+import { ShieldCheck, History, Users, RefreshCw, Wrench, Terminal, Archive, ExternalLink } from "lucide-react";
 import { API } from "@/config/api";
 import { ActionMenu } from "@/components/admin/ActionMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Control Maestro — intervención manual del Administrador sobre abogados y
@@ -13,6 +15,8 @@ const LAWYER_ACTIONS = ["approve", "reject", "activate", "suspend", "block", "re
 const SUB_ACTIONS = ["grant-free", "grant-months", "extend-trial", "freeze", "reactivate", "mark-paid", "mark-pending"];
 
 export function MasterControl() {
+  const { user } = useAuth();
+  const isMaster = user?.role === "admin_general" || user?.role === "admin";
   const [lawyers, setLawyers] = useState([]);
   const [audit, setAudit] = useState([]);
   const [busyId, setBusyId] = useState(null);
@@ -64,6 +68,45 @@ export function MasterControl() {
         <ShieldCheck className="w-4 h-4" /> Administrador Maestro · autoridad total sobre el sistema · cada acción queda auditada.
       </div>
 
+      {/* ── Herramientas del Administrador Maestro (acceso exclusivo) ──
+          Aísla todo lo heredado detrás del rol Maestro. El AdminPanel legacy NO se
+          elimina: se accede solo desde aquí (/admin/master/legacy), nunca tras login
+          ni desde el Sidebar del System OS. */}
+      {isMaster && (
+        <section className="rounded-2xl border border-[#f97316]/25 bg-[#f97316]/[0.04] overflow-hidden">
+          <div className="px-5 py-3 border-b border-white/10">
+            <h3 className="font-bold flex items-center gap-2"><Wrench className="w-4 h-4 text-[#f97316]" /> Herramientas del Administrador Maestro</h3>
+            <p className="text-[11px] text-white/40 mt-0.5">Acceso exclusivo · aislado del Punto Cero System OS · solo Administrador Maestro.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+            <Link to="/admin/master/legacy" className="group rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#f97316]/40 transition-all p-4 flex flex-col gap-2" data-testid="master-tool-legacy-tools">
+              <Wrench className="w-5 h-5 text-[#f97316]" />
+              <div className="text-sm font-semibold">Herramientas Legacy</div>
+              <div className="text-[11px] text-white/45">Módulos heredados del Centro de Gestión.</div>
+              <span className="text-[11px] text-[#fdba74] inline-flex items-center gap-1 mt-auto">Abrir <ExternalLink className="w-3 h-3" /></span>
+            </Link>
+            <Link to="/admin/master/legacy" className="group rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#f97316]/40 transition-all p-4 flex flex-col gap-2" data-testid="master-tool-root-console">
+              <Terminal className="w-5 h-5 text-[#3b82f6]" />
+              <div className="text-sm font-semibold">Consola Root</div>
+              <div className="text-[11px] text-white/45">Intervención operativa directa (ventas/operaciones/talento/facturación).</div>
+              <span className="text-[11px] text-[#fdba74] inline-flex items-center gap-1 mt-auto">Abrir <ExternalLink className="w-3 h-3" /></span>
+            </Link>
+            <a href="#auditoria-historica" className="group rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#10b981]/40 transition-all p-4 flex flex-col gap-2" data-testid="master-tool-audit">
+              <History className="w-5 h-5 text-[#10b981]" />
+              <div className="text-sm font-semibold">Auditoría Histórica</div>
+              <div className="text-[11px] text-white/45">Registro inmutable de cada acción maestra.</div>
+              <span className="text-[11px] text-[#6ee7b7] inline-flex items-center gap-1 mt-auto">Ver abajo ↓</span>
+            </a>
+            <Link to="/admin/master/legacy" className="group rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#8b5cf6]/40 transition-all p-4 flex flex-col gap-2" data-testid="master-tool-adminpanel">
+              <Archive className="w-5 h-5 text-[#8b5cf6]" />
+              <div className="text-sm font-semibold">AdminPanel Heredado</div>
+              <div className="text-[11px] text-white/45">Panel histórico completo, preservado por compatibilidad.</div>
+              <span className="text-[11px] text-[#fdba74] inline-flex items-center gap-1 mt-auto">Abrir <ExternalLink className="w-3 h-3" /></span>
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* Abogados — acciones maestras */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
         <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
@@ -100,7 +143,7 @@ export function MasterControl() {
       </section>
 
       {/* Historial de auditoría */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+      <section id="auditoria-historica" className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
         <div className="px-5 py-3 border-b border-white/10">
           <h3 className="font-bold flex items-center gap-2"><History className="w-4 h-4 text-[#10b981]" /> Historial de Auditoría ({audit.length})</h3>
         </div>

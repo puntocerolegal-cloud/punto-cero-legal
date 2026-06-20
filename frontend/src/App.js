@@ -90,8 +90,13 @@ function App() {
 
             <Route path="/portal" element={<PortalPage />} />
             <Route path="/portal/:code" element={<PortalPage />} />
-            {/* Centro de Control unificado — AdminModule es el panel principal de /admin */}
-            <Route path="/admin/legacy" element={<ProtectedRoute require={ADMIN_ROLES}><AdminPanel /></ProtectedRoute>} />
+            {/* Centro de Control unificado — AdminModule (Punto Cero System OS) es el
+                ÚNICO panel principal de /admin. El AdminPanel heredado NO se elimina:
+                queda aislado como herramienta interna del Administrador Maestro en
+                /admin/master/legacy (nunca se muestra automáticamente tras el login). */}
+            <Route path="/admin/master/legacy" element={<ProtectedRoute require={ADMIN_ROLES}><AdminPanel /></ProtectedRoute>} />
+            {/* Compatibilidad histórica: el antiguo /admin/legacy redirige al acceso Maestro. */}
+            <Route path="/admin/legacy" element={<Navigate to="/admin/master/legacy" replace />} />
             <Route path="/admin/os/*" element={<LegacyOsRedirect />} />
             <Route path="/admin/*" element={<ProtectedRoute require={ADMIN_ROLES}><AdminModule /></ProtectedRoute>} />
 

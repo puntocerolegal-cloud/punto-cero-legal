@@ -42,7 +42,7 @@ export function AdminModule() {
       <OSDataProvider>
         <OSStoreProvider>
           <Routes>
-      <Route index element={<AdminOSLayout title="Dashboard Ejecutivo"><ExecutiveDashboard /></AdminOSLayout>} />
+      <Route index element={<AdminOSLayout title="PUNTO CERO SYSTEM OS"><ExecutiveDashboard /></AdminOSLayout>} />
       <Route path="sales-room" element={<AdminOSLayout title="Sala de Ventas"><SalesRoomModule /></AdminOSLayout>} />
       <Route path="cases-portal" element={<AdminOSLayout title="Portal de Casos"><CasesPortal /></AdminOSLayout>} />
       <Route path="master" element={<AdminOSLayout title="Control Maestro"><MasterControl /></AdminOSLayout>} />

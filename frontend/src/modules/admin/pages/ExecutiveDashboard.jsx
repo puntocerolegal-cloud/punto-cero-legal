@@ -81,7 +81,7 @@ export function ExecutiveDashboard() {
   // Estados de conexión (datos reales): Cargando / Error.
   const empty = !loading && !error && cases.length === 0 && subscriptions.length === 0 && partners.length === 0;
   if (loading || error || empty) {
-    return <ConnectionState loading={loading} error={error} empty={empty} title="Dashboard Ejecutivo" />;
+    return <ConnectionState loading={loading} error={error} empty={empty} title="PUNTO CERO SYSTEM OS" />;
   }
 
   const ops = [

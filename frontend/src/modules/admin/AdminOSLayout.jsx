@@ -44,7 +44,7 @@ export function AdminOSLayout({ title, children }) {
               </div>
             </div>
             <div className="backdrop-blur-md bg-gradient-to-r from-[#f97316]/20 to-[#3b82f6]/20 rounded-xl p-3 border border-[#f97316]/30">
-              <div className="text-xs text-white/60 uppercase tracking-wider">Centro de Gestión</div>
+              <div className="text-xs text-white/60 uppercase tracking-wider">Punto Cero System OS</div>
               <div className="font-semibold text-sm mt-1 truncate">{user?.full_name || "Administrador"}</div>
               <div className="flex items-center gap-1 mt-2">
                 <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
