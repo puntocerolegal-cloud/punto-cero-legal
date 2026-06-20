@@ -31,6 +31,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { getErrorMessage } from '../lib/utils';
 
+import { ChatWidget } from '../components/ChatWidget';
+
 
 
 const LATAM_COUNTRIES = [
@@ -94,6 +96,40 @@ export const LandingPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [billingCycle, setBillingCycle] = useState('monthly');
+
+  // ── Multipaís: la landing REFLEJA el catálogo localizado que el backend ya
+  // expone (/payment/catalog?country=X). No duplica ni modifica la lógica de
+  // conversión: solo muestra precio/moneda por país. Mismo origen que el
+  // Checkout para mantener consistencia. ──
+  const PRICING_COUNTRIES = [
+    'Colombia', 'Argentina', 'Chile', 'Perú', 'Ecuador', 'Bolivia', 'Venezuela',
+    'Paraguay', 'Uruguay', 'México', 'Guatemala', 'Honduras', 'El Salvador',
+    'Nicaragua', 'Costa Rica', 'Panamá', 'Cuba', 'República Dominicana',
+    'Puerto Rico', 'España',
+  ];
+  const detectCountry = () => {
+    const map = {
+      CO: 'Colombia', MX: 'México', AR: 'Argentina', CL: 'Chile', PE: 'Perú',
+      EC: 'Ecuador', BO: 'Bolivia', VE: 'Venezuela', PY: 'Paraguay', UY: 'Uruguay',
+      GT: 'Guatemala', HN: 'Honduras', SV: 'El Salvador', NI: 'Nicaragua',
+      CR: 'Costa Rica', PA: 'Panamá', DO: 'República Dominicana', ES: 'España',
+    };
+    try {
+      const region = (navigator.language || '').split('-')[1];
+      return map[(region || '').toUpperCase()] || 'Colombia';
+    } catch { return 'Colombia'; }
+  };
+  const [pricingCountry, setPricingCountry] = useState(detectCountry);
+  const [catalog, setCatalog] = useState([]);
+  const [catalogLocale, setCatalogLocale] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/payment/catalog`, { params: { country: pricingCountry } })
+      .then((r) => { if (alive) { setCatalog(r.data?.plans || []); setCatalogLocale(r.data?.locale || null); } })
+      .catch(() => { if (alive) setCatalog([]); });
+    return () => { alive = false; };
+  }, [pricingCountry]);
 
   
 
@@ -173,6 +209,9 @@ export const LandingPage = () => {
 
   const [lawyerStatus, setLawyerStatus] = useState({ loading: false, success: false, error: '' });
 
+  // Capa visual del chatbot: se abre tras enviar un formulario (no queda "muerto").
+  const [chat, setChat] = useState({ open: false });
+
 
 
 
@@ -215,6 +254,9 @@ export const LandingPage = () => {
 
       setClientStatus({ loading: false, success: true, error: '', message: data.message, ref: data.case_number });
 
+      // Abre el chatbot existente conectado al case_id real (conversación interactiva).
+      setChat({ open: true, kind: 'client', caseId: data.case_id, caseNumber: data.case_number, name: formData.name, message: data.message });
+
       setFormData({ name: '', area: 'Derecho Laboral', priority: 'media', country: '', city: '', phone: '', email: '', message: '' });
 
     } catch (err) {
@@ -254,6 +296,9 @@ export const LandingPage = () => {
       });
 
       setLawyerStatus({ loading: false, success: true, error: '', message: data.message });
+
+      // Abre el chatbot (modo confirmación + WhatsApp) para que el abogado no quede sin guía.
+      setChat({ open: true, kind: 'lawyer', name: lawyerData.full_name, message: data.message });
 
       setLawyerData({ name: '', email: '', phone: '', specialty: 'Derecho Laboral', country: '', city: '', experience: '' });
 
@@ -1226,6 +1271,34 @@ export const LandingPage = () => {
 
             </div>
 
+            {/* Selector de país → la landing refleja moneda/precio localizados del backend */}
+
+            <div className="flex justify-center mt-4">
+
+              <label className="inline-flex items-center gap-2 text-xs text-white/50">
+
+                <span>{catalogLocale?.flag || '🌎'} Ver precios para:</span>
+
+                <select
+
+                  value={pricingCountry}
+
+                  onChange={(e) => setPricingCountry(e.target.value)}
+
+                  className="bg-white/5 border border-white/15 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#f97316]"
+
+                  data-testid="pricing-country-select"
+
+                >
+
+                  {PRICING_COUNTRIES.map((c) => <option key={c} value={c} className="bg-[#0f172a]">{c}</option>)}
+
+                </select>
+
+              </label>
+
+            </div>
+
           </motion.div>
 
 
@@ -1320,13 +1393,19 @@ export const LandingPage = () => {
 
             ].map((plan, i) => {
 
-              const annualPrice = plan.priceMonthly * 11; // 12 meses - 1 mes gratis
-
-              const displayPrice = billingCycle === 'annual' ? annualPrice : plan.priceMonthly;
-
-              const monthlyEq = billingCycle === 'annual' ? Math.round(annualPrice / 12) : plan.priceMonthly;
+              // Precio localizado desde el catálogo del backend (moneda del país).
+              // Fallback a COP (estado previo) si el catálogo aún no carga o falla.
+              const loc = catalog.find((c) => c.id === plan.id);
 
               const fmtPrice = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+
+              const monthlyDisplay = loc ? loc.monthly.display : fmtPrice(plan.priceMonthly);
+
+              const annualDisplay = loc ? loc.annual.display : fmtPrice(plan.priceMonthly * 11);
+
+              const monthlyEqDisplay = loc ? loc.annual.monthly_equivalent_display : fmtPrice(Math.round(plan.priceMonthly * 11 / 12));
+
+              const priceDisplay = billingCycle === 'annual' ? annualDisplay : monthlyDisplay;
 
 
 
@@ -1404,7 +1483,7 @@ export const LandingPage = () => {
 
                     <div className="flex items-baseline gap-1">
 
-                      <span className="text-3xl font-bold text-white">{fmtPrice(displayPrice)}</span>
+                      <span className="text-3xl font-bold text-white">{priceDisplay}</span>
 
                     </div>
 
@@ -1412,7 +1491,7 @@ export const LandingPage = () => {
 
                       <div className="text-xs text-[#10b981] mt-1">
 
-                        ≈ {fmtPrice(monthlyEq)}/mes · 1 mes gratis
+                        ≈ {monthlyEqDisplay}/mes · 1 mes gratis
 
                       </div>
 
@@ -2667,6 +2746,9 @@ export const LandingPage = () => {
         <span className="absolute inset-0 rounded-full animate-ping bg-[#25d366]/30 pointer-events-none" />
 
       </motion.a>
+
+      {/* Capa visual del chatbot existente — se abre tras enviar un formulario */}
+      <ChatWidget session={chat} onClose={() => setChat({ open: false })} />
 
     </div>
 

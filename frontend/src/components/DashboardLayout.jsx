@@ -110,7 +110,7 @@ export const DashboardLayout = ({ children }) => {
       {/* Main — ml-64 sin espacio muerto; relative z-10 sobre la marca de agua */}
       <main className="relative z-10 lg:ml-64 min-h-screen">
         {/* Cabecera personalizada — saludo destacado del abogado conectado */}
-        <header className="px-6 lg:px-8 pt-6 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <header className="px-6 lg:px-8 pt-6 pb-4 pl-16 lg:pl-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-[0.25em] text-white/40">Punto Cero System OS · Oficina Virtual</div>
             <h1 className="text-3xl lg:text-4xl font-extrabold mt-1.5 leading-tight">
@@ -121,7 +121,7 @@ export const DashboardLayout = ({ children }) => {
             </h1>
           </div>
           {/* Plan + Estado + Campana · fuente única SubscriptionContext */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Contexto global activo (cliente/expediente) — filtra los módulos */}
             {active && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#06b6d4]/40 bg-[#06b6d4]/10 text-[#67e8f9] text-xs font-semibold" data-testid="active-context">
