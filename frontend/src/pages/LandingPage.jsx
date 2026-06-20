@@ -365,6 +365,12 @@ export const LandingPage = () => {
 
               <a href="#partner" className="block text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Socios</a>
 
+              <Button onClick={handleAccess} variant="outline" className="w-full border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all" data-testid="navbar-access-btn-mobile">
+
+                {getAccessLabel()}
+
+              </Button>
+
             </motion.div>
 
           )}
