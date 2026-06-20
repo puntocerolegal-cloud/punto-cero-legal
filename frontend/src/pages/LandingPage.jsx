@@ -377,7 +377,7 @@ export const LandingPage = () => {
 
       {/* Hero Section */}
 
-      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
+      <section id="inicio" className="relative pt-32 pb-20 px-6 overflow-hidden">
 
         {/* Background Image */}
 
@@ -2324,7 +2324,7 @@ export const LandingPage = () => {
 
         <div className="container mx-auto">
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
 
             {/* Brand Section */}
 
@@ -2421,6 +2421,28 @@ export const LandingPage = () => {
               </address>
 
             </section>
+
+
+
+            {/* Navigation Section */}
+
+            <nav aria-labelledby="footer-nav">
+
+              <h3 id="footer-nav" className="text-white font-semibold mb-4 uppercase tracking-wider text-sm">Navegación</h3>
+
+              <ul className="space-y-2 text-white/60 text-sm">
+
+                <li><a href="#inicio" className="hover:text-[#3b82f6] transition-colors">Inicio</a></li>
+
+                <li><a href="#servicios" className="hover:text-[#3b82f6] transition-colors">Servicios</a></li>
+
+                <li><a href="#planes" className="hover:text-[#3b82f6] transition-colors">Planes</a></li>
+
+                <li><a href="#consulta" className="hover:text-[#3b82f6] transition-colors">Contacto</a></li>
+
+              </ul>
+
+            </nav>
 
 
 
