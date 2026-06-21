@@ -17,20 +17,31 @@ const TONE = {
 };
 const ICON_BY_TYPE = { invoice: Receipt, hearing: Calendar, case: FolderKanban, document: FileWarning };
 
-export function HeaderAlerts() {
+export function HeaderAlerts({ variant = 'lawyer' }) {
   const { user } = useAuth();
+  const isAdmin = variant === 'admin';
   const [alerts, setAlerts] = useState([]);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const ref = useRef(null);
 
   const load = useCallback(async () => {
-    if (!user?.id) return;
     try {
-      const { data } = await axios.get(`${API}/dashboard/alerts/${user.id}`);
-      setAlerts(Array.isArray(data) ? data : []);
+      if (isAdmin) {
+        // Alertas Inteligentes del System OS: derivadas de los contadores en vivo.
+        const { data } = await axios.get(`${API}/admin-ops/header/stats`);
+        const a = [];
+        if (data.pending_cases > 0) a.push({ priority: 'high', type: 'case', message: `${data.pending_cases} caso(s) sin asignar en la cola.` });
+        if (data.pending_partners > 0) a.push({ priority: 'medium', type: 'case', message: `${data.pending_partners} socio(s)/abogado(s) por verificar.` });
+        if (data.notifications_unread > 0) a.push({ priority: 'low', type: 'document', message: `${data.notifications_unread} notificación(es) sin leer.` });
+        setAlerts(a);
+      } else {
+        if (!user?.id) return;
+        const { data } = await axios.get(`${API}/dashboard/alerts/${user.id}`);
+        setAlerts(Array.isArray(data) ? data : []);
+      }
     } catch (e) { /* sin datos */ }
-  }, [user?.id]);
+  }, [isAdmin, user?.id]);
 
   useEffect(() => {
     load();

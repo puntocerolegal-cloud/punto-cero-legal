@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 import os
 import ssl
+import asyncio
 import smtplib
 import logging
 from email.mime.text import MIMEText
@@ -21,10 +22,32 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
+# Destinos del administrador para alertas externas inmediatas (reutiliza los
+# canales ya existentes; configurables por entorno con fallback a los oficiales).
+ADMIN_WHATSAPP = (os.environ.get("ADMIN_WHATSAPP_NUMBER")
+                  or os.environ.get("META_WHATSAPP_NUMBER") or "+573028322083")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL") or "puntocerolegal@gmail.com"
+
+
+async def _alert_admin_external(title: str, message: str) -> None:
+    """Envía la alerta al administrador por WhatsApp + correo SIN bloquear el
+    flujo (fire-and-forget en hilos). Tolerante a fallos: nunca rompe el evento."""
+    try:
+        await asyncio.to_thread(send_whatsapp, ADMIN_WHATSAPP, f"*{title}*\n{message}")
+    except Exception:  # noqa: BLE001
+        logger.exception("alerta admin WhatsApp")
+    try:
+        await asyncio.to_thread(send_email, ADMIN_EMAIL, title, f"<p>{message}</p>")
+    except Exception:  # noqa: BLE001
+        logger.exception("alerta admin email")
+
 
 async def create_app_notification(db, *, target: str, type: str, title: str,
-                                  message: str, **extra) -> str:
-    """Crea una notificación in-app. `target` = user_id (str) o 'admin'."""
+                                  message: str, external_admin: bool = True, **extra) -> str:
+    """Crea una notificación in-app. `target` = user_id (str) o 'admin'.
+
+    Si target == 'admin' y external_admin, además dispara la alerta inmediata al
+    administrador por WhatsApp + correo (reutiliza send_whatsapp/send_email)."""
     doc = {
         "target": target,
         "user_id": target,
@@ -36,6 +59,12 @@ async def create_app_notification(db, *, target: str, type: str, title: str,
         **extra,
     }
     res = await db.notifications.insert_one(doc)
+    if target == "admin" and external_admin:
+        try:
+            asyncio.create_task(_alert_admin_external(title, message))
+        except RuntimeError:
+            # Sin loop activo (contexto sincrónico): se omite el envío externo.
+            pass
     return str(res.inserted_id)
 
 

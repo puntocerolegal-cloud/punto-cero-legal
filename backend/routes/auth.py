@@ -4,6 +4,7 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.user import UserCreate, User, UserLogin, UserResponse
 from utils.auth import get_password_hash, verify_password, create_access_token, decode_token
+from utils import notifier
 from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -76,7 +77,18 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
     
     result = await db.users.insert_one(user_dict)
     user_dict["_id"] = str(result.inserted_id)
-    
+
+    # Alerta al administrador: nuevo usuario registrado (evento crítico).
+    if user_data.role not in ["admin", "admin_general", "socio_comercial"]:
+        try:
+            await notifier.create_app_notification(
+                db, target="admin", type="new_user",
+                title="Nuevo usuario registrado",
+                message=f"{user_dict.get('full_name', '')} ({user_dict['email']}) se registró como {user_data.role}.",
+            )
+        except Exception:
+            pass
+
     # Create access token
     access_token = create_access_token(data={"sub": user_data.email, "role": user_data.role})
     

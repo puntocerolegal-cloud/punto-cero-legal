@@ -10,8 +10,9 @@ import { useAuth } from '../../contexts/AuthContext';
  * clic. Lee /dashboard/notifications/{id} (mismas notificaciones que genera el
  * organismo: caso nuevo, documento, audiencia, factura, pago, etc.).
  */
-export function NotificationBell() {
+export function NotificationBell({ variant = 'lawyer' }) {
   const { user } = useAuth();
+  const isAdmin = variant === 'admin';
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
@@ -19,13 +20,21 @@ export function NotificationBell() {
   const ref = useRef(null);
 
   const load = useCallback(async () => {
-    if (!user?.id) return;
     try {
-      const { data } = await axios.get(`${API}/dashboard/notifications/${user.id}`);
-      setItems(data.notifications || []);
-      setUnread(data.unread || 0);
+      if (isAdmin) {
+        // Notificaciones del System OS (target='admin'): caso/abogado/pago/etc.
+        const { data } = await axios.get(`${API}/admin-ops/notifications`);
+        const list = (Array.isArray(data) ? data : []).map((n) => ({ ...n, _id: n.id || n._id }));
+        setItems(list);
+        setUnread(list.filter((n) => !n.read).length);
+      } else {
+        if (!user?.id) return;
+        const { data } = await axios.get(`${API}/dashboard/notifications/${user.id}`);
+        setItems(data.notifications || []);
+        setUnread(data.unread || 0);
+      }
     } catch (e) { /* sin datos */ }
-  }, [user?.id]);
+  }, [isAdmin, user?.id]);
 
   useEffect(() => {
     load();
@@ -41,7 +50,10 @@ export function NotificationBell() {
 
   const openDetail = async (n) => {
     if (!n.read) {
-      try { await axios.post(`${API}/dashboard/notifications/${n._id}/read`); } catch (e) { /* */ }
+      const url = isAdmin
+        ? `${API}/admin-ops/notifications/${n._id}/read`
+        : `${API}/dashboard/notifications/${n._id}/read`;
+      try { await axios.post(url); } catch (e) { /* */ }
     }
     setSelected(n);
     setOpen(false);
@@ -49,7 +61,13 @@ export function NotificationBell() {
   };
 
   const markAll = async () => {
-    try { await axios.post(`${API}/dashboard/notifications/${user.id}/read-all`); } catch (e) { /* */ }
+    try {
+      if (isAdmin) {
+        await Promise.all(items.filter((n) => !n.read).map((n) => axios.post(`${API}/admin-ops/notifications/${n._id}/read`)));
+      } else {
+        await axios.post(`${API}/dashboard/notifications/${user.id}/read-all`);
+      }
+    } catch (e) { /* */ }
     load();
   };
 

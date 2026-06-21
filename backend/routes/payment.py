@@ -12,6 +12,7 @@ import re
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from utils.auth import decode_token
 from routes.auth import get_current_user
+from utils import notifier
 from bson import ObjectId
 import uuid
 import time
@@ -421,6 +422,18 @@ async def _apply_payment_success(db, transaction: dict) -> bool:
         {"payment_id": payment_id},
         {"$set": {"status": "paid", "paid_at": datetime.utcnow()}}
     )
+
+    # Alerta al administrador: pago aprobado / nueva suscripción (evento crítico).
+    try:
+        await notifier.create_app_notification(
+            db, target="admin", type="payment_approved",
+            title="Nuevo pago aprobado",
+            message=f"{transaction.get('user_name') or transaction.get('user_email')} pagó el plan "
+                    f"{transaction.get('plan_id')} ({transaction.get('billing_cycle')}) · "
+                    f"{transaction.get('amount_local')} {transaction.get('currency')} · {transaction.get('country')}.",
+        )
+    except Exception:
+        pass
 
     # Crear/actualizar usuario (activación de suscripción — lógica intacta)
     user = await db.users.find_one({"email": transaction["user_email"]})
@@ -834,7 +847,20 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             return {"received": True, "lookup_failed": r.status_code}
         pay = r.json()
         if pay.get("status") != "approved":
-            return {"received": True, "status": pay.get("status")}
+            st = pay.get("status")
+            # Alerta al administrador en pagos rechazados/cancelados (evento crítico).
+            if st in ("rejected", "cancelled"):
+                try:
+                    tx = await db.transactions.find_one({"payment_id": pay.get("external_reference")})
+                    who = (tx or {}).get("user_name") or (tx or {}).get("user_email") or "un usuario"
+                    await notifier.create_app_notification(
+                        db, target="admin", type="payment_rejected",
+                        title="Pago rechazado",
+                        message=f"El pago de {who} fue {st}.",
+                    )
+                except Exception:
+                    pass
+            return {"received": True, "status": st}
         transaction = await db.transactions.find_one({"payment_id": pay.get("external_reference")})
         if not transaction:
             return {"received": True, "tx_not_found": True}

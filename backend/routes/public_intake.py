@@ -10,6 +10,7 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from utils.case_number_generator import generate_case_number, next_consultation_number
+from utils import notifier
 
 router = APIRouter(prefix="/public", tags=["Public Intake"])
 
@@ -78,15 +79,12 @@ async def case_intake(payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(
     case_doc["_id"] = case_id
 
     # 2.b) PRIMERO al administrador: alerta en el dashboard
-    await db.notifications.insert_one({
-        "target": "admin",
-        "type": "new_client_case",
-        "title": f"Nueva consulta entrante {consultation_number}",
-        "message": f"{payload.name} solicita asistencia en {payload.legal_area} (prioridad {priority_label}, {payload.country}).",
-        "case_id": case_id,
-        "read": False,
-        "created_at": now,
-    })
+    await notifier.create_app_notification(
+        db, target="admin", type="new_client_case",
+        title=f"Nueva consulta entrante {consultation_number}",
+        message=f"{payload.name} solicita asistencia en {payload.legal_area} (prioridad {priority_label}, {payload.country}).",
+        case_id=case_id,
+    )
 
     # 3) Activa el chatbot de WhatsApp (bienvenida según país + 1ª pregunta + timeline + correo)
     try:
@@ -164,15 +162,12 @@ async def lawyer_application(payload: LawyerApplication, db: AsyncIOMotorDatabas
     res = await db.users.insert_one(user_doc)
     candidate_id = str(res.inserted_id)
 
-    await db.notifications.insert_one({
-        "target": "admin",
-        "type": "new_lawyer_application",
-        "title": "Nueva aplicación de abogado",
-        "message": f"{_with_dr(payload.full_name)} aplicó como socio ({payload.specialty}).",
-        "candidate_id": candidate_id,
-        "read": False,
-        "created_at": now,
-    })
+    await notifier.create_app_notification(
+        db, target="admin", type="new_lawyer_application",
+        title="Nueva aplicación de abogado",
+        message=f"{_with_dr(payload.full_name)} aplicó como socio ({payload.specialty}).",
+        candidate_id=candidate_id,
+    )
 
     return {
         "ok": True,

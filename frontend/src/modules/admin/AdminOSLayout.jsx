@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Scale, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { SidebarNav } from "@/components/layout/Sidebar";
+import { NotificationBell } from "@/components/layout/NotificationBell";
+import { HeaderAlerts } from "@/components/layout/HeaderAlerts";
 
 /**
  * Layout del Dashboard Administrativo — Punto Cero OS.
@@ -75,8 +77,13 @@ export function AdminOSLayout({ title, children }) {
 
       {/* Main */}
       <main className="lg:ml-72 min-h-screen">
-        <header className="sticky top-0 z-20 backdrop-blur-xl bg-[#0f172a]/70 border-b border-white/10 px-6 lg:px-10 py-4">
+        <header className="sticky top-0 z-20 backdrop-blur-xl bg-[#0f172a]/70 border-b border-white/10 px-6 lg:px-10 py-4 flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold pl-12 lg:pl-0">{title}</h1>
+          {/* Campanita + Alertas Inteligentes del System OS (reutiliza componentes existentes) */}
+          <div className="flex items-center gap-2.5">
+            <HeaderAlerts variant="admin" />
+            <NotificationBell variant="admin" />
+          </div>
         </header>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
