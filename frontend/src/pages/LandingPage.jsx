@@ -33,6 +33,8 @@ import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
 
+import { trackEvent } from '../lib/analytics';
+
 
 
 const LATAM_COUNTRIES = [
@@ -254,6 +256,9 @@ export const LandingPage = () => {
 
       setClientStatus({ loading: false, success: true, error: '', message: data.message, ref: data.case_number });
 
+      // Evento base Google Ads (lead de cliente) — reutilizable como conversión.
+      trackEvent('generate_lead', { form: 'client_intake', country: formData.country || undefined });
+
       // Abre el chatbot existente conectado al case_id real (conversación interactiva).
       setChat({ open: true, kind: 'client', caseId: data.case_id, caseNumber: data.case_number, name: formData.name, message: data.message });
 
@@ -296,6 +301,9 @@ export const LandingPage = () => {
       });
 
       setLawyerStatus({ loading: false, success: true, error: '', message: data.message });
+
+      // Evento base Google Ads (lead de abogado) — reutilizable como conversión.
+      trackEvent('generate_lead', { form: 'lawyer_application', country: lawyerData.country || undefined });
 
       // Abre el chatbot (modo confirmación + WhatsApp) para que el abogado no quede sin guía.
       setChat({ open: true, kind: 'lawyer', name: lawyerData.full_name, message: data.message });

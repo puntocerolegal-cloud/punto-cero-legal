@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../lib/utils';
+import { trackEvent } from '../lib/analytics';
 import { API } from '@/config/api';
 
 export const RegisterPage = () => {
@@ -49,6 +50,8 @@ export const RegisterPage = () => {
     try {
       // Campos de aceptación legal (aditivos; no alteran la autenticación).
       const newUser = await register({ ...formData, accepted_legal: true, accepted_at: new Date().toISOString() });
+      // Evento base Google Ads (registro completado) — reutilizable como conversión.
+      trackEvent('sign_up', { method: 'platform', plan: planFromUrl || undefined });
       // Si requiere verificación → /verificacion-pendiente
       if (newUser?.is_verified === false || newUser?.status === 'PENDING_VERIFICATION') {
         navigate('/verificacion-pendiente');
