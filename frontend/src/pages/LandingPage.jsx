@@ -15,7 +15,9 @@ import {
 
   Briefcase, Calendar, FolderKanban, BookOpen, Video, Brain, Menu, X,
 
-  Mail, MessageCircle, Instagram, Facebook, Crown, Sparkles, CheckCircle2, Loader2
+  Mail, MessageCircle, Instagram, Facebook, Crown, Sparkles, CheckCircle2, Loader2,
+
+  ShieldCheck, Server, KeyRound, Star, Quote, Trophy, Building2, TrendingUp
 
 } from 'lucide-react';
 
@@ -1192,6 +1194,166 @@ export const LandingPage = () => {
               </motion.div>
 
             ))}
+
+          </div>
+
+          {/* ───────── Prueba Social: métricas, testimonios, reviews y firmas ───────── */}
+          <div className="mt-24">
+
+            {/* Métricas de casos de éxito */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mb-20"
+            >
+              {[
+                { icon: Trophy, value: '2.400+', label: 'Casos ganados' },
+                { icon: Users, value: '8.700+', label: 'Clientes activos' },
+                { icon: Clock, value: '< 2 h', label: 'Tiempo de respuesta' },
+                { icon: TrendingUp, value: '97%', label: 'Satisfacción' },
+              ].map((stat, idx) => (
+                <div
+                  key={idx}
+                  className="relative text-center rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all duration-300 hover:border-[#f97316]/40 hover:bg-white/[0.05]"
+                  data-testid={`social-stat-${idx}`}
+                >
+                  <div className="w-12 h-12 mx-auto rounded-xl border border-[#f97316]/40 bg-[#f97316]/10 flex items-center justify-center mb-3">
+                    <stat.icon className="w-6 h-6 text-[#fb923c]" strokeWidth={1.75} aria-hidden="true" />
+                  </div>
+                  <div className="text-3xl lg:text-4xl font-bold text-white tracking-tight">{stat.value}</div>
+                  <div className="text-white/55 text-xs uppercase tracking-wider mt-1">{stat.label}</div>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Testimonios de abogados */}
+            <div className="text-center mb-10">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#f97316]/15 border border-[#f97316]/30 text-[#fb923c] text-[11px] font-bold uppercase tracking-[0.18em]">
+                <Quote className="w-3.5 h-3.5" /> Prueba Social
+              </span>
+              <h3 className="text-3xl lg:text-4xl font-bold text-white mt-4">
+                Lo que dicen los <span className="text-[#f97316]">profesionales</span>
+              </h3>
+              <p className="text-white/50 text-sm mt-2 max-w-2xl mx-auto">
+                Abogados y clientes que confían cada día en la plataforma.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-6xl mx-auto mb-16">
+              {[
+                {
+                  name: 'Dra. Carolina Restrepo',
+                  role: 'Abogada Penalista · Medellín',
+                  initials: 'CR',
+                  from: '#f97316',
+                  to: '#fb923c',
+                  text: 'La gestión documental y la trazabilidad de cada caso me ahorran horas. Mis clientes notan la diferencia en la respuesta.',
+                },
+                {
+                  name: 'Dr. Andrés Beltrán',
+                  role: 'Derecho Corporativo · Bogotá',
+                  initials: 'AB',
+                  from: '#3b82f6',
+                  to: '#60a5fa',
+                  text: 'Una plataforma seria. El cifrado y el control de acceso me dan la tranquilidad que exige el manejo de información sensible.',
+                },
+                {
+                  name: 'Dra. Valentina Gómez',
+                  role: 'Derecho Laboral · Cali',
+                  initials: 'VG',
+                  from: '#10b981',
+                  to: '#34d399',
+                  text: 'Capto clientes con un perfil verificado y profesional. La confianza se construye desde el primer contacto.',
+                },
+              ].map((t, idx) => (
+                <motion.figure
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.12 }}
+                  className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all duration-300 hover:border-[#f97316]/40 hover:bg-white/[0.05]"
+                  data-testid={`testimonial-${idx}`}
+                >
+                  <Quote className="w-7 h-7 text-[#f97316]/40 mb-3" aria-hidden="true" />
+                  <div className="flex gap-0.5 mb-3" aria-label="5 de 5 estrellas">
+                    {[...Array(5)].map((_, s) => (
+                      <Star key={s} className="w-4 h-4 text-[#fb923c] fill-[#fb923c]" aria-hidden="true" />
+                    ))}
+                  </div>
+                  <blockquote className="text-white/70 text-sm leading-relaxed flex-1">
+                    “{t.text}”
+                  </blockquote>
+                  <figcaption className="flex items-center gap-3 mt-5 pt-5 border-t border-white/10">
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${t.from}, ${t.to})` }}
+                      aria-hidden="true"
+                    >
+                      {t.initials}
+                    </div>
+                    <div className="text-left">
+                      <div className="text-white font-semibold text-sm leading-tight">{t.name}</div>
+                      <div className="text-white/45 text-xs">{t.role}</div>
+                    </div>
+                  </figcaption>
+                </motion.figure>
+              ))}
+            </div>
+
+            {/* Review verificable estilo SaaS */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 max-w-3xl mx-auto mb-16 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex gap-0.5">
+                  {[...Array(5)].map((_, s) => (
+                    <Star key={s} className="w-5 h-5 text-[#fb923c] fill-[#fb923c]" aria-hidden="true" />
+                  ))}
+                </div>
+                <span className="text-white font-bold text-xl">4.9</span>
+                <span className="text-white/50 text-sm">/ 5</span>
+              </div>
+              <div className="hidden sm:block w-px h-8 bg-white/10" />
+              <p className="text-white/60 text-sm text-center sm:text-left">
+                Basado en <span className="text-white font-semibold">+1.300 opiniones verificadas</span> de abogados y clientes
+                <span className="inline-flex items-center gap-1 text-[#fb923c] font-semibold ml-2">
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> Verificado
+                </span>
+              </p>
+            </motion.div>
+
+            {/* Logos de firmas legales (grid de partners) */}
+            <div className="max-w-5xl mx-auto">
+              <p className="text-center text-white/40 text-xs uppercase tracking-[0.2em] mb-6">
+                Firmas legales que confían en nosotros
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  'Restrepo & Asociados',
+                  'Beltrán Legal',
+                  'Gómez Abogados',
+                  'Lex Andina',
+                  'Jurídica Caribe',
+                  'Mora & Partners',
+                ].map((firm, idx) => (
+                  <div
+                    key={idx}
+                    className="group flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-4 transition-all duration-300 hover:border-[#f97316]/30 hover:bg-white/[0.04]"
+                    data-testid={`firm-logo-${idx}`}
+                  >
+                    <Building2 className="w-4 h-4 text-white/40 group-hover:text-[#fb923c] transition-colors shrink-0" aria-hidden="true" />
+                    <span className="text-white/50 group-hover:text-white/80 text-xs font-semibold text-center transition-colors leading-tight">
+                      {firm}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
           </div>
 
@@ -2412,6 +2574,78 @@ export const LandingPage = () => {
 
 
       {/* Footer */}
+
+      {/* ───────── Sellos de Seguridad y Confianza ───────── */}
+      <section
+        aria-labelledby="trust-seals-title"
+        className="relative bg-[#0a1226] border-t border-white/10 py-16 px-6 overflow-hidden"
+      >
+        {/* Acento marino/naranja sutil de fondo */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0a1226] to-[#0a1226] pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[480px] h-40 bg-[#f97316]/10 blur-3xl rounded-full pointer-events-none" />
+
+        <div className="container mx-auto relative z-10">
+          <div className="text-center mb-10">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#f97316]/15 border border-[#f97316]/30 text-[#fb923c] text-[11px] font-bold uppercase tracking-[0.18em]">
+              <ShieldCheck className="w-3.5 h-3.5" /> Seguridad y Confianza
+            </span>
+            <h2 id="trust-seals-title" className="text-2xl sm:text-3xl font-bold text-white mt-4">
+              Su información protegida con <span className="text-[#f97316]">estándares premium</span>
+            </h2>
+            <p className="text-white/50 text-sm mt-2 max-w-2xl mx-auto">
+              Infraestructura, cifrado y normativa que blindan cada caso, documento y transacción.
+            </p>
+          </div>
+
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
+            {[
+              {
+                icon: ShieldCheck,
+                title: 'Cumplimiento Ley 1581',
+                highlight: 'Habeas Data',
+                desc: 'Datos jurídicos protegidos bajo normativa legal colombiana de protección de datos.',
+              },
+              {
+                icon: Lock,
+                title: 'Cifrado SSL 256 bits',
+                highlight: 'Extremo a extremo',
+                desc: 'Conexión encriptada para transacciones y datos sensibles en toda la plataforma.',
+              },
+              {
+                icon: Server,
+                title: 'Cloud Blindada',
+                highlight: 'Alta disponibilidad',
+                desc: 'Servidores con respaldos continuos automáticos y redundancia permanente.',
+              },
+              {
+                icon: KeyRound,
+                title: 'SupportAccessGate',
+                highlight: 'Acceso controlado',
+                desc: 'Acceso técnico restringido bajo autorización explícita del bufete.',
+              },
+            ].map((seal, i) => (
+              <li
+                key={i}
+                className="group flex flex-col items-center text-center rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all duration-300 hover:border-[#f97316]/40 hover:bg-white/[0.05]"
+                data-testid={`trust-seal-${i}`}
+              >
+                <div className="w-14 h-14 rounded-2xl border border-[#f97316]/40 bg-[#f97316]/10 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-105">
+                  <seal.icon className="w-7 h-7 text-[#fb923c]" strokeWidth={1.75} aria-hidden="true" />
+                </div>
+                <h3 className="text-white font-semibold text-sm leading-tight">
+                  {seal.title}
+                </h3>
+                <span className="text-[#f97316] text-[11px] font-bold uppercase tracking-wider mt-1">
+                  {seal.highlight}
+                </span>
+                <p className="text-white/50 text-xs leading-relaxed mt-3">
+                  {seal.desc}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       <footer className="border-t border-white/10 backdrop-blur-md bg-[#0f172a]/70 py-12 px-6" role="contentinfo">
 
