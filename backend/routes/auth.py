@@ -48,6 +48,7 @@ async def get_me(current = Depends(get_current_user)):
         "bar_number": current.get("bar_number"),
         "firm_name": current.get("firm_name"),
         "id_document": current.get("id_document"),
+        "organizationId": current.get("organizationId"),
     }
 
 

@@ -118,3 +118,42 @@ async def validate_referral_code(code: str, db: AsyncIOMotorDatabase = Depends(g
         "referrer_name": referrer.get("full_name", "Usuario"),
         "message": f"Código válido. {referrer.get('full_name')} obtendrá 1 mes gratis con tu pago."
     }
+
+
+# ─────────────────────────────────────────────────────
+# FASE 6: Endpoints para comisiones de agentes comerciales
+# ─────────────────────────────────────────────────────
+
+@router.get("/agents/{agent_id}/commissions")
+async def get_agent_commissions(
+    agent_id: str,
+    current_user = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Obtener comisiones de un agente comercial."""
+    # Verificar permisos: solo el agente o admin pueden ver sus comisiones
+    if current_user["_id"] != agent_id and current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    try:
+        # Buscar en referrals (modelo existente para comisiones)
+        commissions = await db.referrals.find({
+            "agent_id": agent_id
+        }).sort("created_at", -1).to_list(None)
+
+        for c in commissions:
+            c["_id"] = str(c.get("_id", ""))
+
+        # Calcular totales
+        total_amount = sum(float(c.get("commission_amount", 0)) for c in commissions)
+        total_paid = sum(float(c.get("amount_paid", 0)) for c in commissions if c.get("paid"))
+
+        return {
+            "agent_id": agent_id,
+            "total_commissions": total_amount,
+            "total_paid": total_paid,
+            "pending": total_amount - total_paid,
+            "commissions": commissions
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

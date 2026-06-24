@@ -12,6 +12,7 @@ class LeadBase(BaseModel):
     description: str
     status: Literal["new", "contacted", "qualified", "converted"] = "new"
     source: Optional[str] = "website"
+    agent_id: Optional[str] = None  # FASE 6: soporte para agentes comerciales
 
 class LeadCreate(LeadBase):
     pass

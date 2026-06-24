@@ -29,6 +29,15 @@ import { OSDataProvider } from "@/context/OSDataProvider";
 import { OSStoreProvider } from "@/store/os/osStore";
 import { TenantProvider } from "@/context/TenantContext";
 import { SecurityDashboard } from "../security";
+import { FirmDashboard } from "./pages/FirmDashboard";
+import { SalesCommandCenter } from "./pages/SalesCommandCenter";
+import { AICommandCenter } from "./pages/AICommandCenter";
+import { ExecutiveIntelligenceCenter } from "./pages/ExecutiveIntelligenceCenter";
+import { FinancialDashboard } from "./pages/FinancialDashboard";
+import { AICopilot } from "./pages/AICopilot";
+import { AutonomousControl } from "./pages/AutonomousControl";
+import { GlobalNetwork } from "./pages/GlobalNetwork";
+import { LegalOS } from "./pages/LegalOS";
 
 /**
  * Módulo Administrativo de Punto Cero OS.
@@ -43,6 +52,15 @@ export function AdminModule() {
         <OSStoreProvider>
           <Routes>
       <Route index element={<AdminOSLayout title="PUNTO CERO SYSTEM OS"><ExecutiveDashboard /></AdminOSLayout>} />
+      <Route path="executive-intelligence" element={<AdminOSLayout title="Centro de Inteligencia Ejecutiva"><ExecutiveIntelligenceCenter /></AdminOSLayout>} />
+      <Route path="financial-os" element={<AdminOSLayout title="Financial OS"><FinancialDashboard /></AdminOSLayout>} />
+      <Route path="ai-copilot" element={<AdminOSLayout title="AI Legal Autopilot"><AICopilot /></AdminOSLayout>} />
+      <Route path="autonomous-control" element={<AdminOSLayout title="Autonomous Legal OS"><AutonomousControl /></AdminOSLayout>} />
+      <Route path="global-network" element={<AdminOSLayout title="Global Network OS"><GlobalNetwork /></AdminOSLayout>} />
+      <Route path="legal-os" element={<AdminOSLayout title="Legal Operating System"><LegalOS /></AdminOSLayout>} />
+      <Route path="firm-dashboard" element={<AdminOSLayout title="Dashboard de Firma"><FirmDashboard /></AdminOSLayout>} />
+      <Route path="sales-command-center" element={<AdminOSLayout title="Sales Command Center"><SalesCommandCenter /></AdminOSLayout>} />
+      <Route path="ai-command-center" element={<AdminOSLayout title="Copiloto IA"><AICommandCenter /></AdminOSLayout>} />
       <Route path="sales-room" element={<AdminOSLayout title="Sala de Ventas"><SalesRoomModule /></AdminOSLayout>} />
       <Route path="cases-portal" element={<AdminOSLayout title="Portal de Casos"><CasesPortal /></AdminOSLayout>} />
       <Route path="master" element={<AdminOSLayout title="Control Maestro"><MasterControl /></AdminOSLayout>} />

@@ -1,276 +1,219 @@
-"""Service layer de Facturación — Punto Cero OS (multi-tenant).
-
-Mismo patrón que organization/partner/implementation/subscription:
-_tenant_filter en toda consulta, invoiceNumber único por tenant, auditoría
-(incl. invoice_paid / invoice_overdue) y dashboard con métricas financieras.
-"""
-from datetime import datetime
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from datetime import datetime, date
+from bson import ObjectId
 from typing import Optional
 
-from bson import ObjectId
-from pymongo import ASCENDING
-from pymongo.errors import DuplicateKeyError
+class BillingService:
+    """Service for managing billing and invoices."""
 
-from utils.responses import OrgError
+    @staticmethod
+    async def get_firm_billing_summary(
+        db: AsyncIOMotorDatabase,
+        organization_id: str,
+    ) -> dict:
+        """FASE 11.3: Get billing summary for a firm."""
+        # Get commissions for this firm
+        commissions = await db.commissions.find({
+            "organization_id": organization_id
+        }).to_list(None)
+        
+        total_revenue = sum(c.get("amount", 0) for c in commissions)
+        commissions_paid = sum(c.get("amount", 0) for c in commissions if c.get("status") == "paid")
+        commissions_pending = sum(c.get("amount", 0) for c in commissions if c.get("status") == "pending")
+        
+        # Get invoices for this firm
+        invoices = await db.invoices.find({
+            "organization_id": organization_id
+        }).to_list(None)
+        
+        invoices_paid = sum(i.get("amount", 0) for i in invoices if i.get("status") == "paid")
+        invoices_pending = sum(i.get("amount", 0) for i in invoices if i.get("status") in ["draft", "issued"])
+        
+        # Calculate net balance
+        net_balance = total_revenue - (commissions_paid + invoices_paid)
+        
+        # Monthly breakdown
+        monthly_revenue = {}
+        for commission in commissions:
+            created_at = commission.get("created_at")
+            if created_at:
+                month = created_at.strftime("%Y-%m")
+                if month not in monthly_revenue:
+                    monthly_revenue[month] = 0
+                monthly_revenue[month] += commission.get("amount", 0)
+        
+        return {
+            "total_revenue": total_revenue,
+            "commissions_paid": commissions_paid,
+            "commissions_pending": commissions_pending,
+            "invoices_paid": invoices_paid,
+            "invoices_pending": invoices_pending,
+            "net_balance": net_balance,
+            "monthly_revenue": monthly_revenue,
+            "commission_count": len(commissions),
+            "invoice_count": len(invoices),
+        }
 
-RECEIVABLE_STATES = ("pending", "overdue", "review")
-PAYMENT_METHOD_LABELS = {
-    "transfer": "Transferencia bancaria", "pse": "PSE",
-    "card": "Tarjeta crédito/débito", "cash": "Efectivo",
-}
-
-
-def _oid(iid: str) -> ObjectId:
-    if not ObjectId.is_valid(iid):
-        raise OrgError(404, "Factura no encontrada")
-    return ObjectId(iid)
-
-
-def _serialize(doc: dict) -> dict:
-    if not doc:
-        return doc
-    return {**doc, "_id": str(doc["_id"])}
-
-
-async def ensure_indexes(db):
-    """Fase 5 — índices: tenantId, organizationId, status, source, issueDate,
-    dueDate, paymentMethod, invoiceNumber y compuesto único tenantId+invoiceNumber."""
-    await db.billing.create_index([("tenantId", ASCENDING)])
-    await db.billing.create_index([("organizationId", ASCENDING)])
-    await db.billing.create_index([("status", ASCENDING)])
-    await db.billing.create_index([("source", ASCENDING)])
-    await db.billing.create_index([("issueDate", ASCENDING)])
-    await db.billing.create_index([("dueDate", ASCENDING)])
-    await db.billing.create_index([("paymentMethod", ASCENDING)])
-    await db.billing.create_index([("invoiceNumber", ASCENDING)])
-    await db.billing.create_index(
-        [("tenantId", ASCENDING), ("invoiceNumber", ASCENDING)], unique=True, name="uniq_tenant_invoice"
-    )
-
-
-def _tenant_filter(ctx: dict, extra: Optional[dict] = None) -> dict:
-    q = dict(extra or {})
-    if ctx.get("tenant_id"):
-        q["tenantId"] = str(ctx["tenant_id"])
-    elif not ctx.get("is_super_admin"):
-        raise OrgError(400, "Operación sin tenant no permitida")
-    return q
-
-
-async def _audit(db, action: str, ctx: dict, detail: str = ""):
-    try:
-        await db.audit_logs.insert_one({
-            "action": action,
-            "module": "billing",
-            "user": ctx.get("user", {}).get("email", "—"),
-            "user_id": ctx.get("user_id"),
-            "tenant_id": ctx.get("tenant_id"),
-            "detail": detail,
+    @staticmethod
+    async def create_invoice(
+        db: AsyncIOMotorDatabase,
+        organization_id: str,
+        amount: float,
+        period: str,
+        currency: str = "USD",
+        description: Optional[str] = None,
+    ) -> dict:
+        """FASE 11.4: Create an invoice for a firm."""
+        invoice = {
+            "organization_id": organization_id,
+            "amount": amount,
+            "currency": currency,
+            "status": "draft",
+            "period": period,
+            "description": description or f"Invoice for {period}",
             "created_at": datetime.utcnow(),
-        })
-    except Exception:
-        pass
+            "issued_at": None,
+            "paid_at": None,
+            "updated_at": datetime.utcnow(),
+            "payment_method": None,
+            "transaction_reference": None,
+        }
+        
+        result = await db.invoices.insert_one(invoice)
+        invoice["_id"] = str(result.inserted_id)
+        return invoice
 
+    @staticmethod
+    async def issue_invoice(
+        db: AsyncIOMotorDatabase,
+        invoice_id: str,
+    ) -> dict:
+        """Change invoice status from draft to issued."""
+        result = await db.invoices.find_one_and_update(
+            {"_id": ObjectId(invoice_id)},
+            {"$set": {
+                "status": "issued",
+                "issued_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }},
+            return_document=True
+        )
+        
+        if result:
+            result["_id"] = str(result["_id"])
+        return result
 
-async def _next_invoice_number(db, tenant_id: str) -> str:
-    year = datetime.utcnow().year
-    count = await db.billing.count_documents({"tenantId": str(tenant_id)})
-    return f"FAC-{year}-{count + 1:04d}"
+    @staticmethod
+    async def pay_invoice(
+        db: AsyncIOMotorDatabase,
+        invoice_id: str,
+        payment_method: str = "bank_transfer",
+        transaction_reference: Optional[str] = None,
+    ) -> dict:
+        """Mark invoice as paid."""
+        invoice = await db.invoices.find_one({"_id": ObjectId(invoice_id)})
+        if not invoice:
+            raise ValueError("Invoice not found")
+        
+        if invoice.get("status") == "paid":
+            raise ValueError("Invoice already paid")
+        
+        result = await db.invoices.find_one_and_update(
+            {"_id": ObjectId(invoice_id)},
+            {"$set": {
+                "status": "paid",
+                "paid_at": datetime.utcnow(),
+                "payment_method": payment_method,
+                "transaction_reference": transaction_reference or f"INV-{invoice_id[:12]}-{int(datetime.utcnow().timestamp())}",
+                "updated_at": datetime.utcnow(),
+            }},
+            return_document=True
+        )
+        
+        if result:
+            result["_id"] = str(result["_id"])
+        return result
 
+    @staticmethod
+    async def get_firm_invoices(
+        db: AsyncIOMotorDatabase,
+        organization_id: str,
+        status: Optional[str] = None,
+    ) -> list:
+        """Get invoices for a firm."""
+        query = {"organization_id": organization_id}
+        if status:
+            query["status"] = status
+        
+        invoices = await db.invoices.find(query).sort("created_at", -1).to_list(None)
+        for i in invoices:
+            i["_id"] = str(i["_id"])
+        return invoices
 
-async def create_invoice(db, ctx: dict, payload) -> dict:
-    tenant_id = ctx.get("tenant_id")
-    if not tenant_id:
-        raise OrgError(400, "Se requiere tenant para crear una factura")
+    @staticmethod
+    async def auto_generate_invoices(
+        db: AsyncIOMotorDatabase,
+        organization_id: str,
+        period: str,
+    ) -> dict:
+        """FASE 11.4: Auto-generate invoice from commissions in a period."""
+        # Get commissions for this period
+        year, month = period.split("-")
+        commissions = await db.commissions.find({
+            "organization_id": organization_id,
+            "created_at": {
+                "$gte": datetime(int(year), int(month), 1),
+                "$lt": datetime(int(year), int(month) + 1 if int(month) < 12 else 1, 1 if int(month) < 12 else 1)
+            }
+        }).to_list(None)
+        
+        total_amount = sum(c.get("amount", 0) for c in commissions)
+        
+        # Create invoice
+        invoice = await BillingService.create_invoice(
+            db,
+            organization_id,
+            total_amount,
+            period,
+            description=f"Invoice for commissions in {period}"
+        )
+        
+        return invoice
 
-    number = payload.invoiceNumber or await _next_invoice_number(db, tenant_id)
-    existing = await db.billing.find_one({"tenantId": str(tenant_id), "invoiceNumber": number})
-    if existing:
-        raise OrgError(409, f"Ya existe la factura '{number}' en este tenant")
-
-    now = datetime.utcnow()
-    doc = {
-        "tenantId": str(tenant_id),
-        "organizationId": payload.organizationId,
-        "invoiceNumber": number,
-        "clientName": payload.clientName,
-        "source": payload.source,
-        "status": payload.status,
-        "amount": payload.amount,
-        "issueDate": payload.issueDate,
-        "dueDate": payload.dueDate,
-        "paidDate": payload.paidDate,
-        "paymentMethod": payload.paymentMethod,
-        "vertical": payload.vertical,
-        "notes": payload.notes,
-        "createdAt": now,
-        "updatedAt": now,
-        "createdBy": ctx.get("user_id"),
-    }
-    try:
-        res = await db.billing.insert_one(doc)
-    except DuplicateKeyError:
-        raise OrgError(409, f"Ya existe la factura '{number}' en este tenant")
-    doc["_id"] = res.inserted_id
-    await _audit(db, "invoice_created", ctx, number)
-    return _serialize(doc)
-
-
-async def update_invoice(db, ctx: dict, iid: str, payload) -> dict:
-    oid = _oid(iid)
-    current = await db.billing.find_one(_tenant_filter(ctx, {"_id": oid}))
-    if not current:
-        raise OrgError(404, "Factura no encontrada")
-
-    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
-    if "invoiceNumber" in updates:
-        clash = await db.billing.find_one({
-            "tenantId": str(ctx["tenant_id"]), "invoiceNumber": updates["invoiceNumber"], "_id": {"$ne": oid},
-        })
-        if clash:
-            raise OrgError(409, f"El número '{updates['invoiceNumber']}' ya está en uso en este tenant")
-    updates["updatedAt"] = datetime.utcnow()
-
-    await db.billing.update_one({"_id": oid}, {"$set": updates})
-
-    new_status = updates.get("status")
-    if new_status and new_status != current.get("status"):
-        if new_status == "paid":
-            await _audit(db, "invoice_paid", ctx, current.get("invoiceNumber", iid))
-        elif new_status == "overdue":
-            await _audit(db, "invoice_overdue", ctx, current.get("invoiceNumber", iid))
-    await _audit(db, "invoice_updated", ctx, iid)
-
-    doc = await db.billing.find_one({"_id": oid})
-    return _serialize(doc)
-
-
-async def pay_invoice(db, ctx: dict, iid: str, payment_method: Optional[str] = None, paid_date: Optional[str] = None) -> dict:
-    oid = _oid(iid)
-    current = await db.billing.find_one(_tenant_filter(ctx, {"_id": oid}))
-    if not current:
-        raise OrgError(404, "Factura no encontrada")
-    updates = {"status": "paid", "updatedAt": datetime.utcnow(),
-               "paidDate": paid_date or datetime.utcnow().date().isoformat()}
-    if payment_method:
-        updates["paymentMethod"] = payment_method
-    await db.billing.update_one({"_id": oid}, {"$set": updates})
-    await _audit(db, "invoice_paid", ctx, current.get("invoiceNumber", iid))
-    doc = await db.billing.find_one({"_id": oid})
-    return _serialize(doc)
-
-
-async def delete_invoice(db, ctx: dict, iid: str) -> None:
-    oid = _oid(iid)
-    res = await db.billing.delete_one(_tenant_filter(ctx, {"_id": oid}))
-    if res.deleted_count == 0:
-        raise OrgError(404, "Factura no encontrada")
-    await _audit(db, "invoice_deleted", ctx, iid)
-
-
-async def get_invoice(db, ctx: dict, iid: str) -> dict:
-    oid = _oid(iid)
-    doc = await db.billing.find_one(_tenant_filter(ctx, {"_id": oid}))
-    if not doc:
-        raise OrgError(404, "Factura no encontrada")
-    await _audit(db, "invoice_viewed", ctx, iid)
-    return _serialize(doc)
-
-
-async def get_invoices(db, ctx: dict, status: Optional[str] = None, source: Optional[str] = None) -> list:
-    extra = {}
-    if status:
-        extra["status"] = status
-    if source:
-        extra["source"] = source
-    q = _tenant_filter(ctx, extra or None)
-    docs = await db.billing.find(q).sort("issueDate", -1).to_list(2000)
-    return [_serialize(d) for d in docs]
-
-
-# ───────── Métricas ─────────
-def _sum(items, pred):
-    return sum(float(i.get("amount", 0) or 0) for i in items if pred(i))
-
-
-async def get_revenue_summary(db, ctx: dict) -> dict:
-    items = await get_invoices(db, ctx)
-    paid = _sum(items, lambda i: i.get("status") == "paid")
-    by_vertical = {}
-    for i in items:
-        v = i.get("vertical") or "Otro"
-        by_vertical[v] = by_vertical.get(v, 0) + float(i.get("amount", 0) or 0)
-    return {
-        "totalRevenue": _sum(items, lambda i: True),
-        "monthlyRevenue": paid,  # proxy: recaudo pagado (sin parseo de fechas)
-        "averageTicket": round(_sum(items, lambda i: True) / len(items)) if items else 0,
-        "revenueByVertical": [{"label": k, "value": round(v)} for k, v in by_vertical.items()],
-    }
-
-
-async def get_collections_summary(db, ctx: dict) -> dict:
-    items = await get_invoices(db, ctx)
-    receivable = _sum(items, lambda i: i.get("status") in RECEIVABLE_STATES)
-    # Aging por estado (proxy sin parseo de fechas): pending=0-30, review=31-60, overdue=60+.
-    aging = {
-        "0-30": _sum(items, lambda i: i.get("status") == "pending"),
-        "31-60": _sum(items, lambda i: i.get("status") == "review"),
-        "60+": _sum(items, lambda i: i.get("status") == "overdue"),
-    }
-    return {"accountsReceivable": round(receivable), "agingBuckets": {k: round(v) for k, v in aging.items()}}
-
-
-async def get_dashboard(db, ctx: dict) -> dict:
-    """Lista + métricas financieras (Fase 3) + KPIS shape UI."""
-    items = await get_invoices(db, ctx)
-    total = len(items)
-    paid = [i for i in items if i.get("status") == "paid"]
-    pending = [i for i in items if i.get("status") == "pending"]
-    overdue = [i for i in items if i.get("status") == "overdue"]
-    total_amount = _sum(items, lambda i: True)
-    paid_amount = _sum(items, lambda i: i.get("status") == "paid")
-    collection_rate = round((paid_amount / total_amount) * 100, 2) if total_amount else 0
-
-    revenue = await get_revenue_summary(db, ctx)
-    collections = await get_collections_summary(db, ctx)
-
-    # Métodos de pago (conteo + monto por método sobre pagadas).
-    pm = {}
-    for i in paid:
-        key = i.get("paymentMethod") or "transfer"
-        pm.setdefault(key, {"transactions": 0, "amount": 0})
-        pm[key]["transactions"] += 1
-        pm[key]["amount"] += float(i.get("amount", 0) or 0)
-    payment_methods = [
-        {"key": k, "label": PAYMENT_METHOD_LABELS.get(k, k), "transactions": v["transactions"], "amount": round(v["amount"])}
-        for k, v in pm.items()
-    ]
-
-    metrics = {
-        "totalInvoices": total,
-        "paidInvoices": len(paid),
-        "pendingInvoices": len(pending),
-        "overdueInvoices": len(overdue),
-        "monthlyRevenue": round(revenue["monthlyRevenue"]),
-        "totalRevenue": round(total_amount),
-        "averageTicket": revenue["averageTicket"],
-        "collectionRate": collection_rate,
-        "accountsReceivable": collections["accountsReceivable"],
-        "revenueByVertical": revenue["revenueByVertical"],
-        "paymentMethods": payment_methods,
-        "agingBuckets": collections["agingBuckets"],
-    }
-
-    return {
-        "INVOICES": items,
-        "metrics": metrics,
-        # KPIS en el shape que consume la UI (BillingDashboard).
-        "KPIS": {
-            "totalBilled": round(total_amount),
-            "issued": total,
-            "paid": len(paid),
-            "overdue": len(overdue),
-            "accountsReceivable": collections["accountsReceivable"],
-            "monthlyCollection": round(paid_amount),
-        },
-    }
+    @staticmethod
+    async def get_global_billing_summary(
+        db: AsyncIOMotorDatabase,
+    ) -> dict:
+        """FASE 11.6: Get global billing summary for Admin OS."""
+        # Get all commissions
+        all_commissions = await db.commissions.find({}).to_list(None)
+        
+        global_revenue = sum(c.get("amount", 0) for c in all_commissions)
+        global_paid = sum(c.get("amount", 0) for c in all_commissions if c.get("status") == "paid")
+        global_pending = sum(c.get("amount", 0) for c in all_commissions if c.get("status") == "pending")
+        
+        # Revenue by firm
+        revenue_by_firm = {}
+        for commission in all_commissions:
+            org_id = commission.get("organization_id")
+            if org_id:
+                if org_id not in revenue_by_firm:
+                    revenue_by_firm[org_id] = 0
+                revenue_by_firm[org_id] += commission.get("amount", 0)
+        
+        # Revenue by agent
+        revenue_by_agent = {}
+        for commission in all_commissions:
+            agent_id = commission.get("agent_id")
+            if agent_id:
+                if agent_id not in revenue_by_agent:
+                    revenue_by_agent[agent_id] = 0
+                revenue_by_agent[agent_id] += commission.get("amount", 0)
+        
+        return {
+            "global_revenue": global_revenue,
+            "global_paid": global_paid,
+            "global_pending": global_pending,
+            "revenue_by_firm": revenue_by_firm,
+            "revenue_by_agent": revenue_by_agent,
+        }

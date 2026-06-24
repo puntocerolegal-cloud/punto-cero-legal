@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List
+from typing import List, Optional
 from datetime import datetime, date
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.lead import LeadCreate, Lead, LeadUpdate
@@ -8,6 +8,7 @@ from bson import ObjectId
 
 from routes.auth import get_current_user
 from security.ownership import require_owner
+from services.commission_service import CommissionService
 
 router = APIRouter(prefix="/leads", tags=["CRM - Leads"])
 
@@ -63,10 +64,40 @@ async def create_lead(
     lead_dict["created_at"] = datetime.utcnow()
     lead_dict["updated_at"] = datetime.utcnow()
     lead_dict["converted_to"] = None
-    
+
+    # FASE 8: If agent creates lead, register agent_id for commission tracking
+    if current_user.get("role") == "socio_comercial":
+        lead_dict["agent_id"] = str(current_user["_id"])
+
+    # FASE 8: Register country if provided
+    if "country" not in lead_dict or not lead_dict["country"]:
+        lead_dict["country"] = current_user.get("country", "Unknown")
+
+    # FASE 8: Register source (default to lead_source param or "crm")
+    if "source" not in lead_dict or not lead_dict["source"]:
+        lead_dict["source"] = "crm"
+
     result = await db.leads.insert_one(lead_dict)
     lead_dict["_id"] = str(result.inserted_id)
-    
+
+    # FASE 8: Create timeline event for lead creation
+    try:
+        await db.timeline_events.insert_one({
+            "event_type": "LEAD_CREATED",
+            "lead_id": str(result.inserted_id),
+            "agent_id": lead_dict.get("agent_id"),
+            "lawyer_id": lead_dict.get("lawyer_id"),
+            "description": f"Lead creado: {lead_dict.get('client_name')}",
+            "metadata": {
+                "country": lead_dict.get("country"),
+                "source": lead_dict.get("source"),
+                "legal_area": lead_dict.get("legal_area"),
+            },
+            "created_at": datetime.utcnow(),
+        })
+    except Exception:
+        pass  # Timeline event creation optional
+
     return lead_dict
 
 @router.get("/", response_model=List[dict])
@@ -75,8 +106,9 @@ async def get_leads(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    # La identidad viene del token, NO de un query param manipulable.
-    query = {"lawyer_id": str(current_user["_id"])}
+    user_id = str(current_user["_id"])
+    # FASE 6: Leads owned by current user (lawyer_id) OR agent_id
+    query = {"$or": [{"lawyer_id": user_id}, {"agent_id": user_id}]}
     if status:
         query["status"] = status
 
@@ -127,6 +159,7 @@ async def convert_lead_to_case(
     """
     INTEGRACIÓN CRÍTICA: CRM → Gestión de Casos
     Convierte un lead en un caso automáticamente
+    FASE 8: También crea comisión automática si es agente
     """
     oid = _oid(lead_id)
     lead = await db.leads.find_one({"_id": oid})
@@ -158,12 +191,76 @@ async def convert_lead_to_case(
     case_data["client_email"] = lead.get("client_email")
     case_data["client_phone"] = lead.get("client_phone")
     case_data["estado"] = "Activo"
+
+    # FASE 8: Include organizationId if lawyer belongs to firm
+    lawyer = await db.users.find_one({"_id": ObjectId(lead["lawyer_id"])})
+    if lawyer and lawyer.get("organizationId"):
+        case_data["organization_id"] = lawyer.get("organizationId")
+
     case_result = await db.cases.insert_one(case_data)
     case_id = str(case_result.inserted_id)
 
     # INTEGRACIÓN: crear automáticamente la Biblioteca de Expediente del caso
     from utils.expediente import init_expediente
     folders = await init_expediente(db, case_id, lead["lawyer_id"])
+
+    # FASE 8: Create commission if lead was created by agent
+    commission_id = None
+    if lead.get("agent_id"):
+        # Default commission: 10% of estimated case value (default $500)
+        sale_value = lead.get("estimated_value", 500)
+        commission_rate = 0.10
+        commission_amount = sale_value * commission_rate
+
+        commission_data = {
+            "agent_id": lead.get("agent_id"),
+            "case_id": case_id,
+            "organization_id": case_data.get("organization_id"),
+            "amount": commission_amount,
+            "currency": "USD",
+            "status": "pending",
+            "commission_rate": commission_rate,
+            "sale_value": sale_value,
+            "created_at": datetime.utcnow(),
+            "approved_at": None,
+            "paid_at": None,
+            "updated_at": datetime.utcnow(),
+        }
+
+        commission_result = await db.commissions.insert_one(commission_data)
+        commission_id = str(commission_result.inserted_id)
+
+        # FASE 8: Create timeline event for case creation
+        await db.timeline_events.insert_one({
+            "event_type": "CASE_CREATED",
+            "lead_id": lead_id,
+            "case_id": case_id,
+            "agent_id": lead.get("agent_id"),
+            "lawyer_id": lead.get("lawyer_id"),
+            "organization_id": case_data.get("organization_id"),
+            "description": f"Caso creado desde lead: {case_data.get('case_number')}",
+            "metadata": {
+                "client_name": lead.get("client_name"),
+                "legal_area": lead.get("legal_area"),
+            },
+            "created_at": datetime.utcnow(),
+        })
+
+        # FASE 8: Create timeline event for commission
+        await db.timeline_events.insert_one({
+            "event_type": "COMMISSION_CREATED",
+            "case_id": case_id,
+            "commission_id": commission_id,
+            "agent_id": lead.get("agent_id"),
+            "organization_id": case_data.get("organization_id"),
+            "description": f"Comisión creada: ${commission_amount:.2f}",
+            "metadata": {
+                "amount": commission_amount,
+                "rate": commission_rate,
+                "sale_value": sale_value,
+            },
+            "created_at": datetime.utcnow(),
+        })
 
     await db.leads.update_one(
         {"_id": oid},
@@ -179,6 +276,7 @@ async def convert_lead_to_case(
         "case_id": case_id,
         "case_number": case_data["case_number"],
         "client_id": client_id,
+        "commission_id": commission_id,
         "expediente_folders": folders,
     }
 

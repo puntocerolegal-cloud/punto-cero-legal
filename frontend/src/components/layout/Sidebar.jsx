@@ -2,23 +2,27 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import { getOsModules, MODULE_GROUPS } from "@/core/registry/moduleRegistry";
 import { useEntitlement } from "@/hooks/useEntitlement";
+import { useAuth } from "@/contexts/AuthContext";
 import { isSupportAccessActive } from "@/core/security/supportToken";
 
 /**
  * Navegación dinámica del System OS — Punto Cero System Core.
  * Render por GRUPOS (Flujo de Valor) con cabecera de color y separadores:
  *   Operaciones (Cian) · Negocio (Oro) · Red y Talento (Violeta) · Sistema (Gris).
- * Filtra por DOS capas:
+ * Filtra por TRES capas:
  *  1. Entitlement (canAccess) → acceso por plan (null = solo rol, siempre pasa).
  *  2. Token de soporte → módulos `requiresSupportToken` solo si hay token vigente.
+ *  3. Rol del usuario (FASE 6) → módulos visibles solo para ciertos roles.
  */
 export function SidebarNav({ onNavigate }) {
   const { canAccess } = useEntitlement();
+  const { user } = useAuth();
   const supportActive = isSupportAccessActive();
 
   const visible = getOsModules()
     .filter((m) => canAccess(m.requiredFeature))
-    .filter((m) => !m.requiresSupportToken || supportActive);
+    .filter((m) => !m.requiresSupportToken || supportActive)
+    .filter((m) => !m.visibleToRoles || m.visibleToRoles.includes(user?.role));
 
   return (
     <div className="space-y-5">

@@ -30,6 +30,7 @@ class UserBase(BaseModel):
     id_document: Optional[str] = None
     status: Literal["active", "inactive", "suspended", "PENDING_VERIFICATION", "ACTIVE"] = "PENDING_VERIFICATION"
     is_verified: bool = False
+    organizationId: Optional[str] = None  # FASE 1: soporte para abogados asociados a firmas
 
 class UserCreate(UserBase):
     password: str
