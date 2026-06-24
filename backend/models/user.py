@@ -21,7 +21,7 @@ class PyObjectId(ObjectId):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: Literal["admin", "admin_general", "socio_comercial", "lawyer", "client"]
+    role: Literal["admin", "admin_general", "socio_comercial", "lawyer", "client", "firm_owner", "firm_admin", "firm_lawyer"]
     phone: Optional[str] = None
     country: Optional[str] = None
     specialty: Optional[str] = None
@@ -31,6 +31,7 @@ class UserBase(BaseModel):
     status: Literal["active", "inactive", "suspended", "PENDING_VERIFICATION", "ACTIVE"] = "PENDING_VERIFICATION"
     is_verified: bool = False
     organizationId: Optional[str] = None  # FASE 1: soporte para abogados asociados a firmas
+    firm_id: Optional[str] = None  # FASE 1: Firm OS - Relación con firma (nueva)
 
 class UserCreate(UserBase):
     password: str
