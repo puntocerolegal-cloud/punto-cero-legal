@@ -38,6 +38,7 @@ import { AICopilot } from "./pages/AICopilot";
 import { AutonomousControl } from "./pages/AutonomousControl";
 import { GlobalNetwork } from "./pages/GlobalNetwork";
 import { LegalOS } from "./pages/LegalOS";
+import { FirmsOverview } from "./pages/FirmsOverview";
 
 /**
  * Módulo Administrativo de Punto Cero OS.
@@ -58,6 +59,7 @@ export function AdminModule() {
       <Route path="autonomous-control" element={<AdminOSLayout title="Autonomous Legal OS"><AutonomousControl /></AdminOSLayout>} />
       <Route path="global-network" element={<AdminOSLayout title="Global Network OS"><GlobalNetwork /></AdminOSLayout>} />
       <Route path="legal-os" element={<AdminOSLayout title="Legal Operating System"><LegalOS /></AdminOSLayout>} />
+      <Route path="firms" element={<AdminOSLayout title="Directorio de Firmas"><FirmsOverview /></AdminOSLayout>} />
       <Route path="firm-dashboard" element={<AdminOSLayout title="Dashboard de Firma"><FirmDashboard /></AdminOSLayout>} />
       <Route path="sales-command-center" element={<AdminOSLayout title="Sales Command Center"><SalesCommandCenter /></AdminOSLayout>} />
       <Route path="ai-command-center" element={<AdminOSLayout title="Copiloto IA"><AICommandCenter /></AdminOSLayout>} />
