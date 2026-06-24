@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from routes.auth import get_current_user
 from services.ai_scoring_engine import AIScoringEngine, AIAssignmentEngine, AICasePredictionEngine
 from services.ai_optimization_engine import AIRevenueOptimizationEngine, AIAlertSystem
+from services.autonomous_orchestrator import AutonomousOrchestrator, DecisionType
 from bson import ObjectId
 
 router = APIRouter(prefix="/ai", tags=["AI · Autopilot"])
@@ -25,35 +26,20 @@ async def score_lead(
         lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
         if not lead:
             raise HTTPException(status_code=404, detail="Lead no encontrado")
-        
-        score_result = await AIScoringEngine.score_lead(db, lead)
-        
-        # Update lead with score
-        await db.leads.update_one(
-            {"_id": ObjectId(lead_id)},
-            {"$set": {
-                "ai_score": score_result["score"],
-                "ai_classification": score_result["classification"],
-                "updated_at": datetime.utcnow(),
-            }}
+
+        result = await AutonomousOrchestrator.execute(
+            db,
+            DecisionType.SCORE_LEAD,
+            lead,
+            context={"organization_id": lead.get("organization_id")}
         )
-        
-        # Create timeline event
-        await db.timeline_events.insert_one({
-            "event_type": "AI_LEAD_SCORED",
-            "lead_id": lead_id,
-            "organization_id": lead.get("organization_id"),
-            "description": f"Lead calificado: {score_result['classification']} ({score_result['score']}pts)",
-            "metadata": {
-                "score": score_result["score"],
-                "classification": score_result["classification"],
-            },
-            "created_at": datetime.utcnow(),
-        })
-        
+
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Scoring failed"))
+
         return {
             "success": True,
-            "data": score_result,
+            "data": result.get("changes", {}),
             "message": "Lead calificado exitosamente"
         }
     except ValueError as e:
@@ -71,39 +57,20 @@ async def assign_lead(
         lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
         if not lead:
             raise HTTPException(status_code=404, detail="Lead no encontrado")
-        
-        organization_id = lead.get("organization_id")
-        
-        assignment = await AIAssignmentEngine.assign_lead(db, lead, organization_id)
-        
-        # Update lead with assignment
-        if assignment.get("assigned_lawyer_id"):
-            await db.leads.update_one(
-                {"_id": ObjectId(lead_id)},
-                {"$set": {
-                    "lawyer_id": assignment["assigned_lawyer_id"],
-                    "ai_assigned": True,
-                    "updated_at": datetime.utcnow(),
-                }}
-            )
-            
-            # Create timeline event
-            await db.timeline_events.insert_one({
-                "event_type": "AI_LEAD_ASSIGNED",
-                "lead_id": lead_id,
-                "lawyer_id": assignment["assigned_lawyer_id"],
-                "organization_id": organization_id,
-                "description": f"Lead asignado automáticamente a {assignment['lawyer_name']}",
-                "metadata": {
-                    "confidence_score": assignment["confidence_score"],
-                    "reason": assignment["reason"],
-                },
-                "created_at": datetime.utcnow(),
-            })
-        
+
+        result = await AutonomousOrchestrator.execute(
+            db,
+            DecisionType.ASSIGN_LEAD,
+            lead,
+            context={"organization_id": lead.get("organization_id")}
+        )
+
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Assignment failed"))
+
         return {
             "success": True,
-            "data": assignment,
+            "data": result.get("changes", {}),
             "message": "Lead asignado automáticamente"
         }
     except Exception as e:

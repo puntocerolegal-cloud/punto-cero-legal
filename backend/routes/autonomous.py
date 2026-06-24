@@ -12,6 +12,8 @@ from services.autonomous_system_orchestrator import (
     GlobalSystemOrchestrator,
     AutonomousSelfHealingSystem
 )
+from services.autonomous_orchestrator import AutonomousOrchestrator, DecisionType
+from bson import ObjectId
 
 router = APIRouter(prefix="/autonomous", tags=["Autonomous · Self-Operating System"])
 
@@ -61,45 +63,25 @@ async def autonomous_route(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """FASE 13.2: Autonomously route a lead"""
+    """FASE 13.2: Autonomously route a lead via centralized orchestrator"""
     try:
-        lead = await db.leads.find_one({"_id": {"$oid": lead_id}} if len(lead_id) == 24 else {})
+        lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
         if not lead:
             raise HTTPException(status_code=404, detail="Lead no encontrado")
-        
-        routing = await AutonomousRoutingSystem.route_lead(db, lead)
-        
-        # Apply routing
-        update_data = {}
-        if routing.get("routed_lawyer_id"):
-            update_data["lawyer_id"] = routing["routed_lawyer_id"]
-        if routing.get("routed_agent_id"):
-            update_data["agent_id"] = routing["routed_agent_id"]
-        
-        update_data["autonomous_routed"] = True
-        update_data["updated_at"] = datetime.utcnow()
-        
-        await db.leads.update_one(
-            {"_id": lead["_id"]},
-            {"$set": update_data}
+
+        result = await AutonomousOrchestrator.execute(
+            db,
+            DecisionType.ROUTE_LEAD,
+            lead,
+            context={"organization_id": lead.get("organization_id")}
         )
-        
-        # Timeline event
-        await db.timeline_events.insert_one({
-            "event_type": "AUTONOMOUS_LEAD_ROUTED",
-            "lead_id": lead_id,
-            "lawyer_id": routing.get("routed_lawyer_id"),
-            "agent_id": routing.get("routed_agent_id"),
-            "organization_id": lead.get("organization_id"),
-            "description": routing.get("reason"),
-            "metadata": routing,
-            "created_at": datetime.utcnow(),
-            "autonomous": True,
-        })
-        
+
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Routing failed"))
+
         return {
             "success": True,
-            "data": routing,
+            "data": result.get("changes", {}),
             "message": "Lead routed autonomously"
         }
     except Exception as e:
@@ -137,35 +119,31 @@ async def optimize_revenue_autonomous(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# FASE 13.4: Autonomous Firms Balancer
+# FASE 13.4: Autonomous Firms Balancer via Orchestrator
 @router.post("/balance-firms", status_code=status.HTTP_200_OK)
 async def balance_firms_autonomous(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """FASE 13.4: Balance load across all firms"""
+    """FASE 13.4: Balance load across all firms via centralized orchestrator"""
     if current_user.get("role") not in ["admin"]:
         raise HTTPException(status_code=403, detail="No autorizado")
-    
+
     try:
-        result = await AutonomousFirmsBalancer.balance_firms(db)
-        
-        # Log actions
-        for action in result.get("actions", []):
-            await db.timeline_events.insert_one({
-                "event_type": "AUTONOMOUS_REBALANCE_EXECUTED",
-                "lead_id": action.get("lead_id"),
-                "organization_id": action.get("from_org"),
-                "description": f"Lead redistribution from {action.get('from_org')} to {action.get('to_org')}",
-                "metadata": action,
-                "created_at": datetime.utcnow(),
-                "autonomous": True,
-            })
-        
+        result = await AutonomousOrchestrator.execute(
+            db,
+            DecisionType.BALANCE_FIRMS,
+            {},
+            context={"global": True}
+        )
+
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Balancing failed"))
+
         return {
             "success": True,
             "data": result,
-            "message": "Firms balanced"
+            "message": "Firms balanced via orchestrator"
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
