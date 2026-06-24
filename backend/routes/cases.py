@@ -18,8 +18,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 import uuid
 
+from routes.auth import get_current_user
 from utils.case_number_generator import next_case_number
 from utils import notifier
+from security.tenant_scope import validate_org_ownership
 
 router = APIRouter(prefix="/cases", tags=["Case Management"])
 
@@ -128,7 +130,11 @@ def _serialize_case(case: dict) -> dict:
 
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_case(payload: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_case(
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     """Crea un caso (manual por el abogado o derivado del admin) e interconecta
     todos los módulos. Acepta campos flexibles del formulario de intake."""
     lawyer_id = payload.get("lawyer_id")
@@ -162,6 +168,7 @@ async def create_case(payload: dict, db: AsyncIOMotorDatabase = Depends(get_db))
 
     case_doc = {
         "case_number": case_number,
+        "organization_id": current_user.get("organization_id"),
         "lawyer_id": lawyer_id,
         "client_id": client_id,
         "client_name": payload.get("client_name"),
@@ -239,11 +246,16 @@ async def create_case(payload: dict, db: AsyncIOMotorDatabase = Depends(get_db))
 
 
 @router.get("/", response_model=List[dict])
-async def get_cases(lawyer_id: str = None, client_id: str = None, status: str = None,
-                    db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_cases(
+    lawyer_id: str = None,
+    client_id: str = None,
+    status: str = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     # Devolución automática (3h sin aceptar) — verificación perezosa al listar.
     await auto_return_expired(db)
-    query = {}
+    query = {"organization_id": current_user.get("organization_id")}
     if lawyer_id:
         query["lawyer_id"] = lawyer_id
     if client_id:
@@ -277,10 +289,15 @@ async def _lookup_name(db, ref_id: str) -> Optional[str]:
 
 
 @router.get("/{case_id}", response_model=dict)
-async def get_case(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_case(
+    case_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     case = await db.cases.find_one({"_id": ObjectId(case_id)})
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+    validate_org_ownership(case, current_user, "organization_id")
     out = _serialize_case(case)
 
     activities = await db.case_activities.find({"case_id": case_id}).sort("created_at", -1).to_list(200)

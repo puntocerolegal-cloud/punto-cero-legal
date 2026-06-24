@@ -8,6 +8,7 @@ from bson import ObjectId
 
 from routes.auth import get_current_user
 from security.ownership import require_owner
+from security.tenant_scope import validate_org_ownership, build_org_filter
 from services.commission_service import CommissionService
 
 router = APIRouter(prefix="/leads", tags=["CRM - Leads"])
@@ -58,6 +59,8 @@ async def create_lead(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     lead_dict = lead_data.model_dump()
+    # Multi-tenant: asigna automaticamente la organización del usuario actual
+    lead_dict["organization_id"] = current_user.get("organization_id")
     # El dueño se asigna desde el token, no desde el payload del cliente.
     lead_dict["lawyer_id"] = str(current_user["_id"])
     lead_dict["assigned_date"] = datetime.utcnow()
@@ -107,8 +110,12 @@ async def get_leads(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     user_id = str(current_user["_id"])
-    # FASE 6: Leads owned by current user (lawyer_id) OR agent_id
-    query = {"$or": [{"lawyer_id": user_id}, {"agent_id": user_id}]}
+    org_id = current_user.get("organization_id")
+    # FASE 6 + Multi-tenant: Leads owned by current user AND in same organization
+    query = {
+        "$or": [{"lawyer_id": user_id}, {"agent_id": user_id}],
+        "organization_id": org_id
+    }
     if status:
         query["status"] = status
 
@@ -125,7 +132,8 @@ async def get_lead(
 ):
     oid = _oid(lead_id)
     lead = await db.leads.find_one({"_id": oid})
-    # 404 si no existe · 403 si no pertenece al abogado autenticado.
+    # 404 si no existe · 403 si no pertenece al abogado autenticado o al mismo org.
+    validate_org_ownership(lead, current_user, "organization_id")
     require_owner(lead, current_user)
     lead["_id"] = str(lead["_id"])
     return lead
@@ -139,6 +147,7 @@ async def update_lead(
 ):
     oid = _oid(lead_id)
     lead = await db.leads.find_one({"_id": oid})
+    validate_org_ownership(lead, current_user, "organization_id")
     require_owner(lead, current_user)
 
     update_data = {k: v for k, v in lead_update.model_dump().items() if v is not None}
@@ -163,6 +172,7 @@ async def convert_lead_to_case(
     """
     oid = _oid(lead_id)
     lead = await db.leads.find_one({"_id": oid})
+    validate_org_ownership(lead, current_user, "organization_id")
     require_owner(lead, current_user)
 
     if lead.get("status") == "converted":
