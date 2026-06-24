@@ -355,3 +355,78 @@ async def get_firm_clients(
         "data": list(unique_clients.values()),
         "count": len(unique_clients),
     }
+
+# GET /firms/:id/financial - Obtener resumen financiero de una firma
+@router.get("/{firm_id}/financial", status_code=status.HTTP_200_OK)
+async def get_firm_financial(
+    firm_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Obtener resumen financiero de una firma"""
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    # Access control
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        if current_user.get("firm_id") != firm_id and str(current_user.get("_id")) != firm.get("owner_id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver finanzas de esta firma")
+
+    # Get lawyers from this firm
+    lawyers = await db.users.find({
+        "firm_id": firm_id,
+        "role": {"$in": ["firm_lawyer", "lawyer"]}
+    }).to_list(None)
+    lawyer_ids = [str(l["_id"]) for l in lawyers]
+
+    # Get cases for these lawyers
+    cases = await db.cases.find({
+        "lawyer_id": {"$in": lawyer_ids}
+    }).to_list(None)
+    case_ids = [str(c["_id"]) for c in cases]
+
+    # Get commissions for these cases
+    commissions = await db.commissions.find({
+        "case_id": {"$in": case_ids}
+    }).to_list(None)
+
+    # Calculate financial metrics
+    total_revenue = sum(c.get("amount", 0) for c in commissions)
+    pending_revenue = sum(c.get("amount", 0) for c in commissions if c.get("status") in ["pending", "approved"])
+    paid_revenue = sum(c.get("amount", 0) for c in commissions if c.get("status") == "paid")
+    rejected_revenue = sum(c.get("amount", 0) for c in commissions if c.get("status") == "rejected")
+
+    commission_payment_rate = (paid_revenue / total_revenue * 100) if total_revenue > 0 else 0
+
+    # Get invoices for this firm (if any)
+    invoices = await db.invoices.find({
+        "firm_id": firm_id
+    }).to_list(None) if hasattr(db, 'invoices') else []
+
+    total_invoiced = sum(i.get("amount", 0) for i in invoices)
+    paid_invoices = sum(i.get("amount", 0) for i in invoices if i.get("status") == "paid")
+
+    return {
+        "success": True,
+        "data": {
+            "firm_id": firm_id,
+            "firm_name": firm.get("name"),
+            "total_revenue": round(total_revenue, 2),
+            "pending_revenue": round(pending_revenue, 2),
+            "paid_revenue": round(paid_revenue, 2),
+            "rejected_revenue": round(rejected_revenue, 2),
+            "commission_payment_rate": round(commission_payment_rate, 2),
+            "total_invoiced": round(total_invoiced, 2),
+            "paid_invoices": round(paid_invoices, 2),
+            "balance": round(total_revenue - paid_revenue, 2),
+            "commissions_count": len(commissions),
+            "active_cases": len([c for c in cases if c.get("status") in ["open", "in_progress"]]),
+            "avg_revenue_per_case": round(total_revenue / max(len(cases), 1), 2),
+        },
+    }
