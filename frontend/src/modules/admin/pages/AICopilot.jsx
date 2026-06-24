@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Brain,
   AlertCircle,
@@ -26,11 +26,7 @@ export function AICopilot() {
 
   const orgId = user?.organizationId || "global";
 
-  useEffect(() => {
-    loadAIData();
-  }, [orgId]);
-
-  const loadAIData = async () => {
+  const loadAIData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
@@ -43,7 +39,11 @@ export function AICopilot() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orgId]);
+
+  useEffect(() => {
+    loadAIData();
+  }, [loadAIData]);
 
   if (loading) {
     return (

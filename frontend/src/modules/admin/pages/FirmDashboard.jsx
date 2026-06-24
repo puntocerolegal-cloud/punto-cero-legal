@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { Users, BarChart3, DollarSign, FolderKanban, TrendingUp, Plus, Edit2, Trash2, Building2 } from "lucide-react";
 import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,16 +31,7 @@ export function FirmDashboard() {
   // Verificar que el usuario tiene organizationId (es firmador)
   const firmId = user?.organizationId;
 
-  useEffect(() => {
-    if (!firmId) {
-      setError("No tienes acceso a un dashboard de firma");
-      setLoading(false);
-      return;
-    }
-    loadFirmData();
-  }, [firmId]);
-
-  const loadFirmData = async () => {
+  const loadFirmData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
@@ -67,7 +58,16 @@ export function FirmDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [firmId]);
+
+  useEffect(() => {
+    if (!firmId) {
+      setError("No tienes acceso a un dashboard de firma");
+      setLoading(false);
+      return;
+    }
+    loadFirmData();
+  }, [firmId, loadFirmData]);
 
   // ── Derivados ──
   const stats = useMemo(() => ({
