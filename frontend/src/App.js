@@ -31,6 +31,7 @@ import TermsConditions from './pages/legal/TermsConditions';
 import SubscriptionAgreement from './pages/legal/SubscriptionAgreement';
 import AdminPanel from './pages/AdminPanel';
 import AdminModule from './modules/admin/AdminModule';
+import FirmOSModule from './modules/firm-os/FirmOSModule';
 
 // Páginas del Dashboard
 import CRMPage from './pages/dashboard/CRMPage';
@@ -99,6 +100,9 @@ function App() {
             <Route path="/admin/legacy" element={<Navigate to="/admin/master/legacy" replace />} />
             <Route path="/admin/os/*" element={<LegacyOsRedirect />} />
             <Route path="/admin/*" element={<ProtectedRoute require={ADMIN_ROLES}><AdminModule /></ProtectedRoute>} />
+
+            {/* Firm OS — Nueva capa para firmas en crecimiento y consolidación empresarial */}
+            <Route path="/firm-os/*" element={<ProtectedRoute require={["firm_owner", "firm_admin", "firm_lawyer"]}><FirmOSModule /></ProtectedRoute>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
