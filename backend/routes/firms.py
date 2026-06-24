@@ -188,3 +188,170 @@ async def update_firm(
         created_at=updated_firm["created_at"].isoformat() if isinstance(updated_firm["created_at"], datetime) else updated_firm["created_at"],
         updated_at=updated_firm["updated_at"].isoformat() if isinstance(updated_firm["updated_at"], datetime) else updated_firm["updated_at"]
     )
+
+# GET /firms/:id/lawyers - Obtener abogados de una firma
+@router.get("/{firm_id}/lawyers", status_code=status.HTTP_200_OK)
+async def get_firm_lawyers(
+    firm_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Obtener todos los abogados de una firma"""
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    # Access control
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        if current_user.get("firm_id") != firm_id and str(current_user.get("_id")) != firm.get("owner_id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver estos abogados")
+
+    # Get lawyers from this firm
+    lawyers = await db.users.find({
+        "firm_id": firm_id,
+        "role": {"$in": ["firm_lawyer", "lawyer"]}
+    }).to_list(None)
+
+    result = []
+    for lawyer in lawyers:
+        # Get lawyer's cases
+        cases = await db.cases.find({"lawyer_id": str(lawyer["_id"])}).to_list(None)
+
+        # Calculate revenue from commissions
+        case_ids = [str(c["_id"]) for c in cases]
+        commissions = await db.commissions.find({
+            "case_id": {"$in": case_ids}
+        }).to_list(None) if case_ids else []
+
+        revenue = sum(c.get("amount", 0) for c in commissions)
+
+        result.append({
+            "id": str(lawyer["_id"]),
+            "name": lawyer.get("full_name"),
+            "specialty": lawyer.get("specialty"),
+            "email": lawyer.get("email"),
+            "phone": lawyer.get("phone"),
+            "active_cases": len([c for c in cases if c.get("status") in ["open", "in_progress"]]),
+            "total_cases": len(cases),
+            "revenue": round(revenue, 2),
+        })
+
+    return {
+        "success": True,
+        "data": result,
+        "count": len(result),
+    }
+
+# GET /firms/:id/cases - Obtener casos de una firma
+@router.get("/{firm_id}/cases", status_code=status.HTTP_200_OK)
+async def get_firm_cases(
+    firm_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Obtener todos los casos de una firma"""
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    # Access control
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        if current_user.get("firm_id") != firm_id and str(current_user.get("_id")) != firm.get("owner_id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver estos casos")
+
+    # Get lawyers from this firm
+    lawyers = await db.users.find({
+        "firm_id": firm_id,
+        "role": {"$in": ["firm_lawyer", "lawyer"]}
+    }).to_list(None)
+    lawyer_ids = [str(l["_id"]) for l in lawyers]
+
+    # Get cases for these lawyers
+    cases = await db.cases.find({
+        "lawyer_id": {"$in": lawyer_ids}
+    }).sort("created_at", -1).to_list(None)
+
+    result = []
+    for case in cases:
+        result.append({
+            "id": str(case["_id"]),
+            "case_number": case.get("case_number", ""),
+            "client_name": case.get("client_name", ""),
+            "matter": case.get("matter", ""),
+            "status": case.get("status", "open"),
+            "estado": case.get("estado", ""),
+            "lawyer_id": case.get("lawyer_id"),
+            "created_at": case.get("created_at").isoformat() if isinstance(case.get("created_at"), datetime) else case.get("created_at"),
+        })
+
+    return {
+        "success": True,
+        "data": result,
+        "count": len(result),
+    }
+
+# GET /firms/:id/clients - Obtener clientes de una firma
+@router.get("/{firm_id}/clients", status_code=status.HTTP_200_OK)
+async def get_firm_clients(
+    firm_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Obtener todos los clientes únicos de una firma"""
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    # Access control
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        if current_user.get("firm_id") != firm_id and str(current_user.get("_id")) != firm.get("owner_id"):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver estos clientes")
+
+    # Get lawyers from this firm
+    lawyers = await db.users.find({
+        "firm_id": firm_id,
+        "role": {"$in": ["firm_lawyer", "lawyer"]}
+    }).to_list(None)
+    lawyer_ids = [str(l["_id"]) for l in lawyers]
+
+    # Get cases for these lawyers
+    cases = await db.cases.find({
+        "lawyer_id": {"$in": lawyer_ids}
+    }).to_list(None)
+
+    # Collect unique clients
+    unique_clients = {}
+    for case in cases:
+        client_id = case.get("client_id")
+        client_name = case.get("client_name")
+
+        if client_id and client_id not in unique_clients:
+            unique_clients[client_id] = {
+                "id": client_id,
+                "name": client_name,
+                "cases_count": 0,
+            }
+
+        if client_id:
+            unique_clients[client_id]["cases_count"] += 1
+
+    return {
+        "success": True,
+        "data": list(unique_clients.values()),
+        "count": len(unique_clients),
+    }
