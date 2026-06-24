@@ -118,10 +118,14 @@ export const AuthProvider = ({ children }) => {
           axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
         }
         if (u) {
+          console.log("█ AUTH DEBUG - Stored User Loaded:", u);
+          console.log("█ AUTH DEBUG - Stored user.role:", u?.role);
           setUser(u);
         } else if (DEV_MODE && !t) {
           // Sin sesión real en desarrollo → acceso directo con admin simulado
           // (no se hace fetch a /api/auth/login; el login real sigue intacto).
+          console.log("█ AUTH DEBUG - DEV MODE: Using mock user", DEV_MOCK_USER);
+          console.log("█ AUTH DEBUG - Mock user.role:", DEV_MOCK_USER.role);
           setUser(DEV_MOCK_USER);
         }
       } catch (e) {
@@ -144,6 +148,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password });
     const { access_token, user: userData } = response.data;
+    console.log("█ AUTH DEBUG - Login Response:", response.data);
+    console.log("█ AUTH DEBUG - User Data:", userData);
+    console.log("█ AUTH DEBUG - user.role from /auth/login:", userData?.role);
     await setStoredToken(access_token);
     await setStoredUser(userData);
     setToken(access_token);
@@ -173,6 +180,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.get(`${API}/auth/me`);
       const fresh = res.data;
+      console.log("█ AUTH DEBUG - /auth/me Response:", res.data);
+      console.log("█ AUTH DEBUG - Refreshed user.role:", fresh?.role);
       await setStoredUser(fresh);
       setUser(fresh);
       return fresh;
