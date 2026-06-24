@@ -21,6 +21,8 @@ import {
 
 } from 'lucide-react';
 
+import { SecuritySeals } from '@/components/security/SecuritySeals';
+
 import { Button } from '../components/ui/button';
 
 import { Card } from '../components/ui/card';
@@ -2576,76 +2578,7 @@ export const LandingPage = () => {
       {/* Footer */}
 
       {/* ───────── Sellos de Seguridad y Confianza ───────── */}
-      <section
-        aria-labelledby="trust-seals-title"
-        className="relative bg-[#0a1226] border-t border-white/10 py-16 px-6 overflow-hidden"
-      >
-        {/* Acento marino/naranja sutil de fondo */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0a1226] to-[#0a1226] pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[480px] h-40 bg-[#f97316]/10 blur-3xl rounded-full pointer-events-none" />
-
-        <div className="container mx-auto relative z-10">
-          <div className="text-center mb-10">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#f97316]/15 border border-[#f97316]/30 text-[#fb923c] text-[11px] font-bold uppercase tracking-[0.18em]">
-              <ShieldCheck className="w-3.5 h-3.5" /> Seguridad y Confianza
-            </span>
-            <h2 id="trust-seals-title" className="text-2xl sm:text-3xl font-bold text-white mt-4">
-              Su información protegida con <span className="text-[#f97316]">estándares premium</span>
-            </h2>
-            <p className="text-white/50 text-sm mt-2 max-w-2xl mx-auto">
-              Infraestructura, cifrado y normativa que blindan cada caso, documento y transacción.
-            </p>
-          </div>
-
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
-            {[
-              {
-                icon: ShieldCheck,
-                title: 'Cumplimiento Ley 1581',
-                highlight: 'Habeas Data',
-                desc: 'Datos jurídicos protegidos bajo normativa legal colombiana de protección de datos.',
-              },
-              {
-                icon: Lock,
-                title: 'Cifrado SSL 256 bits',
-                highlight: 'Extremo a extremo',
-                desc: 'Conexión encriptada para transacciones y datos sensibles en toda la plataforma.',
-              },
-              {
-                icon: Server,
-                title: 'Cloud Blindada',
-                highlight: 'Alta disponibilidad',
-                desc: 'Servidores con respaldos continuos automáticos y redundancia permanente.',
-              },
-              {
-                icon: KeyRound,
-                title: 'SupportAccessGate',
-                highlight: 'Acceso controlado',
-                desc: 'Acceso técnico restringido bajo autorización explícita del bufete.',
-              },
-            ].map((seal, i) => (
-              <li
-                key={i}
-                className="group flex flex-col items-center text-center rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all duration-300 hover:border-[#f97316]/40 hover:bg-white/[0.05]"
-                data-testid={`trust-seal-${i}`}
-              >
-                <div className="w-14 h-14 rounded-2xl border border-[#f97316]/40 bg-[#f97316]/10 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-105">
-                  <seal.icon className="w-7 h-7 text-[#fb923c]" strokeWidth={1.75} aria-hidden="true" />
-                </div>
-                <h3 className="text-white font-semibold text-sm leading-tight">
-                  {seal.title}
-                </h3>
-                <span className="text-[#f97316] text-[11px] font-bold uppercase tracking-wider mt-1">
-                  {seal.highlight}
-                </span>
-                <p className="text-white/50 text-xs leading-relaxed mt-3">
-                  {seal.desc}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <SecuritySeals />
 
       <footer className="border-t border-white/10 backdrop-blur-md bg-[#0f172a]/70 py-12 px-6" role="contentinfo">
 
