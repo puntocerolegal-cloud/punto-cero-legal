@@ -15,6 +15,9 @@ import uuid
 import base64
 import httpx
 
+from routes.auth import get_current_user
+from security.tenant_scope import validate_org_ownership
+
 router = APIRouter(prefix="/invoices", tags=["Invoicing"])
 
 MP_API = "https://api.mercadopago.com"
@@ -101,8 +104,16 @@ async def _next_invoice_number(lawyer_id: str, db: AsyncIOMotorDatabase) -> str:
 
 
 @router.get("/", response_model=List[dict])
-async def list_invoices(lawyer_id: str, status: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_db)):
-    q = {"lawyer_id": lawyer_id}
+async def list_invoices(
+    lawyer_id: str,
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    q = {
+        "lawyer_id": lawyer_id,
+        "organization_id": current_user.get("organization_id")
+    }
     if status and status != "all":
         q["status"] = status
     docs = await db.invoices.find(q).sort("created_at", -1).to_list(1000)
@@ -110,7 +121,11 @@ async def list_invoices(lawyer_id: str, status: Optional[str] = None, db: AsyncI
 
 
 @router.post("/", response_model=dict, status_code=201)
-async def create_invoice(payload: InvoiceIn, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_invoice(
+    payload: InvoiceIn,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     if payload.status not in STATUS_VALUES:
         raise HTTPException(400, "Estado inválido")
     due = None
@@ -120,6 +135,7 @@ async def create_invoice(payload: InvoiceIn, db: AsyncIOMotorDatabase = Depends(
         except Exception:
             due = None
     doc = {
+        "organization_id": current_user.get("organization_id"),
         "lawyer_id": payload.lawyer_id,
         "client_id": payload.client_id,
         "case_id": payload.case_id,
@@ -154,7 +170,17 @@ async def create_invoice(payload: InvoiceIn, db: AsyncIOMotorDatabase = Depends(
 
 
 @router.patch("/{invoice_id}", response_model=dict)
-async def update_invoice(invoice_id: str, payload: InvoiceUpdate, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def update_invoice(
+    invoice_id: str,
+    payload: InvoiceUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    invoice = await db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        raise HTTPException(404, "Factura no encontrada")
+    validate_org_ownership(invoice, current_user, "organization_id")
+
     update = {}
     if payload.status is not None:
         if payload.status not in STATUS_VALUES:
@@ -185,7 +211,15 @@ async def update_invoice(invoice_id: str, payload: InvoiceUpdate, db: AsyncIOMot
 
 
 @router.delete("/{invoice_id}", status_code=204)
-async def delete_invoice(invoice_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def delete_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    invoice = await db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        raise HTTPException(404, "Factura no encontrada")
+    validate_org_ownership(invoice, current_user, "organization_id")
     res = await db.invoices.delete_one({"_id": ObjectId(invoice_id)})
     if res.deleted_count == 0:
         raise HTTPException(404, "Factura no encontrada")
