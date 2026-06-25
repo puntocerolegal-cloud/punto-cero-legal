@@ -41,27 +41,34 @@ async def list_firms(
         for firm in firms
     ]
 
-# POST /firms - Crear nueva firma
+# POST /firms - Crear nueva firma (sin requerir abogado previo)
 @router.post("/", response_model=FirmResponse, status_code=status.HTTP_201_CREATED)
 async def create_firm(
     firm_data: FirmCreate,
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Crear nueva firma (solo admin)"""
+    """Crear nueva firma y generar automáticamente usuario firm_owner (solo admin)
+
+    FLUJO:
+    1. Crea la firma
+    2. Crea automáticamente un usuario firm_owner con los datos del socio fundador
+    3. Asocia el firm_owner a la firma
+    """
     if current_user.get("role") not in ["admin", "admin_general"]:
         raise HTTPException(status_code=403, detail="Solo administradores pueden crear firmas")
-    
-    # Verificar que el owner existe
-    owner = await db.users.find_one({"_id": ObjectId(firm_data.owner_id)})
-    if not owner:
-        raise HTTPException(status_code=404, detail="Usuario propietario no encontrado")
-    
+
     # Verificar que no exista firma con mismo email
-    existing = await db.firms.find_one({"email": firm_data.email})
-    if existing:
+    existing_firm = await db.firms.find_one({"email": firm_data.email})
+    if existing_firm:
         raise HTTPException(status_code=400, detail="Ya existe una firma con este email")
-    
+
+    # Verificar que no exista usuario con el email del socio fundador
+    existing_user = await db.users.find_one({"email": firm_data.founder_email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Ya existe un usuario con el email del socio fundador")
+
+    # PASO 1: Crear la firma (sin owner_id todavía)
     firm_doc = {
         "name": firm_data.name,
         "email": firm_data.email,
@@ -72,36 +79,71 @@ async def create_firm(
         "plan": firm_data.plan,
         "max_lawyers": 5 if firm_data.plan == "firm_growth" else 20,
         "active_lawyers_count": 0,
-        "owner_id": firm_data.owner_id,
-        "owner_name": owner.get("full_name", ""),
-        "owner_email": owner.get("email", ""),
+        "owner_id": None,  # Se asignará después de crear el usuario
+        "owner_name": firm_data.founder_name,
+        "owner_email": firm_data.founder_email,
         "status": "active",
         "is_verified": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
-    
-    result = await db.firms.insert_one(firm_doc)
-    
-    # Actualizar usuario propietario: asignar firm_id y role = firm_owner
-    await db.users.update_one(
-        {"_id": ObjectId(firm_data.owner_id)},
+
+    firm_result = await db.firms.insert_one(firm_doc)
+    firm_id = str(firm_result.inserted_id)
+
+    # PASO 2: Crear automáticamente el usuario firm_owner
+    from utils.auth import get_password_hash
+    import secrets
+
+    # Generar una contraseña temporal aleatoria
+    temp_password = secrets.token_urlsafe(12)
+
+    user_doc = {
+        "email": firm_data.founder_email,
+        "full_name": firm_data.founder_name,
+        "password_hash": get_password_hash(temp_password),
+        "phone": firm_data.founder_phone,
+        "bar_number": firm_data.founder_bar_number,
+        "role": "firm_owner",
+        "firm_id": firm_id,
+        "status": "ACTIVE",
+        "is_verified": True,
+        "country": "Colombia",
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+
+    user_result = await db.users.insert_one(user_doc)
+    owner_id = str(user_result.inserted_id)
+
+    # PASO 3: Actualizar la firma con el owner_id del nuevo usuario
+    await db.firms.update_one(
+        {"_id": ObjectId(firm_id)},
         {"$set": {
-            "firm_id": str(result.inserted_id),
-            "role": "firm_owner",
+            "owner_id": owner_id,
             "updated_at": datetime.utcnow()
         }}
     )
-    
+
+    # PASO 4: Registrar credenciales de acceso inicial (opcional: almacenar para enviar por email)
+    # Esto podría usarse para enviar credenciales iniciales al propietario
+    initial_credentials = {
+        "firm_owner_id": owner_id,
+        "email": firm_data.founder_email,
+        "temp_password": temp_password,
+        "firm_id": firm_id,
+        "created_at": datetime.utcnow(),
+    }
+
     return FirmResponse(
-        id=str(result.inserted_id),
+        id=firm_id,
         name=firm_doc["name"],
         email=firm_doc["email"],
         plan=firm_doc["plan"],
         max_lawyers=firm_doc["max_lawyers"],
         active_lawyers_count=0,
-        owner_name=firm_doc["owner_name"],
-        owner_email=firm_doc["owner_email"],
+        owner_name=firm_data.founder_name,
+        owner_email=firm_data.founder_email,
         status=firm_doc["status"],
         is_verified=False,
         created_at=firm_doc["created_at"].isoformat(),

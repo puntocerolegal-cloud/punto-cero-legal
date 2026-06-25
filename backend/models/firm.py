@@ -18,9 +18,9 @@ class Firm(BaseModel):
     active_lawyers_count: int = Field(default=0, description="Número actual de abogados activos")
     
     # Owner Information
-    owner_id: str = Field(..., description="ID del propietario de la firma (usuario)")
-    owner_name: str = Field(...)
-    owner_email: str = Field(...)
+    owner_id: Optional[str] = Field(None, description="ID del propietario de la firma (usuario)")
+    owner_name: Optional[str] = Field(None)
+    owner_email: Optional[str] = Field(None)
     
     # Status
     status: str = Field(default="active", description="active | suspended | inactive")
@@ -58,7 +58,11 @@ class FirmCreate(BaseModel):
     city: Optional[str] = None
     country: Optional[str] = "Colombia"
     plan: str = Field(default="firm_growth")
-    owner_id: str
+    # Socio Fundador - campos para crear firm_owner automáticamente
+    founder_name: str = Field(..., min_length=1, max_length=200)
+    founder_email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    founder_phone: Optional[str] = None
+    founder_bar_number: Optional[str] = None
 
 class FirmUpdate(BaseModel):
     name: Optional[str] = None
