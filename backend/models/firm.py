@@ -6,6 +6,7 @@ class Firm(BaseModel):
     """Modelo de Firma - Entidad para planes Firma en Crecimiento y Consolidación Empresarial"""
     id: Optional[str] = Field(None, alias="_id")
     name: str = Field(..., min_length=1, max_length=200)
+    nit: Optional[str] = Field(None, min_length=5, max_length=20, description="NIT único de la firma")
     email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -51,18 +52,22 @@ class Firm(BaseModel):
         }
 
 class FirmCreate(BaseModel):
+    # DATOS DE LA FIRMA
     name: str = Field(..., min_length=1, max_length=200)
-    email: str
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    city: Optional[str] = None
-    country: Optional[str] = "Colombia"
-    plan: str = Field(default="firm_growth")
-    # Socio Fundador - campos para crear firm_owner automáticamente
+    nit: str = Field(..., min_length=5, max_length=20, description="NIT único de la firma")
+    email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    phone: str = Field(..., description="Teléfono corporativo")
+    address: str = Field(..., description="Dirección de la firma")
+    city: str = Field(..., description="Ciudad")
+    country: str = Field(default="Colombia", description="País")
+    plan: str = Field(..., description="firm_growth | firm_enterprise")
+
+    # SOCIO FUNDADOR - campos para crear firm_owner automáticamente
     founder_name: str = Field(..., min_length=1, max_length=200)
     founder_email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
-    founder_phone: Optional[str] = None
-    founder_bar_number: Optional[str] = None
+    founder_phone: str = Field(..., description="Teléfono del socio")
+    founder_document: str = Field(..., min_length=5, max_length=20, description="Documento de identidad")
+    founder_bar_number: str = Field(..., min_length=1, max_length=50, description="Tarjeta profesional")
 
 class FirmUpdate(BaseModel):
     name: Optional[str] = None

@@ -12,6 +12,165 @@ async def get_db():
     from server import db
     return db
 
+# POST /firms/register - Registro público de firmas (desde landing page)
+@router.post("/register", response_model=FirmResponse, status_code=status.HTTP_201_CREATED)
+async def register_firm(
+    firm_data: FirmCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Registro público de firma (sin autenticación requerida)
+
+    FLUJO:
+    1. Valida que no existan duplicados (email, NIT)
+    2. Crea firma en colección 'firms'
+    3. Crea usuario 'firm_owner' automáticamente
+    4. Crea suscripción inicial
+    5. Crea configuración inicial de Firm OS
+    6. Envía correo de bienvenida
+    """
+    from utils.auth import get_password_hash
+    import secrets
+
+    # VALIDACIONES
+    # Verificar email duplicado (firma)
+    existing_firm_email = await db.firms.find_one({"email": firm_data.email})
+    if existing_firm_email:
+        raise HTTPException(status_code=400, detail="Ya existe una firma registrada con este correo")
+
+    # Verificar NIT duplicado
+    existing_firm_nit = await db.firms.find_one({"nit": firm_data.nit})
+    if existing_firm_nit:
+        raise HTTPException(status_code=400, detail="Ya existe una firma registrada con este NIT")
+
+    # Verificar email duplicado (usuario fundador)
+    existing_user = await db.users.find_one({"email": firm_data.founder_email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Este correo ya está registrado en el sistema")
+
+    # PASO 1: Crear la firma
+    firm_doc = {
+        "name": firm_data.name,
+        "nit": firm_data.nit,
+        "email": firm_data.email,
+        "phone": firm_data.phone,
+        "address": firm_data.address,
+        "city": firm_data.city,
+        "country": firm_data.country or "Colombia",
+        "plan": firm_data.plan,
+        "max_lawyers": 5 if firm_data.plan == "firm_growth" else 10,
+        "active_lawyers_count": 0,
+        "owner_id": None,  # Se asignará después
+        "owner_name": firm_data.founder_name,
+        "owner_email": firm_data.founder_email,
+        "status": "active",
+        "is_verified": False,  # Requiere validación de email
+        "subscription_status": "trial",
+        "trial_ends_at": datetime.utcnow() + __import__('datetime').timedelta(days=30),
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+
+    firm_result = await db.firms.insert_one(firm_doc)
+    firm_id = str(firm_result.inserted_id)
+
+    # PASO 2: Crear usuario firm_owner
+    temp_password = secrets.token_urlsafe(12)
+
+    user_doc = {
+        "email": firm_data.founder_email,
+        "full_name": firm_data.founder_name,
+        "password_hash": get_password_hash(temp_password),
+        "phone": firm_data.founder_phone,
+        "id_document": firm_data.founder_document,
+        "bar_number": firm_data.founder_bar_number,
+        "role": "firm_owner",
+        "firm_id": firm_id,
+        "status": "PENDING_VERIFICATION",  # Requiere verificación de email
+        "is_verified": False,
+        "country": firm_data.country or "Colombia",
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+
+    user_result = await db.users.insert_one(user_doc)
+    owner_id = str(user_result.inserted_id)
+
+    # PASO 3: Actualizar firma con owner_id
+    await db.firms.update_one(
+        {"_id": ObjectId(firm_id)},
+        {"$set": {
+            "owner_id": owner_id,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # PASO 4: Crear suscripción inicial
+    subscription_doc = {
+        "firm_id": firm_id,
+        "owner_id": owner_id,
+        "plan": firm_data.plan,
+        "status": "trial",
+        "started_at": datetime.utcnow(),
+        "trial_ends_at": datetime.utcnow() + __import__('datetime').timedelta(days=30),
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+
+    if hasattr(db, 'subscriptions'):
+        await db.subscriptions.insert_one(subscription_doc)
+
+    # PASO 5: Crear configuración inicial de Firm OS
+    config_doc = {
+        "firm_id": firm_id,
+        "firm_name": firm_data.name,
+        "settings": {
+            "language": "es",
+            "timezone": "America/Bogota",
+            "currency": "COP",
+            "max_lawyers": 5 if firm_data.plan == "firm_growth" else 10,
+        },
+        "features": {
+            "firm_dashboard": True,
+            "case_management": True,
+            "lawyer_management": True,
+            "finance_module": True,
+            "analytics": True,
+        },
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+
+    if hasattr(db, 'firm_configurations'):
+        await db.firm_configurations.insert_one(config_doc)
+
+    # PASO 6: Registrar credenciales para email (implementar envío posterior)
+    credentials_doc = {
+        "firm_id": firm_id,
+        "owner_id": owner_id,
+        "email": firm_data.founder_email,
+        "temp_password": temp_password,
+        "sent": False,
+        "created_at": datetime.utcnow(),
+    }
+
+    if hasattr(db, 'initial_credentials'):
+        await db.initial_credentials.insert_one(credentials_doc)
+
+    return FirmResponse(
+        id=firm_id,
+        name=firm_doc["name"],
+        email=firm_doc["email"],
+        plan=firm_doc["plan"],
+        max_lawyers=firm_doc["max_lawyers"],
+        active_lawyers_count=0,
+        owner_name=firm_data.founder_name,
+        owner_email=firm_data.founder_email,
+        status=firm_doc["status"],
+        is_verified=False,
+        created_at=firm_doc["created_at"].isoformat(),
+        updated_at=firm_doc["updated_at"].isoformat()
+    )
+
 # GET /firms - Listar todas las firmas (admin only)
 @router.get("/", response_model=List[FirmResponse], status_code=status.HTTP_200_OK)
 async def list_firms(
