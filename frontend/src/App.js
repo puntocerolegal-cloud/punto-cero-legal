@@ -21,6 +21,7 @@ function LegacyOsRedirect() {
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ActivateFirmPage from './pages/ActivateFirmPage';
 import VerificacionPendiente from './pages/VerificacionPendiente';
 import CheckoutPage from './pages/CheckoutPage';
 import DashboardHome from './pages/DashboardHome';
@@ -65,6 +66,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/activate-firm" element={<ActivateFirmPage />} />
 
             <Route path="/verificacion-pendiente" element={<ProtectedRoute allowUnverified={true}><VerificacionPendiente /></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute allowUnverified={true}><CheckoutPage /></ProtectedRoute>} />
