@@ -36,7 +36,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
-import FirmsBlock from '../modules/firms/FirmsBlock';
 
 import { trackEvent } from '../lib/analytics';
 
@@ -2571,9 +2570,6 @@ export const LandingPage = () => {
           </motion.div>
 
         </div>
-
-        {/* FirmsBlock - Integración de Firmas dentro de Partner */}
-        <FirmsBlock onOpenRegistration={() => {}} />
 
       </section>
 
