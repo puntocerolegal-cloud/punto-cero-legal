@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.firm import Firm, FirmCreate, FirmUpdate, FirmResponse, FirmRejectRequest
+from models.user import UserActivateAccount
 from routes.auth import get_current_user
 from bson import ObjectId
 
@@ -29,7 +31,6 @@ async def register_firm(
     6. Envía correo de bienvenida
     """
     from utils.auth import get_password_hash
-    import secrets
 
     # VALIDACIONES
     # Verificar email duplicado (firma)
@@ -280,7 +281,6 @@ async def create_firm(
 
     # PASO 2: Crear automáticamente el usuario firm_owner
     from utils.auth import get_password_hash
-    import secrets
 
     # Generar una contraseña temporal aleatoria
     temp_password = secrets.token_urlsafe(12)
@@ -440,7 +440,7 @@ async def approve_firm(
 
     # Generar token de activación válido por 24 horas
     activation_token = secrets.token_urlsafe(32)
-    activation_expires = datetime.utcnow() + __import__('datetime').timedelta(hours=24)
+    activation_expires = datetime.utcnow() + timedelta(hours=24)
 
     # Actualizar firma a ACTIVE
     await db.firms.update_one(
@@ -629,14 +629,14 @@ async def reject_firm(
 # POST /firms/activate-account - Activar cuenta de firm_owner (sin autenticación - usa token)
 @router.post("/activate-account", status_code=status.HTTP_200_OK)
 async def activate_firm_account(
-    activation_data: dict,
+    activation_data: UserActivateAccount,
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Activar cuenta de firm_owner usando token de activación"""
     from utils.auth import get_password_hash
 
-    token = activation_data.get("token", "")
-    password = activation_data.get("password", "")
+    token = activation_data.token
+    password = activation_data.password
 
     if not token or not password:
         raise HTTPException(status_code=400, detail="Token y contraseña requeridos")

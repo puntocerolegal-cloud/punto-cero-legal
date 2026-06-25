@@ -1,11 +1,12 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { BarChart3, Users, FolderKanban, Settings, Building2, DollarSign, TrendingUp } from "lucide-react";
+import { BarChart3, Users, UserCheck, FolderKanban, Settings, Building2, DollarSign, TrendingUp } from "lucide-react";
 
 export function FirmOSSidebar({ onNavigate }) {
   const menuItems = [
     { icon: BarChart3, label: "Dashboard", path: "/firm-os" },
     { icon: Users, label: "Abogados", path: "/firm-os/lawyers" },
+    { icon: UserCheck, label: "Equipo", path: "/firm-os/team" },
     { icon: FolderKanban, label: "Casos", path: "/firm-os/cases" },
     { icon: DollarSign, label: "Finanzas", path: "/firm-os/finance" },
     { icon: TrendingUp, label: "Analytics", path: "/firm-os/analytics" },

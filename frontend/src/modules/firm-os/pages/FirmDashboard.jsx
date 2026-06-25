@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Users, FolderKanban, DollarSign, TrendingUp } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
+import { useFirmOnboarding } from "@/hooks/useFirmOnboarding";
 
 const MetricCard = ({ icon: Icon, title, value, subtitle }) => (
   <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
@@ -17,6 +18,8 @@ const MetricCard = ({ icon: Icon, title, value, subtitle }) => (
 );
 
 export function FirmDashboard() {
+  useFirmOnboarding(); // Redirigir a onboarding si no está completado
+
   const [data, setData] = useState({
     lawyers: 0,
     activeCases: 0,

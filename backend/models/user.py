@@ -21,7 +21,11 @@ class PyObjectId(ObjectId):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: Literal["admin", "admin_general", "socio_comercial", "lawyer", "client", "firm_owner", "firm_admin", "firm_lawyer"]
+    role: Literal[
+        "admin", "admin_general", "socio_comercial", "lawyer", "client",
+        "firm_owner", "firm_admin", "firm_lawyer",
+        "partner", "senior_lawyer", "paralegal", "assistant", "finance", "hr"
+    ]
     phone: Optional[str] = None
     country: Optional[str] = None
     specialty: Optional[str] = None
@@ -37,6 +41,9 @@ class UserBase(BaseModel):
     activation_token: Optional[str] = Field(None, description="Token para activar cuenta")
     activation_expires_at: Optional[datetime] = Field(None, description="Expiración del token de activación")
     activated_at: Optional[datetime] = Field(None, description="Fecha de activación")
+
+    # RBAC fields for Firm OS
+    permissions: Optional[list] = Field(default_factory=list, description="Permisos específicos del usuario")
 
 class UserCreate(UserBase):
     password: str
