@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master, commissions, timeline, firm_management, sales_analytics, ai_operations, financial, ai_autopilot, autonomous, global_network, legal_os, firms
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master, commissions, timeline, firm_management, sales_analytics, ai_operations, financial, ai_autopilot, autonomous, global_network, legal_os, firms, users
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -72,6 +72,7 @@ api_router.include_router(autonomous.router)      # FASE 13 — Autonomous Syste
 api_router.include_router(global_network.router)  # FASE 14 — Global Network (multi-país, multi-moneda, cumplimiento)
 api_router.include_router(legal_os.router)        # FASE 15 — Legal OS (sistema operativo autónomo global)
 api_router.include_router(firms.router)           # FASE 16 — Firm OS (firmas en crecimiento y consolidación)
+api_router.include_router(users.router)           # Users — Listar usuarios para admin
 
 # Inicialización de cuentas maestras al arranque
 @app.on_event("startup")
