@@ -143,13 +143,118 @@ async def register_firm(
     if hasattr(db, 'firm_configurations'):
         await db.firm_configurations.insert_one(config_doc)
 
-    # PASO 6: Registrar credenciales para email (implementar envío posterior)
+    # PASO 6: Enviar correo de bienvenida con credenciales
+    from utils.notifier import send_email
+
+    email_html = f"""
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }}
+            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+            .header {{ text-align: center; margin-bottom: 30px; }}
+            .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
+            .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
+            .subtitle {{ color: #6b7280; font-size: 14px; margin-bottom: 30px; }}
+            .section {{ margin: 20px 0; padding: 15px; background: #f9fafb; border-left: 4px solid #f97316; }}
+            .label {{ color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin: 10px 0 5px 0; }}
+            .value {{ color: #1f2937; font-size: 16px; font-weight: 600; font-family: 'Monaco', 'Courier New', monospace; }}
+            .button {{ display: inline-block; background: #f97316; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 20px 0; }}
+            .button:hover {{ background: #fb923c; }}
+            .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
+            .warning {{ background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">PUNTO CERO</div>
+                <div class="subtitle">Sistema Integral de Gestión Jurídica</div>
+            </div>
+
+            <div class="title">¡Bienvenido a Punto Cero!</div>
+            <p>Hola <strong>{firm_data.founder_name}</strong>,</p>
+
+            <p>Tu firma <strong>{firm_data.name}</strong> ha sido registrada exitosamente en Punto Cero.
+            A continuación encontrarás tus credenciales iniciales para acceder a tu panel de control.</p>
+
+            <div class="section">
+                <div class="label">Datos de tu Firma</div>
+                <p>
+                    <strong>Nombre:</strong> {firm_data.name}<br>
+                    <strong>NIT:</strong> {firm_data.nit}<br>
+                    <strong>Email:</strong> {firm_data.email}<br>
+                    <strong>Plan:</strong> {'Firma en Crecimiento (5 abogados)' if firm_data.plan == 'firm_growth' else 'Consolidación Empresarial (10 abogados)'}<br>
+                    <strong>Período de prueba:</strong> 30 días completos
+                </p>
+            </div>
+
+            <div class="section">
+                <div class="label">Tus Credenciales de Acceso</div>
+                <p>
+                    <strong>Usuario/Email:</strong><br>
+                    <span class="value">{firm_data.founder_email}</span>
+                </p>
+                <p>
+                    <strong>Contraseña Temporal:</strong><br>
+                    <span class="value">{temp_password}</span>
+                </p>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ Importante:</strong> Esta es tu contraseña temporal.
+                Por seguridad, te recomendamos cambiarla inmediatamente al primer acceso.
+            </div>
+
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="https://puntocerolegal.com/login" class="button">Acceder a Mi Firma</a>
+            </p>
+
+            <h3 style="color: #1f2937; margin-top: 30px;">¿Qué sigue?</h3>
+            <ul>
+                <li><strong>Inicia sesión</strong> con tus credenciales</li>
+                <li><strong>Cambia tu contraseña</strong> en la sección de Configuración</li>
+                <li><strong>Completa tu perfil</strong> con información de la firma</li>
+                <li><strong>Invita abogados</strong> desde el panel de control</li>
+                <li><strong>Comienza a crear casos</strong> y gestionar tu firma</li>
+            </ul>
+
+            <h3 style="color: #1f2937;">Acceso a Punto Cero Firm OS</h3>
+            <p>Una vez dentro del sistema, tendrás acceso a:</p>
+            <ul>
+                <li>📊 Dashboard de tu Firma</li>
+                <li>👥 Gestión de Abogados</li>
+                <li>📁 Administrador de Casos</li>
+                <li>💰 Módulo de Finanzas</li>
+                <li>📈 Analytics y Reportes</li>
+            </ul>
+
+            <div class="footer">
+                <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
+                <p>Si tienes preguntas, contacta a <strong>soporte@puntocerolegal.com</strong></p>
+                <p style="margin-top: 10px; font-size: 11px;">Este correo fue enviado porque registraste una nueva firma en Punto Cero. Si no fue así, ignora este mensaje.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    email_result = send_email(
+        to_email=firm_data.founder_email,
+        subject=f"¡Bienvenido a Punto Cero! Credenciales para {firm_data.name}",
+        body_html=email_html
+    )
+
+    # PASO 7: Registrar envío en BD
     credentials_doc = {
         "firm_id": firm_id,
         "owner_id": owner_id,
         "email": firm_data.founder_email,
         "temp_password": temp_password,
-        "sent": False,
+        "sent": email_result.get("sent", False),
+        "email_channel": email_result.get("channel", "email"),
+        "email_reason": email_result.get("reason"),
         "created_at": datetime.utcnow(),
     }
 
