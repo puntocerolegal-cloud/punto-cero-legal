@@ -86,6 +86,9 @@ class FirmUpdate(BaseModel):
     status: Optional[str] = None
     is_verified: Optional[bool] = None
 
+class FirmRejectRequest(BaseModel):
+    reason: str = Field(..., min_length=5, max_length=500, description="Motivo del rechazo")
+
 class FirmResponse(BaseModel):
     id: str
     name: str

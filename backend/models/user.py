@@ -57,6 +57,10 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserActivateAccount(BaseModel):
+    token: str
+    password: str = Field(..., min_length=8, description="Mínimo 8 caracteres con mayúscula y número")
+
 class UserResponse(UserBase):
     id: str
     subscription_id: Optional[str] = None

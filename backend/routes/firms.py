@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from models.firm import Firm, FirmCreate, FirmUpdate, FirmResponse
+from models.firm import Firm, FirmCreate, FirmUpdate, FirmResponse, FirmRejectRequest
 from routes.auth import get_current_user
 from bson import ObjectId
 
@@ -541,11 +541,11 @@ async def approve_firm(
 @router.post("/{firm_id}/reject", status_code=status.HTTP_200_OK)
 async def reject_firm(
     firm_id: str,
-    rejection_data: dict,
+    rejection_request: FirmRejectRequest,
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Rechazar firma (solo admin)"""
+    """Rechazar firma con motivo validado (solo admin)"""
     if current_user.get("role") not in ["admin", "admin_general"]:
         raise HTTPException(status_code=403, detail="Solo administradores pueden rechazar firmas")
 
@@ -558,7 +558,7 @@ async def reject_firm(
     if not firm:
         raise HTTPException(status_code=404, detail="Firma no encontrada")
 
-    rejection_reason = rejection_data.get("reason", "")
+    rejection_reason = rejection_request.reason
 
     # Cambiar status a REJECTED
     await db.firms.update_one(
@@ -624,6 +624,68 @@ async def reject_firm(
         "success": True,
         "message": f"Firma {firm.get('name')} rechazada.",
         "firm_id": firm_id
+    }
+
+# POST /firms/activate-account - Activar cuenta de firm_owner (sin autenticación - usa token)
+@router.post("/activate-account", status_code=status.HTTP_200_OK)
+async def activate_firm_account(
+    activation_data: dict,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Activar cuenta de firm_owner usando token de activación"""
+    from utils.auth import get_password_hash
+
+    token = activation_data.get("token", "")
+    password = activation_data.get("password", "")
+
+    if not token or not password:
+        raise HTTPException(status_code=400, detail="Token y contraseña requeridos")
+
+    # PASO 1: Buscar usuario por token
+    user = await db.users.find_one({"activation_token": token})
+    if not user:
+        raise HTTPException(status_code=404, detail="Token inválido o no encontrado")
+
+    # PASO 2: Validar expiración
+    if user.get("activation_expires_at"):
+        expires_at = user["activation_expires_at"]
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        if datetime.utcnow() > expires_at:
+            raise HTTPException(status_code=410, detail="Token expirado")
+
+    # PASO 3: Hash contraseña
+    password_hash = get_password_hash(password)
+
+    # PASO 4: Actualizar usuario
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {
+            "password_hash": password_hash,
+            "status": "ACTIVE",
+            "is_verified": True,
+            "activation_token": None,
+            "activation_expires_at": None,
+            "activated_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # PASO 5: Actualizar firma a ACTIVE
+    if user.get("firm_id"):
+        await db.firms.update_one(
+            {"_id": ObjectId(user["firm_id"])},
+            {"$set": {
+                "status": "ACTIVE",
+                "is_verified": True,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+
+    return {
+        "success": True,
+        "message": "Cuenta activada exitosamente. Inicia sesión para continuar.",
+        "email": user.get("email")
     }
 
 # GET /firms/pending - Listar firmas pendientes de aprobación (admin only)
