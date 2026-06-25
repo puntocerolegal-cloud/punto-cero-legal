@@ -36,6 +36,7 @@ import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
 import { FirmRegistrationModal } from '../components/FirmRegistrationModal';
+import { FirmOSPreviewBlock } from '../components/FirmOSPreviewBlock';
 
 import { trackEvent } from '../lib/analytics';
 
@@ -2344,7 +2345,12 @@ export const LandingPage = () => {
 
       </section>
 
-
+      {/* === FIRM OS PREVIEW (Bloque de Prueba) === */}
+      <section className="relative py-16 px-6 overflow-hidden">
+        <div className="container mx-auto relative z-10">
+          <FirmOSPreviewBlock />
+        </div>
+      </section>
 
       {/* === PUNTO CERO PARTNER (Solución Empresarial) === */}
 
