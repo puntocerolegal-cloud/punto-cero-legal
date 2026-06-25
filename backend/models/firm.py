@@ -6,7 +6,7 @@ class Firm(BaseModel):
     """Modelo de Firma - Entidad para planes Firma en Crecimiento y Consolidación Empresarial"""
     id: Optional[str] = Field(None, alias="_id")
     name: str = Field(..., min_length=1, max_length=200)
-    email: str = Field(..., regex=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
