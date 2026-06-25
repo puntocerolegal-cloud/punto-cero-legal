@@ -16,6 +16,7 @@ const MetricCard = ({ icon: Icon, title, value, subtitle, color }) => (
   </div>
 );
 
+// Force Vercel rebuild - v2
 export function FirmsOverview() {
   const [firms, setFirms] = useState([]);
   const [loading, setLoading] = useState(true);
