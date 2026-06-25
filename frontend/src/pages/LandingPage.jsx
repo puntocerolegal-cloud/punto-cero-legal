@@ -377,8 +377,6 @@ export const LandingPage = () => {
 
               <a href="#firmas" className="text-white/80 hover:text-[#10b981] transition-colors">Firmas</a>
 
-              <a href="#faq" className="text-white/80 hover:text-[#3b82f6] transition-colors">FAQ</a>
-
               <a href="#partner" className="text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Socios</a>
 
               <Button onClick={handleAccess} variant="outline" className="border-[#f97316] text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all" data-testid="navbar-access-btn">
@@ -426,8 +424,6 @@ export const LandingPage = () => {
               <a href="#abogados" className="block text-white/80 hover:text-[#3b82f6] transition-colors">Abogados Aliados</a>
 
               <a href="#firmas" className="block text-white/80 hover:text-[#10b981] transition-colors">Firmas</a>
-
-              <a href="#faq" className="block text-white/80 hover:text-[#3b82f6] transition-colors">FAQ</a>
 
               <a href="#partner" className="block text-[#f97316] font-semibold hover:text-[#fb923c] transition-colors">Socios</a>
 
@@ -2354,236 +2350,6 @@ export const LandingPage = () => {
 
 
 
-      {/* === PUNTO CERO PARTNER (Solución Empresarial) === */}
-
-      <section id="partner" className="relative py-24 px-6 overflow-hidden">
-
-        {/* Fondo premium con profundidad */}
-
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0e1a] via-[#0f172a] to-[#0a0e1a]" />
-
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(249,115,22,0.12),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(59,130,246,0.12),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(16,185,129,0.10),transparent_50%)]" />
-
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-px bg-gradient-to-r from-transparent via-[#f97316]/50 to-transparent" />
-
-
-
-        <div className="container mx-auto relative z-10">
-
-          {/* Encabezado */}
-
-          <motion.div
-
-            initial={{ opacity: 0, y: 30 }}
-
-            whileInView={{ opacity: 1, y: 0 }}
-
-            viewport={{ once: true }}
-
-            className="text-center max-w-4xl mx-auto mb-14"
-
-          >
-
-            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-[#f97316]/20 via-[#3b82f6]/20 to-[#10b981]/20 border border-white/15 backdrop-blur-sm text-white/80 text-xs font-bold uppercase tracking-[0.25em] mb-6">
-
-              <Crown className="w-4 h-4 text-[#f97316]" /> Solución Empresarial Exclusiva
-
-            </span>
-
-            <h2 className="text-5xl lg:text-7xl font-black mb-5 tracking-tight">
-
-              <span className="bg-gradient-to-r from-[#f97316] via-[#fb923c] to-[#3b82f6] bg-clip-text text-transparent">PUNTO CERO PARTNER</span>
-
-            </h2>
-
-            <p className="text-xl lg:text-2xl text-white font-semibold mb-6">
-
-              ¿Gestionas una firma jurídica en crecimiento o un bufete con más de 10 profesionales?
-
-            </p>
-
-            <div className="space-y-4 text-white/70 leading-relaxed text-left md:text-center max-w-3xl mx-auto">
-
-              <p>Lleva tu organización legal al siguiente nivel con una solución empresarial exclusiva diseñada para firmas que requieren mayor capacidad operativa, independencia tecnológica y personalización avanzada.</p>
-
-              <p>Obtén una instancia privada de Punto Cero completamente configurada para tu organización, con infraestructura independiente, identidad corporativa propia y funcionalidades adaptadas a tus procesos internos.</p>
-
-              <p>Nuestra solución empresarial permite centralizar operaciones, automatizar procesos jurídicos, optimizar la productividad de los equipos y escalar la gestión legal sin limitaciones.</p>
-
-            </div>
-
-          </motion.div>
-
-
-
-          {/* Beneficios — tarjetas premium */}
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto mb-14">
-
-            {[
-
-              { icon: Crown, title: 'CONTROL TOTAL', color: '#f97316', desc: 'Administra tu propio entorno privado con capacidad para gestionar más de 500 casos activos, múltiples equipos de trabajo y operaciones simultáneas sin interferencias.' },
-
-              { icon: Scale, title: 'INDEPENDENCIA TECNOLÓGICA', color: '#3b82f6', desc: 'Desarrollo personalizado con infraestructura exclusiva para tu firma.' },
-
-              { icon: Shield, title: 'SEGURIDAD EMPRESARIAL', color: '#10b981', desc: 'Entorno robusto con altos estándares de protección, privacidad y control de acceso.' },
-
-              { icon: Sparkles, title: 'PERSONALIZACIÓN AVANZADA', color: '#8b5cf6', desc: 'Adaptamos módulos, procesos, automatizaciones y flujos de trabajo según las necesidades de tu organización.' },
-
-              { icon: Users, title: 'CONSULTORÍA EXCLUSIVA', color: '#ec4899', desc: 'Acompañamiento especializado desde la implementación hasta la puesta en marcha.' },
-
-            ].map((b, i) => (
-
-              <motion.div
-
-                key={`partner-${b.title.replace(/\s+/g, '-').toLowerCase()}`}
-
-                initial={{ opacity: 0, y: 30 }}
-
-                whileInView={{ opacity: 1, y: 0 }}
-
-                viewport={{ once: true }}
-
-                transition={{ delay: i * 0.08 }}
-
-                className="relative backdrop-blur-2xl bg-white/[0.04] border border-white/10 rounded-3xl p-7 hover:bg-white/[0.07] hover:border-white/20 hover:shadow-[0_25px_70px_-20px_rgba(0,0,0,0.7)] group"
-
-                style={{ transition: 'all 0.4s ease' }}
-
-              >
-
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 border" style={{ background: `${b.color}1f`, borderColor: `${b.color}55` }}>
-
-                  <b.icon className="w-7 h-7" style={{ color: b.color }} />
-
-                </div>
-
-                <h3 className="text-white font-bold tracking-wide mb-2">{b.title}</h3>
-
-                <p className="text-white/60 text-sm leading-relaxed">{b.desc}</p>
-
-              </motion.div>
-
-            ))}
-
-
-
-            {/* Ideal para */}
-
-            <motion.div
-
-              initial={{ opacity: 0, y: 30 }}
-
-              whileInView={{ opacity: 1, y: 0 }}
-
-              viewport={{ once: true }}
-
-              transition={{ delay: 0.4 }}
-
-              className="relative backdrop-blur-2xl bg-gradient-to-br from-[#f97316]/10 to-[#3b82f6]/10 border border-[#f97316]/30 rounded-3xl p-7"
-
-            >
-
-              <h3 className="text-white font-bold tracking-wide mb-4">IDEAL PARA</h3>
-
-              <ul className="space-y-2.5">
-
-                {['Firmas Jurídicas', 'Bufetes Corporativos', 'Redes de Abogados', 'Organizaciones Legales de Alto Volumen', 'Equipos Jurídicos Empresariales', 'Operaciones con más de 10 profesionales'].map(item => (
-
-                  <li key={item} className="flex items-start gap-2 text-sm text-white/80">
-
-                    <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#10b981]" />
-
-                    <span>{item}</span>
-
-                  </li>
-
-                ))}
-
-              </ul>
-
-            </motion.div>
-
-          </div>
-
-
-
-          {/* Cierre + CTA */}
-
-          <motion.div
-
-            initial={{ opacity: 0, y: 30 }}
-
-            whileInView={{ opacity: 1, y: 0 }}
-
-            viewport={{ once: true }}
-
-            className="max-w-4xl mx-auto text-center backdrop-blur-2xl bg-white/[0.03] border border-white/10 rounded-3xl p-10 relative overflow-hidden"
-
-          >
-
-            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#f97316]/15 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10">
-
-              <p className="text-white/70 mb-5 leading-relaxed">
-
-                Transforma la manera en que gestionas tu práctica legal con una plataforma empresarial diseñada para crecer junto a tu organización.
-
-              </p>
-
-              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-lg font-bold mb-8">
-
-                <span className="text-[#f97316]">Más capacidad.</span>
-
-                <span className="text-[#3b82f6]">Más control.</span>
-
-                <span className="text-[#10b981]">Más seguridad.</span>
-
-                <span className="text-[#8b5cf6]">Más productividad.</span>
-
-              </div>
-
-              <p className="text-white/50 text-sm mb-8">Todo bajo una infraestructura exclusiva para tu firma.</p>
-
-              <motion.button
-
-                onClick={() => setShowFirmRegistration(true)}
-
-                whileHover={{ scale: 1.05 }}
-
-                whileTap={{ scale: 0.97 }}
-
-                className="relative inline-flex items-center px-10 py-5 rounded-2xl bg-gradient-to-r from-[#f97316] via-[#fb923c] to-[#3b82f6] text-white font-bold text-lg overflow-hidden group shadow-[0_0_40px_rgba(249,115,22,0.45)] cursor-pointer border-0"
-
-                data-testid="cta-partner"
-
-              >
-
-                <span className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#f97316] to-[#3b82f6] opacity-50 blur-md animate-pulse pointer-events-none" />
-
-                <span className="absolute top-0 left-[-60%] h-full w-1/3 bg-white/40 skew-x-[-20deg] blur-md group-hover:left-[140%] transition-all duration-700 ease-out pointer-events-none" />
-
-                <span className="relative flex items-center">
-
-                  <Crown className="w-5 h-5 mr-2" />
-
-                  REGISTRAR MI FIRMA
-
-                </span>
-
-              </motion.button>
-
-            </div>
-
-          </motion.div>
-
-        </div>
-
-      </section>
-
-
-
       {/* === SECCIÓN FIRMAS, BUFETES Y DESPACHOS === */}
 
       <section id="firmas" className="relative py-24 px-6 overflow-hidden">
@@ -2872,15 +2638,23 @@ export const LandingPage = () => {
 
 
 
-      {/* === SECCIÓN FAQ === */}
+      {/* === PUNTO CERO PARTNER (Solución Empresarial) === */}
 
-      <section id="faq" className="relative py-24 px-6 overflow-hidden">
+      <section id="partner" className="relative py-24 px-6 overflow-hidden">
+
+        {/* Fondo premium con profundidad */}
 
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a0e1a] via-[#0f172a] to-[#0a0e1a]" />
 
-        <div className="absolute top-0 left-0 w-96 h-96 bg-[#f97316]/15 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(249,115,22,0.12),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(59,130,246,0.12),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(16,185,129,0.10),transparent_50%)]" />
+
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-px bg-gradient-to-r from-transparent via-[#f97316]/50 to-transparent" />
+
+
 
         <div className="container mx-auto relative z-10">
+
+          {/* Encabezado */}
 
           <motion.div
 
@@ -2890,117 +2664,199 @@ export const LandingPage = () => {
 
             viewport={{ once: true }}
 
-            className="max-w-3xl mx-auto"
+            className="text-center max-w-4xl mx-auto mb-14"
 
           >
 
-            <div className="text-center mb-14">
+            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-[#f97316]/20 via-[#3b82f6]/20 to-[#10b981]/20 border border-white/15 backdrop-blur-sm text-white/80 text-xs font-bold uppercase tracking-[0.25em] mb-6">
 
-              <span className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-[#f97316]/20 to-[#3b82f6]/20 border border-[#f97316]/30 backdrop-blur-sm text-[#f97316] text-xs font-bold uppercase tracking-wider mb-6">
+              <Crown className="w-4 h-4 text-[#f97316]" /> Solución Empresarial Exclusiva
 
-                ◆ Preguntas Frecuentes
+            </span>
 
-              </span>
+            <h2 className="text-5xl lg:text-7xl font-black mb-5 tracking-tight">
 
-              <h2 className="text-5xl lg:text-7xl font-bold mb-6 text-white">
+              <span className="bg-gradient-to-r from-[#f97316] via-[#fb923c] to-[#3b82f6] bg-clip-text text-transparent">PUNTO CERO PARTNER</span>
 
-                Dudas <span className="bg-gradient-to-r from-[#f97316] to-[#3b82f6] bg-clip-text text-transparent">Frecuentes</span>
+            </h2>
 
-              </h2>
+            <p className="text-xl lg:text-2xl text-white font-semibold mb-6">
+
+              ¿Gestionas una firma jurídica en crecimiento o un bufete con más de 10 profesionales?
+
+            </p>
+
+            <div className="space-y-4 text-white/70 leading-relaxed text-left md:text-center max-w-3xl mx-auto">
+
+              <p>Lleva tu organización legal al siguiente nivel con una solución empresarial exclusiva diseñada para firmas que requieren mayor capacidad operativa, independencia tecnológica y personalización avanzada.</p>
+
+              <p>Obtén una instancia privada de Punto Cero completamente configurada para tu organización, con infraestructura independiente, identidad corporativa propia y funcionalidades adaptadas a tus procesos internos.</p>
+
+              <p>Nuestra solución empresarial permite centralizar operaciones, automatizar procesos jurídicos, optimizar la productividad de los equipos y escalar la gestión legal sin limitaciones.</p>
 
             </div>
 
+          </motion.div>
 
 
-            <div className="space-y-4">
 
-              {[
+          {/* Beneficios — tarjetas premium */}
 
-                {
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto mb-14">
 
-                  question: '¿Cómo funciona el registro para abogados independientes?',
+            {[
 
-                  answer: 'El registro es simple: completa tu perfil profesional, especifica tus áreas de práctica y recibe casos de clientes que buscan tu especialidad. Atendemos la calificación de casos para que tú solo te enfoques en ejercer.'
+              { icon: Crown, title: 'CONTROL TOTAL', color: '#f97316', desc: 'Administra tu propio entorno privado con capacidad para gestionar más de 500 casos activos, múltiples equipos de trabajo y operaciones simultáneas sin interferencias.' },
 
-                },
+              { icon: Scale, title: 'INDEPENDENCIA TECNOLÓGICA', color: '#3b82f6', desc: 'Desarrollo personalizado con infraestructura exclusiva para tu firma.' },
 
-                {
+              { icon: Shield, title: 'SEGURIDAD EMPRESARIAL', color: '#10b981', desc: 'Entorno robusto con altos estándares de protección, privacidad y control de acceso.' },
 
-                  question: '¿Qué diferencia hay entre el plan básico y profesional?',
+              { icon: Sparkles, title: 'PERSONALIZACIÓN AVANZADA', color: '#8b5cf6', desc: 'Adaptamos módulos, procesos, automatizaciones y flujos de trabajo según las necesidades de tu organización.' },
 
-                  answer: 'El plan básico incluye acceso a la red de casos y panel de control. El plan profesional agrega análisis avanzado, priorización de casos y soporte dedicado.'
+              { icon: Users, title: 'CONSULTORÍA EXCLUSIVA', color: '#ec4899', desc: 'Acompañamiento especializado desde la implementación hasta la puesta en marcha.' },
 
-                },
+            ].map((b, i) => (
 
-                {
+              <motion.div
 
-                  question: '¿Cómo es el proceso de pago por consultas?',
+                key={`partner-${b.title.replace(/\s+/g, '-').toLowerCase()}`}
 
-                  answer: 'El pago se realiza mediante nuestro sistema de billetera digital. Cada consulta cerrada genera una comisión que es depositada directamente en tu cuenta. Sin retenciones ocultas.'
+                initial={{ opacity: 0, y: 30 }}
 
-                },
+                whileInView={{ opacity: 1, y: 0 }}
 
-                {
+                viewport={{ once: true }}
 
-                  question: '¿Cuál es el tiempo de respuesta del soporte?',
+                transition={{ delay: i * 0.08 }}
 
-                  answer: 'Nuestro soporte está disponible de lunes a viernes en horarios LATAM. Respondemos consultas dentro de 24 horas. Los planes profesionales incluyen soporte prioritario.'
+                className="relative backdrop-blur-2xl bg-white/[0.04] border border-white/10 rounded-3xl p-7 hover:bg-white/[0.07] hover:border-white/20 hover:shadow-[0_25px_70px_-20px_rgba(0,0,0,0.7)] group"
 
-                },
+                style={{ transition: 'all 0.4s ease' }}
 
-                {
+              >
 
-                  question: '¿Puedo usarlo desde cualquier país de LATAM?',
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 border" style={{ background: `${b.color}1f`, borderColor: `${b.color}55` }}>
 
-                  answer: 'Sí. Operamos en 18 países latinoamericanos y te conectamos con clientes de cualquier región. La plataforma soporta múltiples monedas y horarios.'
+                  <b.icon className="w-7 h-7" style={{ color: b.color }} />
 
-                },
+                </div>
 
-                {
+                <h3 className="text-white font-bold tracking-wide mb-2">{b.title}</h3>
 
-                  question: '¿Es segura la información de mis clientes?',
+                <p className="text-white/60 text-sm leading-relaxed">{b.desc}</p>
 
-                  answer: 'Cumplimos estándares internacionales de seguridad y privacidad. Todos los datos se encriptan en tránsito y en reposo. Realizamos auditorías regulares de seguridad.'
+              </motion.div>
 
-                },
+            ))}
 
-              ].map((faq, i) => (
 
-                <motion.div
 
-                  key={`faq-${i}`}
+            {/* Ideal para */}
 
-                  initial={{ opacity: 0, y: 20 }}
+            <motion.div
 
-                  whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 30 }}
 
-                  viewport={{ once: true }}
+              whileInView={{ opacity: 1, y: 0 }}
 
-                  transition={{ delay: i * 0.05 }}
+              viewport={{ once: true }}
 
-                  className="group"
+              transition={{ delay: 0.4 }}
 
-                >
+              className="relative backdrop-blur-2xl bg-gradient-to-br from-[#f97316]/10 to-[#3b82f6]/10 border border-[#f97316]/30 rounded-3xl p-7"
 
-                  <div className="backdrop-blur-xl bg-white/[0.04] border border-white/10 rounded-2xl p-6 hover:bg-white/[0.07] hover:border-white/20 transition-all cursor-pointer">
+            >
 
-                    <h3 className="text-white font-semibold text-lg leading-relaxed pr-8 group-hover:text-[#f97316] transition-colors">
+              <h3 className="text-white font-bold tracking-wide mb-4">IDEAL PARA</h3>
 
-                      {faq.question}
+              <ul className="space-y-2.5">
 
-                    </h3>
+                {['Firmas Jurídicas', 'Bufetes Corporativos', 'Redes de Abogados', 'Organizaciones Legales de Alto Volumen', 'Equipos Jurídicos Empresariales', 'Operaciones con más de 10 profesionales'].map(item => (
 
-                    <p className="text-white/60 text-sm mt-3 leading-relaxed">
+                  <li key={item} className="flex items-start gap-2 text-sm text-white/80">
 
-                      {faq.answer}
+                    <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#10b981]" />
 
-                    </p>
+                    <span>{item}</span>
 
-                  </div>
+                  </li>
 
-                </motion.div>
+                ))}
 
-              ))}
+              </ul>
+
+            </motion.div>
+
+          </div>
+
+
+
+          {/* Cierre + CTA */}
+
+          <motion.div
+
+            initial={{ opacity: 0, y: 30 }}
+
+            whileInView={{ opacity: 1, y: 0 }}
+
+            viewport={{ once: true }}
+
+            className="max-w-4xl mx-auto text-center backdrop-blur-2xl bg-white/[0.03] border border-white/10 rounded-3xl p-10 relative overflow-hidden"
+
+          >
+
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#f97316]/15 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10">
+
+              <p className="text-white/70 mb-5 leading-relaxed">
+
+                Transforma la manera en que gestionas tu práctica legal con una plataforma empresarial diseñada para crecer junto a tu organización.
+
+              </p>
+
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-lg font-bold mb-8">
+
+                <span className="text-[#f97316]">Más capacidad.</span>
+
+                <span className="text-[#3b82f6]">Más control.</span>
+
+                <span className="text-[#10b981]">Más seguridad.</span>
+
+                <span className="text-[#8b5cf6]">Más productividad.</span>
+
+              </div>
+
+              <p className="text-white/50 text-sm mb-8">Todo bajo una infraestructura exclusiva para tu firma.</p>
+
+              <motion.button
+
+                onClick={() => setShowFirmRegistration(true)}
+
+                whileHover={{ scale: 1.05 }}
+
+                whileTap={{ scale: 0.97 }}
+
+                className="relative inline-flex items-center px-10 py-5 rounded-2xl bg-gradient-to-r from-[#f97316] via-[#fb923c] to-[#3b82f6] text-white font-bold text-lg overflow-hidden group shadow-[0_0_40px_rgba(249,115,22,0.45)] cursor-pointer border-0"
+
+                data-testid="cta-partner"
+
+              >
+
+                <span className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#f97316] to-[#3b82f6] opacity-50 blur-md animate-pulse pointer-events-none" />
+
+                <span className="absolute top-0 left-[-60%] h-full w-1/3 bg-white/40 skew-x-[-20deg] blur-md group-hover:left-[140%] transition-all duration-700 ease-out pointer-events-none" />
+
+                <span className="relative flex items-center">
+
+                  <Crown className="w-5 h-5 mr-2" />
+
+                  REGISTRAR MI FIRMA
+
+                </span>
+
+              </motion.button>
 
             </div>
 
