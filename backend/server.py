@@ -26,6 +26,7 @@ api_router = APIRouter(prefix="/api")
 # Health check endpoints
 @api_router.get("/")
 async def root():
+    # v2 - Force Render redeploy
     return {"message": "Punto Cero Legal API - Running", "status": "healthy"}
 
 @api_router.get("/health")
