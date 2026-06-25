@@ -38,6 +38,7 @@ import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
 import { FirmRegistrationModal } from '../components/FirmRegistrationModal';
+import FirmsSection from '../modules/firms/FirmsSection';
 
 import { trackEvent } from '../lib/analytics';
 
@@ -2575,6 +2576,11 @@ export const LandingPage = () => {
         </div>
 
       </section>
+
+
+
+      {/* === NUEVA SECCIÓN: FIRMAS, BUFETES Y DESPACHOS === */}
+      <FirmsSection onOpen={() => setShowFirmRegistration(true)} />
 
 
 
