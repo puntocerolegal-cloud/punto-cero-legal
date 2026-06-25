@@ -46,7 +46,10 @@ export function FirmsOverview() {
       setLoading(true);
       setError(null);
 
-      const res = await axios.get(`${API}/firms`);
+      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await axios.get(`${API}/firms`, { headers });
       const firmsList = res.data.data || [];
       setFirms(firmsList);
 
@@ -60,9 +63,9 @@ export function FirmsOverview() {
         firmsList.map(async (firm) => {
           try {
             const [lawyersRes, casesRes, financialRes] = await Promise.all([
-              axios.get(`${API}/firms/${firm.id}/lawyers`),
-              axios.get(`${API}/firms/${firm.id}/cases`),
-              axios.get(`${API}/firms/${firm.id}/financial`),
+              axios.get(`${API}/firms/${firm.id}/lawyers`, { headers }),
+              axios.get(`${API}/firms/${firm.id}/cases`, { headers }),
+              axios.get(`${API}/firms/${firm.id}/financial`, { headers }),
             ]);
 
             const lawyers = lawyersRes.data.data || [];
@@ -114,7 +117,9 @@ export function FirmsOverview() {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/users`);
+      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API}/users`, { headers });
       setUsers(res.data.data || []);
     } catch (err) {
       console.error("Error loading users:", err);
@@ -126,7 +131,9 @@ export function FirmsOverview() {
     setCreatingFirm(true);
     setCreateError('');
     try {
-      const res = await axios.post(`${API}/firms`, formData);
+      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.post(`${API}/firms`, formData, { headers });
       setShowCreateModal(false);
       setFormData({
         name: '',
