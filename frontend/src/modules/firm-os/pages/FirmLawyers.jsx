@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+import { API } from "@/config/api";
 
 export function FirmLawyers() {
   const [lawyers, setLawyers] = useState([]);

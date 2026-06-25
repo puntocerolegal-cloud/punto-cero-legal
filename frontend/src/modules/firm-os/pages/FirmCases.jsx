@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+import { API } from "@/config/api";
 
 export function FirmCases() {
   const [cases, setCases] = useState([]);

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { TrendingUp, Users, FolderKanban, DollarSign, Target } from "lucide-react";
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+import { API } from "@/config/api";
 
 const KPICard = ({ icon: Icon, title, value, trend, color }) => (
   <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
