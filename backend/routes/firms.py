@@ -47,7 +47,7 @@ async def register_firm(
     if existing_user:
         raise HTTPException(status_code=400, detail="Este correo ya está registrado en el sistema")
 
-    # PASO 1: Crear la firma
+    # PASO 1: Crear la firma en estado PENDING_VERIFICATION
     firm_doc = {
         "name": firm_data.name,
         "nit": firm_data.nit,
@@ -62,10 +62,12 @@ async def register_firm(
         "owner_id": None,  # Se asignará después
         "owner_name": firm_data.founder_name,
         "owner_email": firm_data.founder_email,
-        "status": "active",
-        "is_verified": False,  # Requiere validación de email
-        "subscription_status": "trial",
-        "trial_ends_at": datetime.utcnow() + __import__('datetime').timedelta(days=30),
+        "status": "PENDING_VERIFICATION",  # NO CREAR ACCESO INMEDIATO
+        "approval_status": "pending",
+        "approval_date": None,
+        "approved_by": None,
+        "rejection_reason": None,
+        "is_verified": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
@@ -73,20 +75,22 @@ async def register_firm(
     firm_result = await db.firms.insert_one(firm_doc)
     firm_id = str(firm_result.inserted_id)
 
-    # PASO 2: Crear usuario firm_owner
-    temp_password = secrets.token_urlsafe(12)
-
+    # PASO 2: Crear usuario firm_owner sin contraseña (status = PENDING_ACTIVATION)
+    # NO GENERAR CONTRASEÑA TEMPORAL
     user_doc = {
         "email": firm_data.founder_email,
         "full_name": firm_data.founder_name,
-        "password_hash": get_password_hash(temp_password),
+        "password_hash": None,  # SIN CONTRASEÑA HASTA APROBACIÓN
         "phone": firm_data.founder_phone,
         "id_document": firm_data.founder_document,
         "bar_number": firm_data.founder_bar_number,
         "role": "firm_owner",
         "firm_id": firm_id,
-        "status": "PENDING_VERIFICATION",  # Requiere verificación de email
+        "status": "PENDING_ACTIVATION",  # SIN ACCESO TODAVÍA
         "is_verified": False,
+        "activation_token": None,
+        "activation_expires_at": None,
+        "activated_at": None,
         "country": firm_data.country or "Colombia",
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -104,46 +108,7 @@ async def register_firm(
         }}
     )
 
-    # PASO 4: Crear suscripción inicial
-    subscription_doc = {
-        "firm_id": firm_id,
-        "owner_id": owner_id,
-        "plan": firm_data.plan,
-        "status": "trial",
-        "started_at": datetime.utcnow(),
-        "trial_ends_at": datetime.utcnow() + __import__('datetime').timedelta(days=30),
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-    }
-
-    if hasattr(db, 'subscriptions'):
-        await db.subscriptions.insert_one(subscription_doc)
-
-    # PASO 5: Crear configuración inicial de Firm OS
-    config_doc = {
-        "firm_id": firm_id,
-        "firm_name": firm_data.name,
-        "settings": {
-            "language": "es",
-            "timezone": "America/Bogota",
-            "currency": "COP",
-            "max_lawyers": 5 if firm_data.plan == "firm_growth" else 10,
-        },
-        "features": {
-            "firm_dashboard": True,
-            "case_management": True,
-            "lawyer_management": True,
-            "finance_module": True,
-            "analytics": True,
-        },
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-    }
-
-    if hasattr(db, 'firm_configurations'):
-        await db.firm_configurations.insert_one(config_doc)
-
-    # PASO 6: Enviar correo de bienvenida con credenciales
+    # PASO 4: Enviar email de confirmación de registro (SIN CREDENCIALES)
     from utils.notifier import send_email
 
     email_html = f"""
@@ -157,13 +122,10 @@ async def register_firm(
             .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
             .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
             .subtitle {{ color: #6b7280; font-size: 14px; margin-bottom: 30px; }}
-            .section {{ margin: 20px 0; padding: 15px; background: #f9fafb; border-left: 4px solid #f97316; }}
+            .section {{ margin: 20px 0; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; }}
             .label {{ color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; margin: 10px 0 5px 0; }}
-            .value {{ color: #1f2937; font-size: 16px; font-weight: 600; font-family: 'Monaco', 'Courier New', monospace; }}
             .button {{ display: inline-block; background: #f97316; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 20px 0; }}
-            .button:hover {{ background: #fb923c; }}
             .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
-            .warning {{ background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 15px; border-radius: 6px; margin: 20px 0; }}
         </style>
     </head>
     <body>
@@ -173,67 +135,30 @@ async def register_firm(
                 <div class="subtitle">Sistema Integral de Gestión Jurídica</div>
             </div>
 
-            <div class="title">¡Bienvenido a Punto Cero!</div>
+            <div class="title">¡Registro Exitoso!</div>
             <p>Hola <strong>{firm_data.founder_name}</strong>,</p>
 
-            <p>Tu firma <strong>{firm_data.name}</strong> ha sido registrada exitosamente en Punto Cero.
-            A continuación encontrarás tus credenciales iniciales para acceder a tu panel de control.</p>
+            <p>Tu firma <strong>{firm_data.name}</strong> ha sido registrada correctamente en Punto Cero Legal.</p>
 
             <div class="section">
-                <div class="label">Datos de tu Firma</div>
-                <p>
-                    <strong>Nombre:</strong> {firm_data.name}<br>
-                    <strong>NIT:</strong> {firm_data.nit}<br>
-                    <strong>Email:</strong> {firm_data.email}<br>
-                    <strong>Plan:</strong> {'Firma en Crecimiento (5 abogados)' if firm_data.plan == 'firm_growth' else 'Consolidación Empresarial (10 abogados)'}<br>
-                    <strong>Período de prueba:</strong> 30 días completos
-                </p>
+                <div class="label">✓ Próximo Paso</div>
+                <p>Tu solicitud está siendo revisada por nuestro equipo de validación.
+                Recibirás un correo con instrucciones de activación en las próximas 24 a 48 horas.</p>
             </div>
 
-            <div class="section">
-                <div class="label">Tus Credenciales de Acceso</div>
-                <p>
-                    <strong>Usuario/Email:</strong><br>
-                    <span class="value">{firm_data.founder_email}</span>
-                </p>
-                <p>
-                    <strong>Contraseña Temporal:</strong><br>
-                    <span class="value">{temp_password}</span>
-                </p>
-            </div>
-
-            <div class="warning">
-                <strong>⚠️ Importante:</strong> Esta es tu contraseña temporal.
-                Por seguridad, te recomendamos cambiarla inmediatamente al primer acceso.
-            </div>
-
-            <p style="text-align: center; margin: 30px 0;">
-                <a href="https://puntocerolegal.com/login" class="button">Acceder a Mi Firma</a>
+            <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                <strong>Información registrada:</strong><br>
+                Firma: {firm_data.name}<br>
+                NIT: {firm_data.nit}<br>
+                Plan: {'Firma en Crecimiento (5 abogados)' if firm_data.plan == 'firm_growth' else 'Consolidación Empresarial (10 abogados)'}
             </p>
 
-            <h3 style="color: #1f2937; margin-top: 30px;">¿Qué sigue?</h3>
-            <ul>
-                <li><strong>Inicia sesión</strong> con tus credenciales</li>
-                <li><strong>Cambia tu contraseña</strong> en la sección de Configuración</li>
-                <li><strong>Completa tu perfil</strong> con información de la firma</li>
-                <li><strong>Invita abogados</strong> desde el panel de control</li>
-                <li><strong>Comienza a crear casos</strong> y gestionar tu firma</li>
-            </ul>
-
-            <h3 style="color: #1f2937;">Acceso a Punto Cero Firm OS</h3>
-            <p>Una vez dentro del sistema, tendrás acceso a:</p>
-            <ul>
-                <li>📊 Dashboard de tu Firma</li>
-                <li>👥 Gestión de Abogados</li>
-                <li>📁 Administrador de Casos</li>
-                <li>💰 Módulo de Finanzas</li>
-                <li>📈 Analytics y Reportes</li>
-            </ul>
+            <h3 style="color: #1f2937; margin-top: 30px;">¿Preguntas?</h3>
+            <p>Si tienes cualquier pregunta, no dudes en escribir a <strong>soporte@puntocerolegal.com</strong></p>
 
             <div class="footer">
                 <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
-                <p>Si tienes preguntas, contacta a <strong>soporte@puntocerolegal.com</strong></p>
-                <p style="margin-top: 10px; font-size: 11px;">Este correo fue enviado porque registraste una nueva firma en Punto Cero. Si no fue así, ignora este mensaje.</p>
+                <p style="margin-top: 10px; font-size: 11px;">Este correo fue enviado porque registraste una firma en Punto Cero. Si no reconoces esta actividad, contáctanos.</p>
             </div>
         </div>
     </body>
@@ -242,24 +167,22 @@ async def register_firm(
 
     email_result = send_email(
         to_email=firm_data.founder_email,
-        subject=f"¡Bienvenido a Punto Cero! Credenciales para {firm_data.name}",
+        subject=f"Firma Registrada - {firm_data.name}",
         body_html=email_html
     )
 
-    # PASO 7: Registrar envío en BD
-    credentials_doc = {
+    # PASO 5: Registrar envío en BD
+    registration_doc = {
         "firm_id": firm_id,
         "owner_id": owner_id,
         "email": firm_data.founder_email,
-        "temp_password": temp_password,
-        "sent": email_result.get("sent", False),
-        "email_channel": email_result.get("channel", "email"),
-        "email_reason": email_result.get("reason"),
+        "status": "registered",
+        "email_sent": email_result.get("sent", False),
         "created_at": datetime.utcnow(),
     }
 
-    if hasattr(db, 'initial_credentials'):
-        await db.initial_credentials.insert_one(credentials_doc)
+    if hasattr(db, 'firm_registrations'):
+        await db.firm_registrations.insert_one(registration_doc)
 
     return FirmResponse(
         id=firm_id,
@@ -494,6 +417,248 @@ async def update_firm(
         created_at=updated_firm["created_at"].isoformat() if isinstance(updated_firm["created_at"], datetime) else updated_firm["created_at"],
         updated_at=updated_firm["updated_at"].isoformat() if isinstance(updated_firm["updated_at"], datetime) else updated_firm["updated_at"]
     )
+
+# POST /firms/:id/approve - Aprobar firma (admin only)
+@router.post("/{firm_id}/approve", status_code=status.HTTP_200_OK)
+async def approve_firm(
+    firm_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Aprobar firma y generar token de activación (solo admin)"""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden aprobar firmas")
+
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    # Generar token de activación válido por 24 horas
+    activation_token = secrets.token_urlsafe(32)
+    activation_expires = datetime.utcnow() + __import__('datetime').timedelta(hours=24)
+
+    # Actualizar firma a ACTIVE
+    await db.firms.update_one(
+        {"_id": oid},
+        {"$set": {
+            "status": "ACTIVE",
+            "approval_status": "approved",
+            "approval_date": datetime.utcnow(),
+            "approved_by": str(current_user.get("_id")),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # Actualizar usuario firm_owner con token
+    await db.users.update_one(
+        {"_id": ObjectId(firm.get("owner_id"))},
+        {"$set": {
+            "activation_token": activation_token,
+            "activation_expires_at": activation_expires,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # Enviar correo de activación
+    from utils.notifier import send_email
+
+    activation_url = f"https://puntocerolegal.com/activate-firm?token={activation_token}"
+
+    email_html = f"""
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }}
+            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+            .header {{ text-align: center; margin-bottom: 30px; }}
+            .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
+            .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
+            .section {{ margin: 20px 0; padding: 15px; background: #ecfdf5; border-left: 4px solid #10b981; }}
+            .button {{ display: inline-block; background: #10b981; color: white; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; margin: 20px 0; }}
+            .button:hover {{ background: #059669; }}
+            .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
+            .warning {{ background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">PUNTO CERO</div>
+            </div>
+
+            <div class="title">¡Tu Firma Fue Aprobada!</div>
+            <p>Hola <strong>{firm.get('owner_name')}</strong>,</p>
+
+            <p>Nos complace informarte que tu firma <strong>{firm.get('name')}</strong> ha sido aprobada por nuestro equipo.</p>
+
+            <div class="section">
+                <p><strong>✓ Firma Aprobada</strong></p>
+                <p>Plan: {firm.get('plan', 'firm_growth')}</p>
+            </div>
+
+            <p style="margin-top: 30px;">Para activar tu cuenta y crear tu contraseña, haz clic en el botón de abajo:</p>
+
+            <p style="text-align: center;">
+                <a href="{activation_url}" class="button">ACTIVAR MI FIRMA</a>
+            </p>
+
+            <div class="warning">
+                <strong>⚠️ Importante:</strong> Este enlace expira en 24 horas. Si no lo usas a tiempo, contacta a nuestro equipo.
+            </div>
+
+            <p style="color: #6b7280; font-size: 14px;">
+                Una vez activado, accederás a Firm OS con todas las funcionalidades disponibles para tu plan.
+            </p>
+
+            <div class="footer">
+                <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
+                <p>¿Preguntas? Escribe a <strong>soporte@puntocerolegal.com</strong></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    send_email(
+        to_email=firm.get("owner_email"),
+        subject=f"¡Bienvenido a Punto Cero Legal! Activa {firm.get('name')}",
+        body_html=email_html
+    )
+
+    return {
+        "success": True,
+        "message": f"Firma {firm.get('name')} aprobada. Email de activación enviado.",
+        "firm_id": firm_id
+    }
+
+# POST /firms/:id/reject - Rechazar firma (admin only)
+@router.post("/{firm_id}/reject", status_code=status.HTTP_200_OK)
+async def reject_firm(
+    firm_id: str,
+    rejection_data: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Rechazar firma (solo admin)"""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden rechazar firmas")
+
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    rejection_reason = rejection_data.get("reason", "")
+
+    # Cambiar status a REJECTED
+    await db.firms.update_one(
+        {"_id": oid},
+        {"$set": {
+            "status": "REJECTED",
+            "approval_status": "rejected",
+            "rejection_reason": rejection_reason,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # Enviar correo de rechazo
+    from utils.notifier import send_email
+
+    email_html = f"""
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }}
+            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+            .header {{ text-align: center; margin-bottom: 30px; }}
+            .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
+            .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
+            .section {{ margin: 20px 0; padding: 15px; background: #fef2f2; border-left: 4px solid #ef4444; }}
+            .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">PUNTO CERO</div>
+            </div>
+
+            <div class="title">Solicitud de Firma Revisada</div>
+            <p>Hola <strong>{firm.get('owner_name')}</strong>,</p>
+
+            <p>Hemos revisado tu solicitud de registro para <strong>{firm.get('name')}</strong>.</p>
+
+            <div class="section">
+                <p><strong>Status: No Aprobado</strong></p>
+                <p>Motivo: {rejection_reason or 'Información incompleta o inconsistente'}</p>
+            </div>
+
+            <p style="margin-top: 30px;">Para más información o si tienes preguntas, contacta a nuestro equipo en <strong>soporte@puntocerolegal.com</strong></p>
+
+            <div class="footer">
+                <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    send_email(
+        to_email=firm.get("owner_email"),
+        subject=f"Revisión de Solicitud - {firm.get('name')}",
+        body_html=email_html
+    )
+
+    return {
+        "success": True,
+        "message": f"Firma {firm.get('name')} rechazada.",
+        "firm_id": firm_id
+    }
+
+# GET /firms/pending - Listar firmas pendientes de aprobación (admin only)
+@router.get("/status/pending", status_code=status.HTTP_200_OK)
+async def get_pending_firms(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Listar firmas pendientes de aprobación"""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden ver firmas pendientes")
+
+    firms = await db.firms.find({"status": "PENDING_VERIFICATION"}).sort("created_at", -1).to_list(None)
+
+    result = []
+    for firm in firms:
+        result.append({
+            "id": str(firm["_id"]),
+            "name": firm["name"],
+            "nit": firm["nit"],
+            "email": firm["email"],
+            "city": firm["city"],
+            "country": firm["country"],
+            "plan": firm["plan"],
+            "owner_name": firm["owner_name"],
+            "owner_email": firm["owner_email"],
+            "created_at": firm["created_at"].isoformat() if isinstance(firm["created_at"], datetime) else firm["created_at"],
+            "status": firm["status"]
+        })
+
+    return {
+        "success": True,
+        "data": result,
+        "count": len(result)
+    }
 
 # GET /firms/:id/lawyers - Obtener abogados de una firma
 @router.get("/{firm_id}/lawyers", status_code=status.HTTP_200_OK)

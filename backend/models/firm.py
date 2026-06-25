@@ -12,21 +12,27 @@ class Firm(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = "Colombia"
-    
+
     # Plan Information
     plan: str = Field(default="firm_growth", description="firm_growth | firm_enterprise")
     max_lawyers: int = Field(default=5, description="Número máximo de abogados permitidos")
     active_lawyers_count: int = Field(default=0, description="Número actual de abogados activos")
-    
+
     # Owner Information
     owner_id: Optional[str] = Field(None, description="ID del propietario de la firma (usuario)")
     owner_name: Optional[str] = Field(None)
     owner_email: Optional[str] = Field(None)
-    
-    # Status
-    status: str = Field(default="active", description="active | suspended | inactive")
+
+    # Status (PENDING_VERIFICATION → ACTIVE → SUSPENDED | REJECTED)
+    status: str = Field(default="PENDING_VERIFICATION", description="PENDING_VERIFICATION | ACTIVE | SUSPENDED | REJECTED")
     is_verified: bool = Field(default=False)
-    
+
+    # Approval Information
+    approval_status: Optional[str] = Field(None, description="pending | approved | rejected")
+    approval_date: Optional[datetime] = Field(None, description="Fecha de aprobación")
+    approved_by: Optional[str] = Field(None, description="ID del admin que aprobó")
+    rejection_reason: Optional[str] = Field(None, description="Motivo del rechazo si aplica")
+
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

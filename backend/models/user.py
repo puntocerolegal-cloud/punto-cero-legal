@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
 
 class PyObjectId(ObjectId):
@@ -28,10 +28,15 @@ class UserBase(BaseModel):
     bar_number: Optional[str] = None
     firm_name: Optional[str] = None
     id_document: Optional[str] = None
-    status: Literal["active", "inactive", "suspended", "PENDING_VERIFICATION", "ACTIVE"] = "PENDING_VERIFICATION"
+    status: Literal["active", "inactive", "suspended", "PENDING_VERIFICATION", "PENDING_ACTIVATION", "ACTIVE"] = "PENDING_VERIFICATION"
     is_verified: bool = False
     organizationId: Optional[str] = None  # FASE 1: soporte para abogados asociados a firmas
     firm_id: Optional[str] = None  # FASE 1: Firm OS - Relación con firma (nueva)
+
+    # Activation fields for firm_owner
+    activation_token: Optional[str] = Field(None, description="Token para activar cuenta")
+    activation_expires_at: Optional[datetime] = Field(None, description="Expiración del token de activación")
+    activated_at: Optional[datetime] = Field(None, description="Fecha de activación")
 
 class UserCreate(UserBase):
     password: str
