@@ -9,6 +9,10 @@ export function FirmOSSidebar({ onNavigate }) {
     { icon: UserCheck, label: "Equipo", path: "/firm-os/team" },
     { icon: FolderKanban, label: "Casos", path: "/firm-os/cases" },
     { icon: DollarSign, label: "Finanzas", path: "/firm-os/finance" },
+    { icon: DollarSign, label: "Facturación", path: "/firm-os/billing" },
+    { icon: TrendingUp, label: "CRM", path: "/firm-os/crm" },
+    { icon: TrendingUp, label: "IA Corporativa", path: "/firm-os/ia" },
+    { icon: Building2, label: "Directorio Público", path: "/firm-os/directory" },
     { icon: TrendingUp, label: "Analytics", path: "/firm-os/analytics" },
     { icon: Settings, label: "Configuración", path: "/firm-os/settings" },
   ];

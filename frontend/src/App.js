@@ -26,6 +26,8 @@ import VerificacionPendiente from './pages/VerificacionPendiente';
 import CheckoutPage from './pages/CheckoutPage';
 import DashboardHome from './pages/DashboardHome';
 import PortalPage from './pages/PortalPage';
+import FirmsDirectory from './pages/FirmsDirectory';
+import PublicFirmProfile from './pages/PublicFirmProfile';
 import PrivacyPolicy from './pages/legal/PrivacyPolicy';
 import CookiePolicy from './pages/legal/CookiePolicy';
 import TermsConditions from './pages/legal/TermsConditions';
@@ -67,6 +69,10 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/activate-firm" element={<ActivateFirmPage />} />
+
+            {/* Directorio de Firmas — Público */}
+            <Route path="/firms" element={<FirmsDirectory />} />
+            <Route path="/firms/:slug" element={<PublicFirmProfile />} />
 
             <Route path="/verificacion-pendiente" element={<ProtectedRoute allowUnverified={true}><VerificacionPendiente /></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute allowUnverified={true}><CheckoutPage /></ProtectedRoute>} />

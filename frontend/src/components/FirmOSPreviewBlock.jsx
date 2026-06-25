@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import {
   Users, Briefcase, Brain, BarChart3, Zap, MapPin,
-  Check, ArrowRight
+  ArrowRight, AlertCircle, CheckCircle, Loader2
 } from 'lucide-react';
+import { API } from '@/config/api';
 
 export function FirmOSPreviewBlock() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
-    firmName: '',
-    founderName: '',
+    name: '',
+    nit: '',
     email: '',
     phone: '',
+    address: '',
     city: '',
-    plan: 'crecimiento'
+    country: 'Colombia',
+    plan: 'firm_growth',
+    founder_name: '',
+    founder_email: '',
+    founder_phone: '',
+    founder_document: '',
+    founder_bar_number: '',
   });
 
   const benefits = [
@@ -29,10 +41,40 @@ export function FirmOSPreviewBlock() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Future: API integration here
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const res = await axios.post(`${API}/firms/register`, formData);
+      setSuccess(true);
+      
+      // Reset form after success
+      setTimeout(() => {
+        setFormData({
+          name: '',
+          nit: '',
+          email: '',
+          phone: '',
+          address: '',
+          city: '',
+          country: 'Colombia',
+          plan: 'firm_growth',
+          founder_name: '',
+          founder_email: '',
+          founder_phone: '',
+          founder_document: '',
+          founder_bar_number: '',
+        });
+        setSuccess(false);
+      }, 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Error al registrar la firma. Intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -122,102 +164,236 @@ export function FirmOSPreviewBlock() {
             <div className="backdrop-blur-2xl bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/15 rounded-3xl p-8 sticky top-24">
               <h3 className="text-2xl font-bold text-white mb-6">Solicite Información</h3>
 
+              {/* Error Alert */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-4 rounded-xl bg-red-900/30 border border-red-700/50 flex gap-3 text-red-400"
+                >
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-sm">{error}</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Success Alert */}
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-4 rounded-xl bg-green-900/30 border border-green-700/50 flex gap-3 text-green-400"
+                >
+                  <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-sm">¡Registro exitoso! Un asesor se contactará pronto.</p>
+                  </div>
+                </motion.div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Firm Name */}
+                {/* Nombre de la Firma */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Nombre de la Firma</label>
+                  <label className="block text-sm text-white/70 mb-2">Nombre de la Firma *</label>
                   <input
                     type="text"
-                    name="firmName"
-                    value={formData.firmName}
+                    name="name"
+                    value={formData.name}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all"
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
                     placeholder="Tu firma jurídica"
-                    required
                   />
                 </div>
 
-                {/* Founder Name */}
+                {/* NIT */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Nombre del Socio Fundador</label>
+                  <label className="block text-sm text-white/70 mb-2">NIT *</label>
                   <input
                     type="text"
-                    name="founderName"
-                    value={formData.founderName}
+                    name="nit"
+                    value={formData.nit}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all"
-                    placeholder="Tu nombre"
                     required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="123456789-1"
                   />
                 </div>
 
-                {/* Email */}
+                {/* Email Corporativo */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Correo Corporativo</label>
+                  <label className="block text-sm text-white/70 mb-2">Correo Corporativo *</label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all"
-                    placeholder="contacto@firma.com"
                     required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="contacto@firma.com"
                   />
                 </div>
 
-                {/* Phone */}
+                {/* Teléfono */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Teléfono</label>
+                  <label className="block text-sm text-white/70 mb-2">Teléfono *</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all"
-                    placeholder="+57 (1) 2345 6789"
                     required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="+57 (1) 2345 6789"
                   />
                 </div>
 
-                {/* City */}
+                {/* Dirección */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Ciudad</label>
+                  <label className="block text-sm text-white/70 mb-2">Dirección *</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="Calle principal 123, Oficina 456"
+                  />
+                </div>
+
+                {/* Ciudad */}
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Ciudad *</label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all"
-                    placeholder="Bogotá, Colombia"
                     required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="Bogotá"
+                  />
+                </div>
+
+                {/* Nombre del Fundador */}
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Nombre del Socio Fundador *</label>
+                  <input
+                    type="text"
+                    name="founder_name"
+                    value={formData.founder_name}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="Nombre completo"
+                  />
+                </div>
+
+                {/* Email del Fundador */}
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Email del Fundador *</label>
+                  <input
+                    type="email"
+                    name="founder_email"
+                    value={formData.founder_email}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="correo@personal.com"
+                  />
+                </div>
+
+                {/* Teléfono del Fundador */}
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Teléfono del Fundador *</label>
+                  <input
+                    type="tel"
+                    name="founder_phone"
+                    value={formData.founder_phone}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="+57 300 1234567"
+                  />
+                </div>
+
+                {/* Documento del Fundador */}
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Documento de Identidad *</label>
+                  <input
+                    type="text"
+                    name="founder_document"
+                    value={formData.founder_document}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="1234567890"
+                  />
+                </div>
+
+                {/* Tarjeta Profesional */}
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Tarjeta Profesional *</label>
+                  <input
+                    type="text"
+                    name="founder_bar_number"
+                    value={formData.founder_bar_number}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    placeholder="123456789"
                   />
                 </div>
 
                 {/* Plan Selector */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Plan de Interés</label>
+                  <label className="block text-sm text-white/70 mb-2">Plan de Interés *</label>
                   <select
                     name="plan"
                     value={formData.plan}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all appearance-none cursor-pointer"
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all appearance-none cursor-pointer disabled:opacity-50"
                   >
-                    <option value="crecimiento" className="bg-[#0f172a]">Firma en Crecimiento</option>
-                    <option value="consolidacion" className="bg-[#0f172a]">Consolidación Empresarial</option>
+                    <option value="firm_growth" className="bg-[#0f172a]">Firma en Crecimiento</option>
+                    <option value="firm_consolidation" className="bg-[#0f172a]">Consolidación Empresarial</option>
                   </select>
                 </div>
 
                 {/* Submit Button */}
                 <motion.button
                   type="submit"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full mt-6 relative inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#f97316] text-white font-bold text-sm overflow-hidden group shadow-[0_0_30px_rgba(59,130,246,0.3)]"
+                  disabled={loading}
+                  whileHover={!loading ? { scale: 1.02 } : {}}
+                  whileTap={!loading ? { scale: 0.98 } : {}}
+                  className="w-full mt-6 relative inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#f97316] text-white font-bold text-sm overflow-hidden group shadow-[0_0_30px_rgba(59,130,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="absolute -inset-1 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#f97316] opacity-30 blur-md group-hover:opacity-50 transition-opacity pointer-events-none" />
                   <span className="relative flex items-center justify-center">
-                    SOLICITAR INFORMACIÓN
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Procesando...
+                      </>
+                    ) : (
+                      <>
+                        SOLICITAR INFORMACIÓN
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
                   </span>
                 </motion.button>
 
