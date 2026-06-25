@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 import { motion } from 'framer-motion';
@@ -36,6 +37,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
+import { FirmRegistrationModal } from '../components/FirmRegistrationModal';
 
 import { trackEvent } from '../lib/analytics';
 
@@ -100,6 +102,7 @@ export const LandingPage = () => {
   const { user, isAuthenticated } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showFirmRegistration, setShowFirmRegistration] = useState(false);
 
   const [billingCycle, setBillingCycle] = useState('monthly');
 
@@ -2537,15 +2540,15 @@ export const LandingPage = () => {
 
               <p className="text-white/50 text-sm mb-8">Todo bajo una infraestructura exclusiva para tu firma.</p>
 
-              <motion.a
+              <motion.button
 
-                href="mailto:puntocerolegal@gmail.com?subject=Solicitud%20de%20Consultor%C3%ADa%20Empresarial%20-%20Punto%20Cero%20Partner&body=Hola%2C%20gestiono%20una%20firma%20jur%C3%ADdica%20y%20deseo%20conocer%20la%20soluci%C3%B3n%20Punto%20Cero%20Partner."
+                onClick={() => setShowFirmRegistration(true)}
 
                 whileHover={{ scale: 1.05 }}
 
                 whileTap={{ scale: 0.97 }}
 
-                className="relative inline-flex items-center px-10 py-5 rounded-2xl bg-gradient-to-r from-[#f97316] via-[#fb923c] to-[#3b82f6] text-white font-bold text-lg overflow-hidden group shadow-[0_0_40px_rgba(249,115,22,0.45)]"
+                className="relative inline-flex items-center px-10 py-5 rounded-2xl bg-gradient-to-r from-[#f97316] via-[#fb923c] to-[#3b82f6] text-white font-bold text-lg overflow-hidden group shadow-[0_0_40px_rgba(249,115,22,0.45)] cursor-pointer border-0"
 
                 data-testid="cta-partner"
 
@@ -2559,11 +2562,11 @@ export const LandingPage = () => {
 
                   <Crown className="w-5 h-5 mr-2" />
 
-                  SOLICITAR CONSULTORÍA EMPRESARIAL
+                  REGISTRAR MI FIRMA
 
                 </span>
 
-              </motion.a>
+              </motion.button>
 
             </div>
 
@@ -2921,6 +2924,20 @@ export const LandingPage = () => {
         <span className="absolute inset-0 rounded-full animate-ping bg-[#25d366]/30 pointer-events-none" />
 
       </motion.a>
+
+      {/* Modal de Registro de Firmas */}
+      <FirmRegistrationModal
+        open={showFirmRegistration}
+        onClose={() => setShowFirmRegistration(false)}
+        onSuccess={(firmData) => {
+          navigate('/login', {
+            state: {
+              message: `Firma "${firmData.name}" registrada exitosamente. Revisa tu correo para instrucciones de acceso.`,
+              firmId: firmData.id
+            }
+          });
+        }}
+      />
 
       {/* Capa visual del chatbot existente — se abre tras enviar un formulario */}
       <ChatWidget session={chat} onClose={() => setChat({ open: false })} />
