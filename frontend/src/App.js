@@ -18,7 +18,7 @@ function LegacyOsRedirect() {
 }
 
 // Páginas base
-import LandingPageV2 from './pages/LandingPageV2'; // Nueva landing enfocada en Firmas
+import { LandingPage } from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivateFirmPage from './pages/ActivateFirmPage';
@@ -63,7 +63,7 @@ function App() {
           {/* Modal de Bloqueo Comercial global (controlado por la IA Comercial) */}
           <UpgradeModal />
           <Routes>
-            <Route path="/" element={<LandingPageV2 />} />
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/activate-firm" element={<ActivateFirmPage />} />
