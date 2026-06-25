@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Building2, Users, FolderKanban, DollarSign, TrendingUp, Plus } from "lucide-react";
+import { Building2, Users, FolderKanban, DollarSign, TrendingUp, Plus, X, AlertCircle } from "lucide-react";
 import axios from "axios";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -27,6 +27,20 @@ export function FirmsOverview() {
     activeCases: 0,
     totalRevenue: 0,
   });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: 'Colombia',
+    plan: 'firm_growth',
+    owner_id: ''
+  });
+  const [creatingFirm, setCreatingFirm] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const loadFirmsData = useCallback(async () => {
     try {
@@ -99,9 +113,44 @@ export function FirmsOverview() {
     }
   }, []);
 
+  const loadUsers = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/users`);
+      setUsers(res.data.data || []);
+    } catch (err) {
+      console.error("Error loading users:", err);
+    }
+  }, []);
+
+  const handleCreateFirm = async (e) => {
+    e.preventDefault();
+    setCreatingFirm(true);
+    setCreateError('');
+    try {
+      const res = await axios.post(`${API}/firms`, formData);
+      setShowCreateModal(false);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        country: 'Colombia',
+        plan: 'firm_growth',
+        owner_id: ''
+      });
+      loadFirmsData();
+    } catch (err) {
+      setCreateError(err.response?.data?.detail || 'Error al crear la firma');
+    } finally {
+      setCreatingFirm(false);
+    }
+  };
+
   useEffect(() => {
     loadFirmsData();
-  }, [loadFirmsData]);
+    loadUsers();
+  }, [loadFirmsData, loadUsers]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando firmas...</div>;
@@ -148,7 +197,7 @@ export function FirmsOverview() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Directorio de Firmas</h2>
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors">
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors">
           <Plus className="w-5 h-5" />
           Crear Firma
         </button>
@@ -275,6 +324,126 @@ export function FirmsOverview() {
                   </div>
                 ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Crear Firma */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg border border-gray-700 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold">Crear Nueva Firma</h3>
+              <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-gray-800 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {createError && (
+              <div className="p-3 rounded bg-red-900/30 border border-red-700 flex gap-2 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                {createError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateFirm} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Propietario (Abogado)</label>
+                <select
+                  value={formData.owner_id}
+                  onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  required
+                >
+                  <option value="">Seleccionar propietario</option>
+                  {users.filter(u => ['lawyer', 'admin_general', 'socio_comercial'].includes(u.role)).map(u => (
+                    <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Nombre de la Firma</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Teléfono</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Dirección</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Ciudad</label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Plan</label>
+                  <select
+                    value={formData.plan}
+                    onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  >
+                    <option value="firm_growth">Crecimiento (5 abogados)</option>
+                    <option value="firm_enterprise">Enterprise (20 abogados)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingFirm}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded transition-colors font-semibold"
+                >
+                  {creatingFirm ? 'Creando...' : 'Crear Firma'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

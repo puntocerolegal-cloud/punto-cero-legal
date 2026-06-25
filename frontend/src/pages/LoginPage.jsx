@@ -22,6 +22,8 @@ export const LoginPage = () => {
       const userData = await login(credentials.email, credentials.password);
       if (['admin', 'admin_general', 'socio_comercial'].includes(userData.role)) {
         navigate('/admin');
+      } else if (['firm_owner', 'firm_admin', 'firm_lawyer'].includes(userData.role)) {
+        navigate('/firm-os');
       } else {
         navigate('/dashboard');
       }
