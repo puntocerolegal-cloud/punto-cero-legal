@@ -28,7 +28,6 @@ export function FirmsOverview() {
     totalRevenue: 0,
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -37,7 +36,10 @@ export function FirmsOverview() {
     city: '',
     country: 'Colombia',
     plan: 'firm_growth',
-    owner_id: ''
+    founder_name: '',
+    founder_email: '',
+    founder_phone: '',
+    founder_bar_number: ''
   });
   const [creatingFirm, setCreatingFirm] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -116,17 +118,6 @@ export function FirmsOverview() {
     }
   }, []);
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get(`${API}/users`, { headers });
-      setUsers(res.data.data || []);
-    } catch (err) {
-      console.error("Error loading users:", err);
-    }
-  }, []);
-
   const handleCreateFirm = async (e) => {
     e.preventDefault();
     setCreatingFirm(true);
@@ -144,7 +135,10 @@ export function FirmsOverview() {
         city: '',
         country: 'Colombia',
         plan: 'firm_growth',
-        owner_id: ''
+        founder_name: '',
+        founder_email: '',
+        founder_phone: '',
+        founder_bar_number: ''
       });
       loadFirmsData();
     } catch (err) {
@@ -156,8 +150,7 @@ export function FirmsOverview() {
 
   useEffect(() => {
     loadFirmsData();
-    loadUsers();
-  }, [loadFirmsData, loadUsers]);
+  }, [loadFirmsData]);
 
   if (loading) {
     return <div className="text-center py-8">Cargando firmas...</div>;
@@ -354,83 +347,120 @@ export function FirmsOverview() {
             )}
 
             <form onSubmit={handleCreateFirm} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1">Propietario (Abogado)</label>
-                <select
-                  value={formData.owner_id}
-                  onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-                  required
-                >
-                  <option value="">Seleccionar propietario</option>
-                  {users.filter(u => ['lawyer', 'admin_general', 'socio_comercial'].includes(u.role)).map(u => (
-                    <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
-                  ))}
-                </select>
-              </div>
+              {/* SECCIÓN: INFORMACIÓN DE LA FIRMA */}
+              <div className="border-b border-gray-700 pb-3">
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Información de la Firma</h4>
 
-              <div>
-                <label className="block text-sm font-semibold mb-1">Nombre de la Firma</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-1">Teléfono</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-1">Dirección</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Ciudad</label>
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Nombre de la Firma</label>
                   <input
                     type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Email de la Firma</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Teléfono</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Plan</label>
-                  <select
-                    value={formData.plan}
-                    onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Dirección</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-                  >
-                    <option value="firm_growth">Crecimiento (5 abogados)</option>
-                    <option value="firm_enterprise">Enterprise (20 abogados)</option>
-                  </select>
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Ciudad</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Plan</label>
+                    <select
+                      value={formData.plan}
+                      onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    >
+                      <option value="firm_growth">Crecimiento (5 abogados)</option>
+                      <option value="firm_enterprise">Enterprise (20 abogados)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECCIÓN: SOCIO FUNDADOR */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Socio Fundador</h4>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    value={formData.founder_name}
+                    onChange={(e) => setFormData({ ...formData, founder_name: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Email (para Acceso)</label>
+                  <input
+                    type="email"
+                    value={formData.founder_email}
+                    onChange={(e) => setFormData({ ...formData, founder_email: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Teléfono</label>
+                  <input
+                    type="tel"
+                    value={formData.founder_phone}
+                    onChange={(e) => setFormData({ ...formData, founder_phone: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Tarjeta Profesional</label>
+                  <input
+                    type="text"
+                    value={formData.founder_bar_number}
+                    onChange={(e) => setFormData({ ...formData, founder_bar_number: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  />
                 </div>
               </div>
 
