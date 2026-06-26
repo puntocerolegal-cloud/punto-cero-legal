@@ -79,8 +79,9 @@ export function FirmOSPreviewBlock() {
       const res = await axios.post(`${API}/firms/register`, firmPayload);
       setSuccess(true);
 
-      // Reset form after success
+      // Show activation instructions
       setTimeout(() => {
+        alert(`¡Firma registrada!\n\nUn email de activación ha sido enviado a ${firmPayload.founder_email}.\n\nRevisa tu correo y sigue los pasos para activar tu cuenta.`);
         setFormData({
           name: '',
           contact_name: '',
@@ -91,7 +92,7 @@ export function FirmOSPreviewBlock() {
         });
         setSuccess(false);
         setSubmitted(false);
-      }, 3000);
+      }, 2000);
     } catch (err) {
       let errorMsg = 'Error al registrar la firma. Intenta nuevamente.';
 

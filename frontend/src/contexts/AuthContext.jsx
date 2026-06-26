@@ -61,9 +61,11 @@ async function setStoredToken(token) {
   try {
     const payload = STORAGE_PASSPHRASE ? await encryptString(token) : token;
     localStorage.setItem(TOKEN_KEY, payload);
+    syncStorageKeys(token, JSON.parse(localStorage.getItem('pcl_user') || 'null'));
   } catch (e) {
     console.error('Failed to store token securely:', e);
     localStorage.setItem(TOKEN_KEY, token);
+    syncStorageKeys(token, JSON.parse(localStorage.getItem('pcl_user') || 'null'));
   }
 }
 
@@ -83,9 +85,13 @@ async function setStoredUser(user) {
     const str = JSON.stringify(user);
     const payload = STORAGE_PASSPHRASE ? await encryptString(str) : str;
     localStorage.setItem(USER_KEY, payload);
+    const tokenStr = localStorage.getItem('pcl_token') || localStorage.getItem(TOKEN_KEY);
+    syncStorageKeys(tokenStr, user);
   } catch (e) {
     console.error('Failed to store user securely:', e);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    const tokenStr = localStorage.getItem('pcl_token') || localStorage.getItem(TOKEN_KEY);
+    syncStorageKeys(tokenStr, user);
   }
 }
 
@@ -99,6 +105,24 @@ async function getStoredUser() {
 
 function removeStoredUser() {
   localStorage.removeItem(USER_KEY);
+}
+
+// Sincronizar con claves antiguas para compatibilidad (Firm OS y otros módulos usan diferentes claves)
+function syncStorageKeys(token, user) {
+  if (token) {
+    localStorage.setItem('pcl_token', token);
+    localStorage.setItem('token', token);
+  } else {
+    localStorage.removeItem('pcl_token');
+    localStorage.removeItem('token');
+  }
+  if (user) {
+    localStorage.setItem('pcl_user', JSON.stringify(user));
+    localStorage.setItem('user', JSON.stringify(user));
+  } else {
+    localStorage.removeItem('pcl_user');
+    localStorage.removeItem('user');
+  }
 }
 
 export const AuthProvider = ({ children }) => {
