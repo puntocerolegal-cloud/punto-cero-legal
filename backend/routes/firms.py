@@ -48,7 +48,10 @@ async def register_firm(
     if existing_user:
         raise HTTPException(status_code=400, detail="Este correo ya está registrado en el sistema")
 
-    # PASO 1: Crear la firma en estado PENDING_VERIFICATION
+    # PASO 1: Crear la firma en estado PENDING_VERIFICATION con Trial de 7 días
+    now = datetime.utcnow()
+    trial_ends = now + timedelta(days=7)
+
     firm_doc = {
         "name": firm_data.name,
         "nit": firm_data.nit,
@@ -69,8 +72,14 @@ async def register_firm(
         "approved_by": None,
         "rejection_reason": None,
         "is_verified": False,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        # Trial de 7 días activado automáticamente
+        "trial_status": "active",
+        "trial_started_at": now,
+        "trial_ends_at": trial_ends,
+        "subscription_status": "trial",
+        "subscription_plan": "trial",
+        "created_at": now,
+        "updated_at": now,
     }
 
     firm_result = await db.firms.insert_one(firm_doc)
@@ -142,8 +151,9 @@ async def register_firm(
             <p>Tu firma <strong>{firm_data.name}</strong> ha sido registrada correctamente en Punto Cero Legal.</p>
 
             <div class="section">
-                <div class="label">✓ Próximo Paso</div>
-                <p>Tu solicitud está siendo revisada por nuestro equipo de validación.
+                <div class="label">✓ Prueba Gratuita de 7 Días Activada</div>
+                <p>Tu firma ha sido registrada con una <strong>prueba gratuita de 7 días</strong> completamente funcional.
+                Tu solicitud está siendo revisada por nuestro equipo de validación.
                 Recibirás un correo con instrucciones de activación en las próximas 24 a 48 horas.</p>
             </div>
 
@@ -151,7 +161,8 @@ async def register_firm(
                 <strong>Información registrada:</strong><br>
                 Firma: {firm_data.name}<br>
                 NIT: {firm_data.nit}<br>
-                Plan: {'Firma en Crecimiento (5 abogados)' if firm_data.plan == 'firm_growth' else 'Consolidación Empresarial (10 abogados)'}
+                Plan: {'Firma en Crecimiento (5 abogados)' if firm_data.plan == 'firm_growth' else 'Consolidación Empresarial (10 abogados)'}<br>
+                <strong>Trial gratuito:</strong> 7 días desde la aprobación
             </p>
 
             <h3 style="color: #1f2937; margin-top: 30px;">¿Preguntas?</h3>
@@ -196,9 +207,150 @@ async def register_firm(
         owner_email=firm_data.founder_email,
         status=firm_doc["status"],
         is_verified=False,
+        trial_status=firm_doc["trial_status"],
+        trial_started_at=firm_doc["trial_started_at"].isoformat() if firm_doc["trial_started_at"] else None,
+        trial_ends_at=firm_doc["trial_ends_at"].isoformat() if firm_doc["trial_ends_at"] else None,
+        subscription_status=firm_doc["subscription_status"],
+        subscription_plan=firm_doc["subscription_plan"],
         created_at=firm_doc["created_at"].isoformat(),
         updated_at=firm_doc["updated_at"].isoformat()
     )
+
+
+# POST /firms/register-lead - Registro simplificado de firma (SPRINT UX - Flujo de mínimos datos)
+@router.post("/register-lead", status_code=status.HTTP_201_CREATED)
+async def register_firm_lead(
+    payload: dict,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """
+    SPRINT UX: Registro simplificado de firma desde landing page.
+
+    DIFERENCIAS vs /register:
+    - Solicita SOLO: nombre firma, contacto, email, WhatsApp, país, tamaño
+    - NO solicita: NIT, dirección, documento, tarjeta profesional, etc.
+    - Crea LEAD (lead en CRM), no firma completa
+    - Guarda metadata automáticamente detectada
+    - Dispara notificación en Admin OS
+    - NO crea usuario ni suscripción todavía
+
+    La firma se completa después en onboarding.
+    """
+    from utils import notifier
+    from bson import ObjectId
+    import json
+
+    try:
+        # Extraer datos requeridos
+        firm_name = payload.get('name', '').strip()
+        contact_name = payload.get('contact_name', '').strip()
+        contact_email = payload.get('email', '').strip()
+        contact_phone = payload.get('phone', '').strip()
+        contact_country = payload.get('country', 'Colombia').strip()
+        firm_size = payload.get('firm_size', 'solo')
+        metadata = payload.get('metadata', {})
+
+        # Validaciones básicas
+        if not firm_name:
+            raise HTTPException(status_code=400, detail="Nombre de firma requerido")
+        if not contact_name:
+            raise HTTPException(status_code=400, detail="Nombre de contacto requerido")
+        if not contact_email:
+            raise HTTPException(status_code=400, detail="Email corporativo requerido")
+        if not contact_phone:
+            raise HTTPException(status_code=400, detail="WhatsApp requerido")
+
+        # Verificar email duplicado en leads (no firma completa)
+        existing_lead = await db.leads.find_one({
+            "source": "landing_firm_registration",
+            "contact_email": contact_email
+        })
+        if existing_lead:
+            raise HTTPException(status_code=409, detail="Este correo ya fue registrado como firma")
+
+        now = datetime.utcnow()
+
+        # PASO 1: Crear LEAD en CRM (no firma completa)
+        lead_doc = {
+            "source": "landing_firm_registration",
+            "lead_type": "firm",
+            "firm_name": firm_name,
+            "contact_name": contact_name,
+            "contact_email": contact_email,
+            "contact_phone": contact_phone,
+            "contact_country": contact_country,
+            "firm_size": firm_size,
+
+            # Metadata detectada automáticamente
+            "metadata": {
+                **metadata,
+                "detected_at": now.isoformat(),
+            },
+
+            # Estado del lead
+            "status": "new",  # new | contacted | qualified | rejected
+            "assigned_to": None,
+            "qualified": False,
+            "rejected": False,
+            "rejection_reason": None,
+
+            # Timestamps
+            "created_at": now,
+            "updated_at": now,
+            "contacted_at": None,
+            "qualified_at": None,
+        }
+
+        lead_result = await db.leads.insert_one(lead_doc)
+        lead_id = str(lead_result.inserted_id)
+
+        # PASO 2: Notificar al administrador
+        await notifier.create_app_notification(
+            db,
+            target="admin",
+            type="new_firm_lead",
+            title=f"Nueva firma registrada: {firm_name}",
+            message=f"{contact_name} ({contact_email}) · {contact_country} · {firm_size} abogados",
+            metadata={"lead_id": lead_id, "contact_email": contact_email},
+        )
+
+        # PASO 3: Enviar correo de bienvenida al contacto
+        try:
+            await notifier.send_email(
+                contact_email,
+                subject="Bienvenido a Punto Cero Legal",
+                body=f"""
+                Hola {contact_name},
+
+                ¡Gracias por registrar tu firma en Punto Cero Legal!
+
+                Tu espacio está casi listo. En los próximos pasos te pediremos:
+                - Logo y descripción de tu firma
+                - Áreas de práctica
+                - Invitar a tus abogados
+
+                Un especialista de nuestro equipo se pondrá en contacto contigo pronto por WhatsApp
+                para ayudarte en el proceso.
+
+                Saludos,
+                Punto Cero Legal
+                """
+            )
+        except Exception as e:
+            # No fallar si el email falla
+            pass
+
+        return {
+            "ok": True,
+            "lead_id": lead_id,
+            "message": "Firma registrada exitosamente. Un especialista se contactará pronto.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al registrar firma: {str(e)}")
+
 
 # GET /firms - Listar todas las firmas (admin only)
 @router.get("/", response_model=List[FirmResponse], status_code=status.HTTP_200_OK)
@@ -223,6 +375,11 @@ async def list_firms(
             owner_email=firm["owner_email"],
             status=firm["status"],
             is_verified=firm["is_verified"],
+            trial_status=firm.get("trial_status"),
+            trial_started_at=firm.get("trial_started_at").isoformat() if isinstance(firm.get("trial_started_at"), datetime) else firm.get("trial_started_at"),
+            trial_ends_at=firm.get("trial_ends_at").isoformat() if isinstance(firm.get("trial_ends_at"), datetime) else firm.get("trial_ends_at"),
+            subscription_status=firm.get("subscription_status"),
+            subscription_plan=firm.get("subscription_plan"),
             created_at=firm["created_at"].isoformat() if isinstance(firm["created_at"], datetime) else firm["created_at"],
             updated_at=firm["updated_at"].isoformat() if isinstance(firm["updated_at"], datetime) else firm["updated_at"]
         )
@@ -333,6 +490,11 @@ async def create_firm(
         owner_email=firm_data.founder_email,
         status=firm_doc["status"],
         is_verified=False,
+        trial_status=firm_doc.get("trial_status"),
+        trial_started_at=firm_doc.get("trial_started_at").isoformat() if firm_doc.get("trial_started_at") else None,
+        trial_ends_at=firm_doc.get("trial_ends_at").isoformat() if firm_doc.get("trial_ends_at") else None,
+        subscription_status=firm_doc.get("subscription_status"),
+        subscription_plan=firm_doc.get("subscription_plan"),
         created_at=firm_doc["created_at"].isoformat(),
         updated_at=firm_doc["updated_at"].isoformat()
     )
@@ -370,6 +532,11 @@ async def get_firm(
         owner_email=firm["owner_email"],
         status=firm["status"],
         is_verified=firm["is_verified"],
+        trial_status=firm.get("trial_status"),
+        trial_started_at=firm.get("trial_started_at").isoformat() if isinstance(firm.get("trial_started_at"), datetime) else firm.get("trial_started_at"),
+        trial_ends_at=firm.get("trial_ends_at").isoformat() if isinstance(firm.get("trial_ends_at"), datetime) else firm.get("trial_ends_at"),
+        subscription_status=firm.get("subscription_status"),
+        subscription_plan=firm.get("subscription_plan"),
         created_at=firm["created_at"].isoformat() if isinstance(firm["created_at"], datetime) else firm["created_at"],
         updated_at=firm["updated_at"].isoformat() if isinstance(firm["updated_at"], datetime) else firm["updated_at"]
     )
@@ -414,6 +581,11 @@ async def update_firm(
         owner_email=updated_firm["owner_email"],
         status=updated_firm["status"],
         is_verified=updated_firm["is_verified"],
+        trial_status=updated_firm.get("trial_status"),
+        trial_started_at=updated_firm.get("trial_started_at").isoformat() if isinstance(updated_firm.get("trial_started_at"), datetime) else updated_firm.get("trial_started_at"),
+        trial_ends_at=updated_firm.get("trial_ends_at").isoformat() if isinstance(updated_firm.get("trial_ends_at"), datetime) else updated_firm.get("trial_ends_at"),
+        subscription_status=updated_firm.get("subscription_status"),
+        subscription_plan=updated_firm.get("subscription_plan"),
         created_at=updated_firm["created_at"].isoformat() if isinstance(updated_firm["created_at"], datetime) else updated_firm["created_at"],
         updated_at=updated_firm["updated_at"].isoformat() if isinstance(updated_firm["updated_at"], datetime) else updated_firm["updated_at"]
     )
@@ -962,4 +1134,62 @@ async def get_firm_financial(
             "active_cases": len([c for c in cases if c.get("status") in ["open", "in_progress"]]),
             "avg_revenue_per_case": round(total_revenue / max(len(cases), 1), 2),
         },
+    }
+
+# GET /firms/trial/summary - Resumen de trials (admin only)
+@router.get("/trial/summary", status_code=status.HTTP_200_OK)
+async def get_trial_summary(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Obtener resumen de todos los trials activos y expirados"""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden ver resumen de trials")
+
+    from services.trial_service import get_trial_summary_by_status
+    summary = await get_trial_summary_by_status(db)
+
+    return {
+        "success": True,
+        "data": summary
+    }
+
+# GET /firms/{firm_id}/trial - Obtener estado del trial de una firma (admin only)
+@router.get("/{firm_id}/trial", status_code=status.HTTP_200_OK)
+async def get_firm_trial_status(
+    firm_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Obtener estado del trial de una firma específica"""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden ver estado de trial")
+
+    try:
+        oid = ObjectId(firm_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID de firma inválido")
+
+    firm = await db.firms.find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+
+    from services.trial_service import calculate_trial_remaining_days, is_trial_active
+
+    remaining_days = calculate_trial_remaining_days(firm.get("trial_ends_at"))
+    is_active = is_trial_active(firm.get("trial_status"), firm.get("trial_ends_at"))
+
+    return {
+        "success": True,
+        "data": {
+            "firm_id": firm_id,
+            "firm_name": firm.get("name"),
+            "trial_status": firm.get("trial_status", "not_started"),
+            "trial_started_at": firm.get("trial_started_at").isoformat() if firm.get("trial_started_at") else None,
+            "trial_ends_at": firm.get("trial_ends_at").isoformat() if firm.get("trial_ends_at") else None,
+            "remaining_days": remaining_days,
+            "is_active": is_active,
+            "subscription_status": firm.get("subscription_status"),
+            "subscription_plan": firm.get("subscription_plan"),
+        }
     }

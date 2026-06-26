@@ -35,7 +35,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
-import { FirmRegistrationModal } from '../components/FirmRegistrationModal';
+import { FirmRegistrationStreamlined } from '../components/FirmRegistrationStreamlined';
 import { FirmOSPreviewBlock } from '../components/FirmOSPreviewBlock';
 
 import { trackEvent } from '../lib/analytics';
@@ -348,7 +348,7 @@ export const LandingPage = () => {
 
             >
 
-              <img src="/logo-pd-system.png" alt="Punto Cero Legal" className="w-11 h-11 object-contain rounded-lg" />
+              <img src="https://cdn.builder.io/api/v1/image/assets%2F18d3193fe50643dfa7d4c7599f2bf550%2Fb71558facffb495fb2401892611fe06c?format=webp&width=800&height=1200" alt="Punto Cero Legal" className="w-11 h-11 object-contain" />
 
               <span className="text-2xl font-bold text-white">Punto Cero Legal</span>
 
@@ -383,6 +383,41 @@ export const LandingPage = () => {
                 {getAccessLabel()}
 
               </Button>
+
+              {/* Social Media Icons */}
+              <div className="flex gap-3 ml-3">
+                <a
+                  href="https://www.instagram.com/puntocerolegal/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Síguenos en Instagram"
+                  className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#f97316] via-[#ec4899] to-[#8b5cf6] flex items-center justify-center hover:scale-110 hover:shadow-[0_0_15px_rgba(236,72,153,0.4)] transition-all duration-300"
+                >
+                  <Instagram className="w-4 h-4 text-white" aria-hidden="true" />
+                </a>
+
+                <a
+                  href="https://www.facebook.com/Punto7Cero7/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Síguenos en Facebook"
+                  className="w-9 h-9 rounded-lg bg-[#1877f2] flex items-center justify-center hover:scale-110 hover:shadow-[0_0_15px_rgba(24,119,242,0.4)] transition-all duration-300"
+                >
+                  <Facebook className="w-4 h-4 text-white" aria-hidden="true" />
+                </a>
+
+                <a
+                  href="https://www.tiktok.com/@puntocerolegal7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="TikTok Punto Cero Legal"
+                  className="w-9 h-9 rounded-lg bg-black border border-white/20 flex items-center justify-center hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all duration-300"
+                >
+                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.1z"/>
+                  </svg>
+                </a>
+              </div>
 
             </motion.div>
 
@@ -2599,9 +2634,9 @@ export const LandingPage = () => {
 
               <div className="flex items-center gap-2 mb-3">
 
-                <img src="/logo-pd-system.png" alt="Punto Cero" className="w-9 h-9 object-contain rounded" aria-hidden="true" />
+                <img src="https://cdn.builder.io/api/v1/image/assets%2F18d3193fe50643dfa7d4c7599f2bf550%2Fb71558facffb495fb2401892611fe06c?format=webp&width=800&height=1200" alt="Punto Cero" className="w-9 h-9 object-contain" aria-hidden="true" />
 
-                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO MULTISERVICIOS</h3>
+                <h3 id="footer-brand" className="text-xl font-bold text-white">PUNTO CERO LEGAL</h3>
 
               </div>
 
@@ -2775,11 +2810,11 @@ export const LandingPage = () => {
 
               <div className="flex gap-3 flex-wrap">
 
-                <a 
+                <a
 
-                  href="https://www.instagram.com/puntoceroconsultores/" 
+                  href="https://www.instagram.com/puntocerolegal/"
 
-                  target="_blank" 
+                  target="_blank"
 
                   rel="noopener noreferrer"
 
@@ -2793,11 +2828,11 @@ export const LandingPage = () => {
 
                 </a>
 
-                <a 
+                <a
 
-                  href="https://www.facebook.com/Punto7Cero7/" 
+                  href="https://www.facebook.com/Punto7Cero7/"
 
-                  target="_blank" 
+                  target="_blank"
 
                   rel="noopener noreferrer"
 
@@ -2811,17 +2846,17 @@ export const LandingPage = () => {
 
                 </a>
 
-                <a 
+                <a
 
-                  href="https://www.tiktok.com/@puntoceroconsultores" 
+                  href="https://www.tiktok.com/@puntocerolegal7"
 
-                  target="_blank" 
+                  target="_blank"
 
                   rel="noopener noreferrer"
 
-                  aria-label="TikTok Punto Cero Consultores"
+                  aria-label="TikTok Punto Cero Legal"
 
-                  title="@Puntoceroconsultores"
+                  title="@puntocerolegal7"
 
                   className="w-11 h-11 rounded-xl bg-black border border-white/20 flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all duration-300 relative overflow-hidden group"
 
@@ -2835,39 +2870,7 @@ export const LandingPage = () => {
 
                 </a>
 
-                <a 
-
-                  href="https://www.tiktok.com/@puntoceromultiservicioslatam" 
-
-                  target="_blank" 
-
-                  rel="noopener noreferrer"
-
-                  aria-label="TikTok Punto Cero Multiservicios LATAM"
-
-                  title="@PuntoceromultiserviciosLATAM"
-
-                  className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f97316] to-black border border-[#f97316]/40 flex items-center justify-center hover:scale-110 hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] transition-all duration-300 relative overflow-hidden group"
-
-                >
-
-                  <svg className="w-5 h-5 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-
-                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.1z"/>
-
-                  </svg>
-
-                </a>
-
               </div>
-
-              <p className="text-white/40 text-xs mt-4 leading-relaxed">
-
-                @Puntoceroconsultores<br />
-
-                @PuntoceromultiserviciosLATAM
-
-              </p>
 
             </section>
 
@@ -2929,15 +2932,15 @@ export const LandingPage = () => {
 
       </motion.a>
 
-      {/* Modal de Registro de Firmas */}
-      <FirmRegistrationModal
+      {/* Modal de Registro de Firmas — Versión Streamlined (SPRINT UX) */}
+      <FirmRegistrationStreamlined
         open={showFirmRegistration}
         onClose={() => setShowFirmRegistration(false)}
-        onSuccess={(firmData) => {
-          navigate('/login', {
+        onSuccess={(leadData) => {
+          navigate('/onboarding-firma', {
             state: {
-              message: `Firma "${firmData.name}" registrada exitosamente. Revisa tu correo para instrucciones de acceso.`,
-              firmId: firmData.id
+              message: '¡Excelente! Tu firma ha sido registrada. Completa tu perfil en el siguiente paso.',
+              leadId: leadData.lead_id
             }
           });
         }}

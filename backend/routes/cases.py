@@ -402,7 +402,7 @@ async def request_client_form(case_id: str, payload: dict, db: AsyncIOMotorDatab
     token = uuid.uuid4().hex
     await db.cases.update_one({"_id": case["_id"]},
                               {"$set": {"client_form_token": token, "updated_at": datetime.utcnow()}})
-    base = payload.get("base_url") or "https://app.puntocerolegal.com"
+    base = payload.get("base_url") or os.environ.get("APP_PUBLIC_URL", "https://app.puntocerolegal.com")
     url = f"{base}/portal/form/{token}"
     msg = (f"Su abogado solicita que complete el formulario de su caso "
            f"{case.get('case_number')}: {url}")

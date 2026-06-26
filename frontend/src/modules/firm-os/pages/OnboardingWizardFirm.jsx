@@ -118,11 +118,22 @@ export default function OnboardingWizardFirm({ firmId, onComplete }) {
     setError('');
 
     try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const actualFirmId = firmId || user.firm_id;
+
+      if (!actualFirmId) {
+        setError('No se encontró firma asociada');
+        setLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      await axios.post(`${API}/firms/${firmId}/onboarding-complete`, {
+      // Completar onboarding con datos de configuración
+      const response = await axios.post(`${API}/firm-os/firms/${actualFirmId}/onboarding-complete`, {
         ...formData,
+        invited_lawyers: formData.invited_lawyers || [],
         onboarding_completed: true,
         onboarding_completed_at: new Date().toISOString()
       }, { headers });
@@ -130,6 +141,8 @@ export default function OnboardingWizardFirm({ firmId, onComplete }) {
       setSuccess(true);
       setTimeout(() => {
         onComplete?.();
+        // Redirigir al dashboard después de completar
+        window.location.href = '/firm-os';
       }, 2000);
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al completar onboarding');

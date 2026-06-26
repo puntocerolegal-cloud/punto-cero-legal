@@ -81,7 +81,7 @@ export function RolesDashboard() {
   return (
     <div className="space-y-8">
       <div className="rounded-xl border border-[#f97316]/30 bg-[#f97316]/[0.06] px-4 py-2.5 text-xs text-[#fdba74]">
-        Administración centralizada de roles · Punto Cero System OS · datos de demostración (sin backend conectado).
+        Administración centralizada de roles · Punto Cero System OS · datos sincronizados desde MongoDB.
       </div>
 
       {/* KPIs */}

@@ -3,11 +3,13 @@ import { Plus } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
 import { TeamTable } from "../components/TeamTable";
+import { InviteLawyerModal } from "../components/InviteLawyerModal";
 
 export function FirmLawyers() {
   const [lawyers, setLawyers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const loadLawyers = useCallback(async () => {
     try {
@@ -50,9 +52,12 @@ export function FirmLawyers() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Abogados ({lawyers.length})</h1>
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors">
+        <button
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors text-white font-semibold"
+        >
           <Plus className="w-5 h-5" />
-          Agregar Abogado
+          Invitar Abogado
         </button>
       </div>
 
@@ -61,6 +66,13 @@ export function FirmLawyers() {
         members={lawyers}
         loading={loading}
         columns={['name', 'specialty', 'cases']}
+      />
+
+      {/* Invitar Modal */}
+      <InviteLawyerModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={() => loadLawyers()}
       />
     </div>
   );

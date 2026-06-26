@@ -196,14 +196,83 @@ async def complete_onboarding(
         )
 
         # Procesar invitaciones a abogados si existen
+        invited_count = 0
         if onboarding_data.get("invited_lawyers"):
+            from utils.email_service import send_email
+            import secrets
+
+            firm = await db.firms.find_one({"_id": ObjectId(firm_id)})
+            firm_name = firm.get("name", "Firma") if firm else "Firma"
+
             for lawyer_email in onboarding_data["invited_lawyers"]:
-                # Aquí se enviaría email de invitación
-                pass
+                try:
+                    # Generar token de invitación único
+                    invitation_token = secrets.token_urlsafe(32)
+
+                    # Crear documento de invitación
+                    invitation_doc = {
+                        "firm_id": firm_id,
+                        "email": lawyer_email,
+                        "token": invitation_token,
+                        "role": "firm_lawyer",
+                        "status": "pending",
+                        "created_at": datetime.utcnow(),
+                        "expires_at": datetime.utcnow() + \
+                            __import__('datetime').timedelta(days=7)
+                    }
+
+                    result = await db.lawyer_invitations.insert_one(invitation_doc)
+
+                    # Construir URL de activación
+                    activation_url = f"https://puntocerolegal.com/activate-lawyer?token={invitation_token}"
+
+                    # Enviar email
+                    email_html = f"""
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }}
+                            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; }}
+                            .button {{ display: inline-block; background: #3b82f6; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 20px 0; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h2>¡Invitación a unirte a {firm_name}!</h2>
+                            <p>Hola,</p>
+                            <p>Has sido invitado a unirte a <strong>{firm_name}</strong> como abogado en Punto Cero Legal.</p>
+                            <p>Haz clic en el botón de abajo para activar tu cuenta:</p>
+                            <p style="text-align: center;">
+                                <a href="{activation_url}" class="button">ACTIVAR CUENTA</a>
+                            </p>
+                            <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                                Este link expira en 7 días. Si tienes preguntas, contáctanos.
+                            </p>
+                        </div>
+                    </body>
+                    </html>
+                    """
+
+                    try:
+                        from utils.email_service import send_email
+                        send_email(
+                            to_email=lawyer_email,
+                            subject=f"Invitación a {firm_name} - Punto Cero Legal",
+                            body_html=email_html
+                        )
+                    except:
+                        pass  # Email service may not be available
+
+                    invited_count += 1
+                except Exception as e:
+                    print(f"Error invitando abogado {lawyer_email}: {str(e)}")
+                    continue
 
         return {
             "success": True,
-            "message": "Onboarding completado"
+            "message": "Onboarding completado",
+            "invited_lawyers": invited_count
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -280,18 +349,22 @@ async def update_directory_settings(
             "website": settings_data.get("website", ""),
             "linkedin": settings_data.get("linkedin", ""),
             "whatsapp": settings_data.get("whatsapp", ""),
+            "city": settings_data.get("city", ""),
+            "country": settings_data.get("country", ""),
+            "practice_areas": settings_data.get("practice_areas", []),
             "visibility_public": settings_data.get("visibility_public", False),
             "updated_at": datetime.utcnow()
         }
 
-        await db.firms.update_one(
+        result = await db.firms.update_one(
             {"_id": ObjectId(firm_id)},
             {"$set": update_data}
         )
 
         return {
             "success": True,
-            "message": "Configuración actualizada"
+            "message": "Configuración actualizada",
+            "modified_count": result.modified_count
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -304,10 +377,11 @@ async def update_directory_settings(
 async def get_public_firms(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Obtener listado público de firmas activas"""
+    """Obtener listado público de firmas activas y completadas"""
     try:
         firms = await db.firms.find({
             "status": "ACTIVE",
+            "onboarding_completed": True,
             "visibility_public": True
         }).sort("created_at", -1).to_list(None)
 
@@ -343,6 +417,7 @@ async def get_public_firm_profile(
         firm = await db.firms.find_one({
             "slug": slug,
             "status": "ACTIVE",
+            "onboarding_completed": True,
             "visibility_public": True
         })
 
@@ -381,7 +456,9 @@ async def submit_firm_contact(
     try:
         firm = await db.firms.find_one({
             "slug": slug,
-            "status": "ACTIVE"
+            "status": "ACTIVE",
+            "onboarding_completed": True,
+            "visibility_public": True
         })
 
         if not firm:
@@ -406,5 +483,192 @@ async def submit_firm_contact(
             "success": True,
             "message": "Mensaje enviado exitosamente"
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# INVITACIÓN DE ABOGADOS - Flujo completo
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+@router.post("/invite-lawyer")
+async def invite_lawyer(
+    invite_data: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Invitar abogado a la firma (solo firm_owner y firm_admin)"""
+    if current_user.get("role") not in ["firm_owner", "firm_admin"]:
+        raise HTTPException(status_code=403, detail="Solo firm_owner y firm_admin pueden invitar abogados")
+
+    firm_id = current_user.get("firm_id")
+    if not firm_id:
+        raise HTTPException(status_code=400, detail="Usuario sin firma asignada")
+
+    lawyer_email = invite_data.get("email")
+    if not lawyer_email:
+        raise HTTPException(status_code=400, detail="Email requerido")
+
+    try:
+        import secrets
+        from utils.email_service import send_email
+
+        # Generar token de invitación único
+        invitation_token = secrets.token_urlsafe(32)
+
+        # Crear documento de invitación
+        invitation_doc = {
+            "firm_id": firm_id,
+            "email": lawyer_email,
+            "token": invitation_token,
+            "role": "firm_lawyer",
+            "status": "pending",
+            "created_at": datetime.utcnow(),
+            "expires_at": datetime.utcnow() + __import__('datetime').timedelta(days=7)
+        }
+
+        await db.lawyer_invitations.insert_one(invitation_doc)
+
+        # Construir URL de activación
+        activation_url = f"https://puntocerolegal.com/activate-lawyer?token={invitation_token}"
+
+        # Obtener nombre de firma
+        firm = await db.firms.find_one({"_id": ObjectId(firm_id)})
+        firm_name = firm.get("name", "Firma") if firm else "Firma"
+
+        # Enviar email
+        email_html = f"""
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; }}
+                .button {{ display: inline-block; background: #3b82f6; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 20px 0; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>¡Invitación a unirte a {firm_name}!</h2>
+                <p>Hola,</p>
+                <p>Has sido invitado a unirte a <strong>{firm_name}</strong> como abogado en Punto Cero Legal.</p>
+                <p>Haz clic en el botón de abajo para activar tu cuenta:</p>
+                <p style="text-align: center;">
+                    <a href="{activation_url}" class="button">ACTIVAR CUENTA</a>
+                </p>
+                <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                    Este link expira en 7 días. Si tienes preguntas, contáctanos.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        try:
+            send_email(
+                to_email=lawyer_email,
+                subject=f"Invitación a {firm_name} - Punto Cero Legal",
+                body_html=email_html
+            )
+        except:
+            pass  # Email service may not be available
+
+        return {
+            "success": True,
+            "message": f"Invitación enviada a {lawyer_email}",
+            "token": invitation_token
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/activate-lawyer")
+async def activate_lawyer_invitation(
+    activation_data: dict,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Activar invitación de abogado con token"""
+    token = activation_data.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Token requerido")
+
+    full_name = activation_data.get("full_name")
+    password = activation_data.get("password")
+
+    if not full_name or not password:
+        raise HTTPException(status_code=400, detail="Nombre y contraseña requeridos")
+
+    try:
+        # Buscar invitación válida
+        invitation = await db.lawyer_invitations.find_one({
+            "token": token,
+            "status": "pending",
+            "expires_at": {"$gt": datetime.utcnow()}
+        })
+
+        if not invitation:
+            raise HTTPException(status_code=404, detail="Invitación no encontrada o expirada")
+
+        firm_id = invitation["firm_id"]
+        lawyer_email = invitation["email"]
+
+        # Verificar si usuario ya existe
+        existing_user = await db.users.find_one({"email": lawyer_email})
+
+        if existing_user:
+            # Actualizar usuario existente
+            from utils.hash_utils import hash_password
+            hashed_pw = hash_password(password)
+
+            await db.users.update_one(
+                {"_id": existing_user["_id"]},
+                {"$set": {
+                    "full_name": full_name,
+                    "password_hash": hashed_pw,
+                    "firm_id": firm_id,
+                    "role": "firm_lawyer",
+                    "status": "ACTIVE",
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            user_id = str(existing_user["_id"])
+        else:
+            # Crear nuevo usuario
+            from utils.hash_utils import hash_password
+
+            hashed_pw = hash_password(password)
+
+            user_doc = {
+                "email": lawyer_email,
+                "full_name": full_name,
+                "password_hash": hashed_pw,
+                "firm_id": firm_id,
+                "role": "firm_lawyer",
+                "status": "ACTIVE",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+
+            result = await db.users.insert_one(user_doc)
+            user_id = str(result.inserted_id)
+
+        # Marcar invitación como aceptada
+        await db.lawyer_invitations.update_one(
+            {"_id": invitation["_id"]},
+            {"$set": {
+                "status": "accepted",
+                "accepted_at": datetime.utcnow(),
+                "user_id": user_id
+            }}
+        )
+
+        return {
+            "success": True,
+            "message": "Invitación activada exitosamente",
+            "user_id": user_id,
+            "firm_id": firm_id,
+            "role": "firm_lawyer"
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

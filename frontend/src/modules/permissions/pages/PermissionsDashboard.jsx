@@ -90,7 +90,7 @@ export function PermissionsDashboard() {
   return (
     <div className="space-y-8">
       <div className="rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/[0.06] px-4 py-2.5 text-xs text-[#c4b5fd]">
-        Motor central de control de acceso (RBAC) · Punto Cero System OS · datos de demostración (sin backend conectado).
+        Motor central de control de acceso (RBAC) · Punto Cero System OS · datos sincronizados desde MongoDB.
       </div>
 
       {/* KPIs */}

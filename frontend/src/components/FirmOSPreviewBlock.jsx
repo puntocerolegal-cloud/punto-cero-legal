@@ -13,27 +13,31 @@ export function FirmOSPreviewBlock() {
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    nit: '',
+    contact_name: '',
     email: '',
     phone: '',
-    address: '',
-    city: '',
     country: 'Colombia',
-    plan: 'firm_growth',
-    founder_name: '',
-    founder_email: '',
-    founder_phone: '',
-    founder_document: '',
-    founder_bar_number: '',
+    firm_size: 'solo',
   });
 
+  const [submitted, setSubmitted] = useState(false);
+
+  const validateForm = () => {
+    if (!formData.name.trim()) return false;
+    if (!formData.contact_name.trim()) return false;
+    if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return false;
+    if (!formData.phone.match(/^\+?[\d\s\-()]{10,}/)) return false;
+    if (!formData.country) return false;
+    return true;
+  };
+
   const benefits = [
-    { icon: Users, title: 'Gestión de Equipo Jurídico', desc: 'Organiza equipos y asigna casos de forma inteligente' },
-    { icon: Briefcase, title: 'CRM Jurídico Inteligente', desc: 'Gestión completa de clientes y casos en una plataforma' },
-    { icon: Brain, title: 'Inteligencia Artificial Legal', desc: 'Análisis de documentos y generación automática de contratos' },
-    { icon: BarChart3, title: 'Métricas y Reportes', desc: 'Visibilidad total de resultados y productividad' },
-    { icon: Zap, title: 'Automatización de Procesos', desc: 'Reduce tareas manuales y aumenta eficiencia' },
-    { icon: MapPin, title: 'Expansión Multi Oficina', desc: 'Escala tu firma a múltiples ubicaciones sin complejidad' }
+    { icon: Briefcase, title: 'CRM Jurídico', desc: 'Gestiona clientes, oportunidades y seguimiento comercial.' },
+    { icon: Users, title: 'Gestión de Casos', desc: 'Administra expedientes, tareas y procesos desde un solo lugar.' },
+    { icon: Brain, title: 'Documentos Inteligentes', desc: 'Automatiza contratos, escritos y documentos legales.' },
+    { icon: Zap, title: 'Firma Electrónica', desc: 'Firma documentos con validez jurídica de forma segura.' },
+    { icon: BarChart3, title: 'IA Jurídica', desc: 'Redacta, analiza y optimiza documentos con Inteligencia Artificial.' },
+    { icon: MapPin, title: 'Seguridad Empresarial', desc: 'Protección avanzada para la información de tu firma.' }
   ];
 
   const handleChange = (e) => {
@@ -48,30 +52,65 @@ export function FirmOSPreviewBlock() {
     setSuccess(false);
 
     try {
-      const res = await axios.post(`${API}/firms/register`, formData);
+      if (submitted) return;
+      setSubmitted(true);
+
+      // Map form fields to FirmCreate schema
+      // POST /firms/register expects full FirmCreate model
+      const trialStartDate = new Date();
+      const trialEndDate = new Date(trialStartDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      const firmPayload = {
+        name: formData.name,
+        nit: `TRIAL-${Date.now()}`, // Auto-generated NIT for trial
+        email: formData.email,
+        phone: formData.phone,
+        address: 'A completar en onboarding',
+        city: 'A completar en onboarding',
+        country: formData.country,
+        plan: 'firm_growth', // Default plan
+        founder_name: formData.contact_name,
+        founder_email: formData.email, // Use same email as firm
+        founder_phone: formData.phone,
+        founder_document: 'TRIAL-PENDING',
+        founder_bar_number: 'TRIAL-PENDING',
+      };
+
+      const res = await axios.post(`${API}/firms/register`, firmPayload);
       setSuccess(true);
-      
+
       // Reset form after success
       setTimeout(() => {
         setFormData({
           name: '',
-          nit: '',
+          contact_name: '',
           email: '',
           phone: '',
-          address: '',
-          city: '',
           country: 'Colombia',
-          plan: 'firm_growth',
-          founder_name: '',
-          founder_email: '',
-          founder_phone: '',
-          founder_document: '',
-          founder_bar_number: '',
+          firm_size: 'solo',
         });
         setSuccess(false);
+        setSubmitted(false);
       }, 3000);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Error al registrar la firma. Intenta nuevamente.');
+      let errorMsg = 'Error al registrar la firma. Intenta nuevamente.';
+
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      } else if (err.response?.data) {
+        const data = err.response.data;
+        // Handle Pydantic validation errors array
+        if (Array.isArray(data)) {
+          errorMsg = data.map(e => e.msg || String(e)).join(', ');
+        } else if (typeof data === 'string') {
+          errorMsg = data;
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
+      setError(errorMsg);
+      setSubmitted(false);
     } finally {
       setLoading(false);
     }
@@ -81,6 +120,16 @@ export function FirmOSPreviewBlock() {
     <section className="relative py-24 px-6 overflow-hidden">
       {/* Premium Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0e1a] via-[#0f172a] to-[#0a0e1a]" />
+
+      {/* Watermark Background Image */}
+      <div
+        className="absolute inset-0 opacity-8 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url("https://images.unsplash.com/photo-1589829085787-f47371aff97b?auto=format&fit=crop&w=1920&q=80")',
+          backgroundAttachment: 'fixed'
+        }}
+      />
+
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(59,130,246,0.15),transparent_50%),radial-gradient(circle_at_70%_50%,rgba(249,115,22,0.10),transparent_50%)]" />
 
       <div className="container mx-auto relative z-10">
@@ -91,15 +140,17 @@ export function FirmOSPreviewBlock() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
+          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-[#f97316]/20 to-[#3b82f6]/20 border border-white/15 backdrop-blur-sm text-white/80 text-xs font-bold uppercase tracking-[0.25em] mb-4">
+            PROGRAMA PARA FIRMAS JURÍDICAS
+          </span>
           <h2 className="text-5xl lg:text-6xl font-bold text-white mb-4">
-            Programa para <span className="bg-gradient-to-r from-[#3b82f6] to-[#f97316] bg-clip-text text-transparent">Firmas Jurídicas</span>
+            El futuro de tu firma <span className="text-[#f97316]">comienza aquí.</span>
           </h2>
-          <p className="text-xl text-white/70 mb-2">
-            Firma en Crecimiento y Consolidación Empresarial
+          <p className="text-white/60 max-w-3xl mx-auto text-lg leading-relaxed">
+            Prueba Punto Cero Legal durante <strong>7 días completamente gratis</strong> y descubre cómo una plataforma todo en uno puede optimizar la gestión de clientes, expedientes, documentos, facturación e inteligencia jurídica para tu firma.
           </p>
-          <p className="text-white/60 max-w-3xl mx-auto text-lg">
-            Escale su firma jurídica con tecnología, automatización, inteligencia artificial y herramientas de gestión 
-            diseñadas para aumentar productividad, control operativo y rentabilidad.
+          <p className="text-white/60 max-w-3xl mx-auto text-base mt-3">
+            No se requiere compromiso y tendrás acompañamiento durante todo el proceso de evaluación.
           </p>
         </motion.div>
 
@@ -141,14 +192,12 @@ export function FirmOSPreviewBlock() {
             >
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="border-r border-white/10 pr-8">
-                  <h4 className="text-white font-bold text-lg mb-2">Hasta 5 abogados</h4>
-                  <p className="text-[#f97316] font-semibold mb-1">Plan Firma en Crecimiento</p>
-                  <p className="text-white/60 text-sm">Ideal para firmas independientes y pequeños equipos</p>
+                  <h4 className="text-white font-bold text-lg mb-2">Firma en crecimiento</h4>
+                  <p className="text-white/60 text-sm">Hasta 5 abogados</p>
                 </div>
                 <div>
-                  <h4 className="text-white font-bold text-lg mb-2">Hasta 10 abogados</h4>
-                  <p className="text-[#3b82f6] font-semibold mb-1">Plan Consolidación Empresarial</p>
-                  <p className="text-white/60 text-sm">Solución escalable para firmas en expansión</p>
+                  <h4 className="text-white font-bold text-lg mb-2">Firma consolidada</h4>
+                  <p className="text-white/60 text-sm">Más de 10 abogados</p>
                 </div>
               </div>
             </motion.div>
@@ -162,7 +211,8 @@ export function FirmOSPreviewBlock() {
             className="lg:col-span-5"
           >
             <div className="backdrop-blur-2xl bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/15 rounded-3xl p-8 sticky top-24">
-              <h3 className="text-2xl font-bold text-white mb-6">Solicite Información</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">Comienza tu prueba gratuita</h3>
+              <p className="text-white/60 text-sm mb-6">Activa tu acceso <strong>Trial de 7 días</strong> y conoce todas las funcionalidades de Punto Cero Legal. Un especialista configurará tu espacio y te acompañará durante el proceso.</p>
 
               {/* Error Alert */}
               {error && (
@@ -195,7 +245,7 @@ export function FirmOSPreviewBlock() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Nombre de la Firma */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Nombre de la Firma *</label>
+                  <label className="block text-sm text-white/70 mb-2">Nombre de la firma *</label>
                   <input
                     type="text"
                     name="name"
@@ -208,24 +258,24 @@ export function FirmOSPreviewBlock() {
                   />
                 </div>
 
-                {/* NIT */}
+                {/* Nombre Completo */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">NIT *</label>
+                  <label className="block text-sm text-white/70 mb-2">Nombre completo *</label>
                   <input
                     type="text"
-                    name="nit"
-                    value={formData.nit}
+                    name="contact_name"
+                    value={formData.contact_name}
                     onChange={handleChange}
                     required
                     disabled={loading}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="123456789-1"
+                    placeholder="Nombre completo"
                   />
                 </div>
 
                 {/* Email Corporativo */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Correo Corporativo *</label>
+                  <label className="block text-sm text-white/70 mb-2">Correo corporativo *</label>
                   <input
                     type="email"
                     name="email"
@@ -238,9 +288,9 @@ export function FirmOSPreviewBlock() {
                   />
                 </div>
 
-                {/* Teléfono */}
+                {/* WhatsApp */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Teléfono *</label>
+                  <label className="block text-sm text-white/70 mb-2">WhatsApp *</label>
                   <input
                     type="tel"
                     name="phone"
@@ -249,158 +299,63 @@ export function FirmOSPreviewBlock() {
                     required
                     disabled={loading}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="+57 (1) 2345 6789"
-                  />
-                </div>
-
-                {/* Dirección */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Dirección *</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="Calle principal 123, Oficina 456"
-                  />
-                </div>
-
-                {/* Ciudad */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Ciudad *</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="Bogotá"
-                  />
-                </div>
-
-                {/* Nombre del Fundador */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Nombre del Socio Fundador *</label>
-                  <input
-                    type="text"
-                    name="founder_name"
-                    value={formData.founder_name}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="Nombre completo"
-                  />
-                </div>
-
-                {/* Email del Fundador */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Email del Fundador *</label>
-                  <input
-                    type="email"
-                    name="founder_email"
-                    value={formData.founder_email}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="correo@personal.com"
-                  />
-                </div>
-
-                {/* Teléfono del Fundador */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Teléfono del Fundador *</label>
-                  <input
-                    type="tel"
-                    name="founder_phone"
-                    value={formData.founder_phone}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
                     placeholder="+57 300 1234567"
                   />
                 </div>
 
-                {/* Documento del Fundador */}
+                {/* País */}
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Documento de Identidad *</label>
-                  <input
-                    type="text"
-                    name="founder_document"
-                    value={formData.founder_document}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="1234567890"
-                  />
-                </div>
-
-                {/* Tarjeta Profesional */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Tarjeta Profesional *</label>
-                  <input
-                    type="text"
-                    name="founder_bar_number"
-                    value={formData.founder_bar_number}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all disabled:opacity-50"
-                    placeholder="123456789"
-                  />
-                </div>
-
-                {/* Plan Selector */}
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Plan de Interés *</label>
+                  <label className="block text-sm text-white/70 mb-2">País *</label>
                   <select
-                    name="plan"
-                    value={formData.plan}
+                    name="country"
+                    value={formData.country}
                     onChange={handleChange}
                     disabled={loading}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] focus:bg-white/[0.08] transition-all appearance-none cursor-pointer disabled:opacity-50"
                   >
-                    <option value="firm_growth" className="bg-[#0f172a]">Firma en Crecimiento</option>
-                    <option value="firm_consolidation" className="bg-[#0f172a]">Consolidación Empresarial</option>
+                    <option value="Colombia" className="bg-[#0f172a]">Colombia</option>
+                    <option value="México" className="bg-[#0f172a]">México</option>
+                    <option value="Argentina" className="bg-[#0f172a]">Argentina</option>
+                    <option value="Chile" className="bg-[#0f172a]">Chile</option>
+                    <option value="Perú" className="bg-[#0f172a]">Perú</option>
+                    <option value="Ecuador" className="bg-[#0f172a]">Ecuador</option>
+                    <option value="Venezuela" className="bg-[#0f172a]">Venezuela</option>
+                    <option value="España" className="bg-[#0f172a]">España</option>
                   </select>
                 </div>
 
                 {/* Submit Button */}
                 <motion.button
                   type="submit"
-                  disabled={loading}
-                  whileHover={!loading ? { scale: 1.02 } : {}}
-                  whileTap={!loading ? { scale: 0.98 } : {}}
-                  className="w-full mt-6 relative inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#f97316] text-white font-bold text-sm overflow-hidden group shadow-[0_0_30px_rgba(59,130,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading || !validateForm()}
+                  whileHover={!loading && validateForm() ? { scale: 1.02 } : {}}
+                  whileTap={!loading && validateForm() ? { scale: 0.98 } : {}}
+                  className="w-full mt-6 relative inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold text-sm overflow-hidden group shadow-[0_0_30px_rgba(249,115,22,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="absolute -inset-1 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#f97316] opacity-30 blur-md group-hover:opacity-50 transition-opacity pointer-events-none" />
+                  <span className="absolute -inset-1 rounded-xl bg-gradient-to-r from-[#f97316] to-[#fb923c] opacity-30 blur-md group-hover:opacity-50 transition-opacity pointer-events-none" title={!validateForm() ? "Por favor completa todos los campos correctamente" : ""}  />
                   <span className="relative flex items-center justify-center">
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Procesando...
                       </>
-                    ) : (
+                    ) : validateForm() ? (
                       <>
-                        SOLICITAR INFORMACIÓN
+                        Iniciar prueba gratuita de 7 días
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </>
+                    ) : (
+                      "Completa todos los campos"
                     )}
                   </span>
                 </motion.button>
 
                 {/* Helper Text */}
-                <p className="text-xs text-white/50 text-center pt-3">
-                  Un asesor especializado se pondrá en contacto para presentar la plataforma y validar requisitos de activación.
-                </p>
+                <div className="text-xs text-white/60 text-center pt-3 space-y-1">
+                  <p>✓ Sin tarjeta de crédito</p>
+                  <p>✓ Acceso inmediato al Trial</p>
+                  <p>✓ Acompañamiento personalizado</p>
+                </div>
               </form>
             </div>
           </motion.div>

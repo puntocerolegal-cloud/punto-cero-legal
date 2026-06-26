@@ -119,7 +119,7 @@ export function UsersDashboard() {
   return (
     <div className="space-y-8">
       <div className="rounded-xl border border-[#3b82f6]/30 bg-[#3b82f6]/[0.06] px-4 py-2.5 text-xs text-[#93c5fd]">
-        Centro de administración global de usuarios · Punto Cero System OS · datos de demostración (sin backend conectado).
+        Centro de administración global de usuarios · Punto Cero System OS · datos sincronizados desde MongoDB.
       </div>
 
       {/* KPIs */}

@@ -19,8 +19,22 @@ export default function FirmDirectorySettings({ firmId }) {
     website: '',
     linkedin: '',
     whatsapp: '',
-    visibility_public: false
+    visibility_public: false,
+    slug: ''
   });
+
+  const practiceAreasOptions = [
+    'Derecho Laboral',
+    'Derecho Corporativo',
+    'Derecho Penal',
+    'Derecho Mercantil',
+    'Derecho Familia',
+    'Derecho Administrativo',
+    'Propiedad Intelectual',
+    'Derecho Ambiental',
+    'Derecho Internacional',
+    'Litigios'
+  ];
 
   useEffect(() => {
     loadSettings();
@@ -219,6 +233,59 @@ export default function FirmDirectorySettings({ firmId }) {
               className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6]"
               placeholder="+57 300 1234567"
             />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/70 mb-2">Ciudad</label>
+              <input
+                type="text"
+                value={settings.city}
+                onChange={(e) => setSettings(prev => ({ ...prev, city: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6]"
+                placeholder="Bogotá"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-white/70 mb-2">País</label>
+              <input
+                type="text"
+                value={settings.country}
+                onChange={(e) => setSettings(prev => ({ ...prev, country: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:border-[#3b82f6]"
+                placeholder="Colombia"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/70 mb-3">Áreas de Práctica</label>
+            <div className="grid md:grid-cols-2 gap-3">
+              {practiceAreasOptions.map(area => (
+                <label key={area} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/10 hover:border-white/20 cursor-pointer transition-all">
+                  <input
+                    type="checkbox"
+                    checked={settings.practice_areas.includes(area)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSettings(prev => ({
+                          ...prev,
+                          practice_areas: [...prev.practice_areas, area]
+                        }));
+                      } else {
+                        setSettings(prev => ({
+                          ...prev,
+                          practice_areas: prev.practice_areas.filter(a => a !== area)
+                        }));
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-white/20 cursor-pointer"
+                  />
+                  <span className="text-white/80 text-sm">{area}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <button

@@ -822,50 +822,671 @@ async def confirm_payment(payment_id: str, db: AsyncIOMotorDatabase = Depends(ge
 
 @router.post("/webhook")
 async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Webhook REAL de Mercado Pago. MP notifica un pago → consultamos su estado
-    y, si está 'approved', activamos suscripción + referidos (idempotente).
-    Devuelve siempre 200 para acusar recibo (con diagnóstico en el cuerpo)."""
-    qp = dict(request.query_params)
+    """
+    Webhook Oficial Consolidado de Mercado Pago.
+
+    Procesa TODOS los eventos:
+    - payment.*, subscription.*, refund.*, chargeback.*, invoice.*, merchant_order.*
+
+    Características:
+    - Validación HMAC de firma
+    - Idempotencia por event_id
+    - Auditoría completa en webhook_logs
+    - Sincronización MongoDB automática
+
+    Devuelve siempre 200 OK (acuso de recibo).
+    """
+    from services.webhook_handler import (
+        validate_hmac_signature,
+        is_event_duplicate,
+        record_webhook_event,
+        log_webhook,
+        EVENT_HANDLERS,
+        EVENT_TYPES,
+    )
+    import time
+
+    start_time = time.time()
+
+    # Extraer información del request
     try:
         body = await request.json()
     except Exception:
         body = {}
-    topic = qp.get("type") or qp.get("topic") or body.get("type")
-    mp_payment_id = qp.get("data.id") or qp.get("id") or (body.get("data") or {}).get("id")
-    if topic != "payment" or not mp_payment_id:
-        return {"received": True, "ignored": True}
-    token = os.environ.get("MP_ACCESS_TOKEN", "")
-    if not token:
-        return {"received": True, "no_token": True}
+
+    qp = dict(request.query_params)
+    headers = dict(request.headers)
+
+    # Extraer IP cliente
+    x_forwarded = headers.get("x-forwarded-for", "")
+    client_ip = x_forwarded.split(",")[0].strip() if x_forwarded else request.client.host
+
+    # Construir payload para HMAC: id={id}&type={type}
+    event_id = qp.get("id") or (body.get("data") or {}).get("id")
+    event_type = qp.get("type") or (body.get("type"))
+
+    if not event_id or not event_type:
+        execution_time = (time.time() - start_time) * 1000
+        await log_webhook(
+            db,
+            event_id or "unknown",
+            event_type or "unknown",
+            "invalid_request",
+            headers,
+            body,
+            "invalid_request",
+            execution_time,
+            client_ip,
+            "Missing event_id or event_type"
+        )
+        return {"received": False, "error": "Missing event_id or event_type"}
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # FASE 2: VALIDACIÓN HMAC
+    # ═══════════════════════════════════════════════════════════════════════════════
+
+    # Construir payload para validación HMAC
+    hmac_payload = f"id={event_id}&type={event_type}"
+    signature = headers.get("x-signature", "")
+
+    if not await validate_hmac_signature(hmac_payload, signature):
+        execution_time = (time.time() - start_time) * 1000
+        await log_webhook(
+            db,
+            event_id,
+            event_type,
+            "invalid_signature",
+            headers,
+            body,
+            "invalid_signature",
+            execution_time,
+            client_ip,
+            "HMAC signature validation failed"
+        )
+        logger.warning(f"Invalid HMAC signature for event {event_id}")
+        return {"received": False, "error": "Invalid signature"}
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # FASE 3: VERIFICAR DUPLICADOS (IDEMPOTENCIA)
+    # ═══════════════════════════════════════════════════════════════════════════════
+
+    if await is_event_duplicate(db, event_id):
+        execution_time = (time.time() - start_time) * 1000
+        await log_webhook(
+            db,
+            event_id,
+            event_type,
+            "duplicate",
+            headers,
+            body,
+            "duplicate",
+            execution_time,
+            client_ip
+        )
+        logger.info(f"Duplicate event received: {event_id}")
+        return {"received": True, "status": "duplicate"}
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # FASE 1: PROCESAR EVENTO
+    # ═══════════════════════════════════════════════════════════════════════════════
+
+    result_status = "success"
+    error_msg = None
+
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(
-                f"{MP_API}/v1/payments/{mp_payment_id}",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-        if r.status_code != 200:
-            return {"received": True, "lookup_failed": r.status_code}
-        pay = r.json()
-        if pay.get("status") != "approved":
-            st = pay.get("status")
-            # Alerta al administrador en pagos rechazados/cancelados (evento crítico).
-            if st in ("rejected", "cancelled"):
-                try:
-                    tx = await db.transactions.find_one({"payment_id": pay.get("external_reference")})
-                    who = (tx or {}).get("user_name") or (tx or {}).get("user_email") or "un usuario"
-                    await notifier.create_app_notification(
-                        db, target="admin", type="payment_rejected",
-                        title="Pago rechazado",
-                        message=f"El pago de {who} fue {st}.",
-                    )
-                except Exception:
-                    pass
-            return {"received": True, "status": st}
-        transaction = await db.transactions.find_one({"payment_id": pay.get("external_reference")})
-        if not transaction:
-            return {"received": True, "tx_not_found": True}
-        applied = await _apply_payment_success(db, transaction)
-        return {"received": True, "applied": True, "reward_applied_to_referrer": applied}
+        # Ignorar eventos no soportados
+        if event_type not in EVENT_TYPES:
+            result_status = "ignored"
+            logger.debug(f"Event type not supported: {event_type}")
+
+        # Buscar handler para el evento
+        elif event_type in EVENT_HANDLERS:
+            handler, action = EVENT_HANDLERS[event_type]
+
+            # Extraer datos específicos según el tipo de evento
+            if "payment" in event_type:
+                event_data = body.get("data", {})
+                if not isinstance(event_data, dict):
+                    event_data = {"id": event_id}
+            elif "subscription" in event_type:
+                event_data = body.get("data", {})
+            elif "refund" in event_type:
+                event_data = body.get("data", {})
+            elif "chargeback" in event_type:
+                event_data = body.get("data", {})
+            else:
+                event_data = body.get("data", {})
+
+            # Ejecutar handler
+            success = await handler(db, event_type, event_data)
+
+            if not success:
+                result_status = "error"
+                error_msg = f"Handler returned False for {event_type}"
+
+        else:
+            result_status = "no_handler"
+            logger.debug(f"No handler for event type: {event_type}")
+
+        # Registrar evento procesado
+        await record_webhook_event(
+            db,
+            event_id,
+            event_type,
+            result_status,
+            body,
+            processed=(result_status == "success"),
+            error=error_msg
+        )
+
     except Exception as e:
-        logger.exception("MP webhook error")
-        return {"received": True, "error": str(e)[:200]}
+        result_status = "error"
+        error_msg = str(e)[:200]
+        logger.exception(f"Error processing webhook {event_type}:{event_id}")
+
+        # Registrar evento con error
+        await record_webhook_event(
+            db,
+            event_id,
+            event_type,
+            "error",
+            body,
+            processed=False,
+            error=error_msg
+        )
+
+    finally:
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # FASE 4: AUDITORÍA COMPLETA
+        # ═══════════════════════════════════════════════════════════════════════════════
+
+        execution_time = (time.time() - start_time) * 1000
+
+        await log_webhook(
+            db,
+            event_id,
+            event_type,
+            result_status,
+            headers,
+            body,
+            result_status,
+            execution_time,
+            client_ip,
+            error_msg
+        )
+
+    # Siempre responder 200 OK (acuso de recibo)
+    return {
+        "received": True,
+        "event_id": event_id,
+        "event_type": event_type,
+        "status": result_status,
+        "processing_time_ms": round(execution_time, 2)
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 2 — CICLO DE VIDA DE SUSCRIPCIÓN (renovación, cambio, cancelación)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class SubscriptionStatusResponse(BaseModel):
+    has_active_subscription: bool
+    plan_id: Optional[str] = None
+    subscription_status: str
+    plan_name: Optional[str] = None
+    renewal_date: Optional[str] = None
+    cycles_remaining: int
+    can_change_plan: bool
+    can_cancel: bool
+    can_reactivate: bool
+
+class ChangePlanRequest(BaseModel):
+    new_plan_id: Literal["esencial", "profesional", "elite", "ilimitado"]
+    billing_cycle: Literal["monthly", "annual"] = "monthly"
+
+class RenewalResponse(BaseModel):
+    payment_id: str
+    new_plan_id: str
+    next_renewal_date: str
+    message: str
+
+
+@router.get("/subscription-status")
+async def get_subscription_status(
+    current=Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Obtiene estado actual de la suscripción del abogado autenticado.
+    Incluye: plan, estado, próxima renovación, acciones disponibles."""
+    plan_id = current.get("plan_id")
+    sub_status = current.get("subscription_status", "trial")
+
+    plan = PLAN_CATALOG.get(plan_id) if plan_id else None
+
+    # Período de prueba de 7 días
+    created = current.get("created_at")
+    now = datetime.utcnow()
+    trial_ends_at = None
+    if isinstance(created, datetime):
+        trial_ends_at = (created + timedelta(days=7)).isoformat() + "Z"
+
+    # Buscar últimas transacciones pagadas
+    last_tx = None
+    if plan_id:
+        last_tx = await db.transactions.find_one(
+            {"user_email": current["email"], "status": "paid", "plan_id": plan_id},
+            sort=[("paid_at", -1)]
+        )
+
+    # Calcular próxima renovación (estimada: 30 días después del último pago)
+    next_renewal = None
+    if last_tx and isinstance(last_tx.get("paid_at"), datetime):
+        if last_tx.get("billing_cycle") == "annual":
+            next_renewal = (last_tx["paid_at"] + timedelta(days=365)).isoformat() + "Z"
+        else:
+            next_renewal = (last_tx["paid_at"] + timedelta(days=30)).isoformat() + "Z"
+
+    # Acciones permitidas según estado
+    can_change = sub_status in ("active", "trial")
+    can_cancel = sub_status == "active"
+    can_reactivate = sub_status == "cancelled"
+
+    return SubscriptionStatusResponse(
+        has_active_subscription=bool(plan_id and sub_status == "active"),
+        plan_id=plan_id,
+        subscription_status=sub_status,
+        plan_name=plan["name"] if plan else None,
+        renewal_date=next_renewal,
+        cycles_remaining=1 if sub_status == "active" else 0,
+        can_change_plan=can_change,
+        can_cancel=can_cancel,
+        can_reactivate=can_reactivate,
+    )
+
+
+@router.post("/renew")
+async def renew_subscription(
+    current=Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Renueva una suscripción vencida o próxima a vencer.
+    Crea nuevo payment intent en Mercado Pago."""
+    plan_id = current.get("plan_id")
+    sub_status = current.get("subscription_status")
+
+    if not plan_id:
+        raise HTTPException(status_code=400, detail="No hay plan para renovar")
+
+    if sub_status not in ("expired", "trial"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede renovar un plan en estado '{sub_status}'. "
+                   "Estado debe ser 'expired' o 'trial'."
+        )
+
+    plan = PLAN_CATALOG.get(plan_id)
+    if not plan:
+        raise HTTPException(status_code=400, detail="Plan no válido")
+
+    # Obtener último ciclo (predeterminado: monthly)
+    last_tx = await db.transactions.find_one(
+        {"user_email": current["email"], "status": "paid"},
+        sort=[("paid_at", -1)]
+    )
+    billing_cycle = (last_tx.get("billing_cycle") if last_tx else None) or "monthly"
+
+    # Crear nuevo payment intent (reutilizando lógica de /init)
+    cop_amount = PLAN_PRICES_COP[plan_id][billing_cycle]
+    currency = COUNTRY_CURRENCY.get(current.get("country", "Colombia"), "USD")
+    rate = EXCHANGE_RATES.get(currency, EXCHANGE_RATES["USD"])
+    local_amount = round(cop_amount * rate, 2) if currency != "COP" else cop_amount
+
+    gateway = "mercado_pago" if current.get("country", "Colombia") in MERCADO_PAGO_COUNTRIES else "paypal"
+    payment_id = f"RENEW-{uuid.uuid4().hex[:12].upper()}"
+    plan_name = plan["name"]
+
+    tx_base = {
+        "payment_id": payment_id,
+        "user_email": current["email"],
+        "user_name": current.get("full_name", ""),
+        "plan_id": plan_id,
+        "billing_cycle": billing_cycle,
+        "amount_local": local_amount,
+        "currency": currency,
+    }
+
+    preference_id = None
+    if gateway == "mercado_pago":
+        pref = await _create_mp_preference(tx_base, plan_name)
+        if not pref or not pref.get("url"):
+            raise HTTPException(status_code=502, detail="No se pudo crear la preferencia de Mercado Pago")
+        checkout_url = pref["url"]
+        preference_id = pref["preference_id"]
+    else:
+        checkout_url = f"https://www.paypal.com/checkoutnow?token={payment_id}"
+
+    # Guardar transacción de renovación
+    transaction = {
+        "payment_id": payment_id,
+        "user_email": current["email"],
+        "user_name": current.get("full_name", ""),
+        "plan_id": plan_id,
+        "billing_cycle": billing_cycle,
+        "amount_cop": cop_amount,
+        "amount_local": local_amount,
+        "currency": currency,
+        "country": current.get("country", "Colombia"),
+        "gateway": gateway,
+        "status": "pending",
+        "checkout_url": checkout_url,
+        "preference_id": preference_id,
+        "type": "renewal",  # Marcar como renovación
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(hours=24)
+    }
+
+    await db.transactions.insert_one(transaction)
+
+    return {
+        "payment_id": payment_id,
+        "plan_id": plan_id,
+        "billing_cycle": billing_cycle,
+        "checkout_url": checkout_url,
+        "message": "Renovación iniciada. Completa el pago para continuar.",
+        "type": "renewal"
+    }
+
+
+@router.post("/change-plan")
+async def change_plan(
+    payload: ChangePlanRequest,
+    current=Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Cambia de plan con prorrateo automático.
+    Si cambio a plan superior: cobra diferencia.
+    Si cambio a plan inferior: crea crédito.
+    Si cambio de ciclo: ajusta precio."""
+    current_plan_id = current.get("plan_id")
+    current_status = current.get("subscription_status")
+
+    if current_status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se puede cambiar plan en estado 'active', actual: '{current_status}'"
+        )
+
+    if not current_plan_id:
+        raise HTTPException(status_code=400, detail="No hay plan activo para cambiar")
+
+    if payload.new_plan_id == current_plan_id:
+        raise HTTPException(status_code=400, detail="El nuevo plan es igual al actual")
+
+    new_plan = PLAN_CATALOG.get(payload.new_plan_id)
+    if not new_plan:
+        raise HTTPException(status_code=400, detail="Nuevo plan no válido")
+
+    # Obtener último pago para calcular prorrateo
+    last_tx = await db.transactions.find_one(
+        {"user_email": current["email"], "status": "paid"},
+        sort=[("paid_at", -1)]
+    )
+
+    if not last_tx:
+        raise HTTPException(status_code=400, detail="No hay historial de pagos")
+
+    # Calcular prorrateo simple (días restantes)
+    paid_at = last_tx.get("paid_at", datetime.utcnow())
+    now = datetime.utcnow()
+    if isinstance(paid_at, datetime):
+        days_used = (now - paid_at).days
+        billing_cycle = last_tx.get("billing_cycle", "monthly")
+        cycle_days = 30 if billing_cycle == "monthly" else 365
+        days_remaining = max(0, cycle_days - days_used)
+    else:
+        days_remaining = 30
+
+    # Precios en COP
+    old_plan_price = PLAN_PRICES_COP.get(current_plan_id, {}).get("monthly", 0)
+    new_plan_price = PLAN_PRICES_COP.get(payload.new_plan_id, {}).get("monthly", 0)
+
+    # Prorrateo: (precio_nuevo - precio_viejo) * (días_restantes / 30)
+    daily_old = old_plan_price / 30.0
+    daily_new = new_plan_price / 30.0
+    proration_amount = (daily_new - daily_old) * days_remaining
+
+    # Si es negativo (plan más barato), crear crédito para próxima renovación
+    if proration_amount < 0:
+        await db.users.update_one(
+            {"_id": current["_id"]},
+            {"$inc": {"account_credit": abs(proration_amount)}}
+        )
+        return {
+            "message": "Plan cambiado exitosamente",
+            "new_plan_id": payload.new_plan_id,
+            "credit_applied": abs(proration_amount),
+            "credit_applied_next_renewal": True,
+            "action": "credit"
+        }
+
+    # Si es positivo, crear pago de la diferencia
+    if proration_amount > 0:
+        currency = COUNTRY_CURRENCY.get(current.get("country", "Colombia"), "USD")
+        rate = EXCHANGE_RATES.get(currency, EXCHANGE_RATES["USD"])
+        local_amount = round(proration_amount * rate, 2) if currency != "COP" else proration_amount
+
+        gateway = "mercado_pago" if current.get("country", "Colombia") in MERCADO_PAGO_COUNTRIES else "paypal"
+        payment_id = f"CHGPLAN-{uuid.uuid4().hex[:12].upper()}"
+        plan_name = new_plan["name"]
+
+        tx_base = {
+            "payment_id": payment_id,
+            "user_email": current["email"],
+            "user_name": current.get("full_name", ""),
+            "plan_id": payload.new_plan_id,
+            "billing_cycle": payload.billing_cycle,
+            "amount_local": local_amount,
+            "currency": currency,
+        }
+
+        preference_id = None
+        if gateway == "mercado_pago":
+            pref = await _create_mp_preference(tx_base, f"Cambio a {plan_name}")
+            if not pref or not pref.get("url"):
+                raise HTTPException(status_code=502, detail="No se pudo crear la preferencia de Mercado Pago")
+            checkout_url = pref["url"]
+            preference_id = pref["preference_id"]
+        else:
+            checkout_url = f"https://www.paypal.com/checkoutnow?token={payment_id}"
+
+        transaction = {
+            "payment_id": payment_id,
+            "user_email": current["email"],
+            "user_name": current.get("full_name", ""),
+            "old_plan_id": current_plan_id,
+            "plan_id": payload.new_plan_id,
+            "billing_cycle": payload.billing_cycle,
+            "amount_cop": proration_amount,
+            "amount_local": local_amount,
+            "currency": currency,
+            "country": current.get("country", "Colombia"),
+            "gateway": gateway,
+            "status": "pending",
+            "checkout_url": checkout_url,
+            "preference_id": preference_id,
+            "type": "plan_change",
+            "proration_days": days_remaining,
+            "created_at": datetime.utcnow(),
+            "expires_at": datetime.utcnow() + timedelta(hours=24)
+        }
+
+        await db.transactions.insert_one(transaction)
+
+        return {
+            "payment_id": payment_id,
+            "new_plan_id": payload.new_plan_id,
+            "old_plan_id": current_plan_id,
+            "proration_amount": round(proration_amount, 2),
+            "proration_amount_local": local_amount,
+            "checkout_url": checkout_url,
+            "message": "Se requiere pago de la diferencia. Completa el checkout para activar el nuevo plan.",
+            "action": "payment_required"
+        }
+
+    # Si son iguales (mismo precio), cambiar directamente
+    await db.users.update_one(
+        {"_id": current["_id"]},
+        {"$set": {"plan_id": payload.new_plan_id}}
+    )
+
+    return {
+        "message": "Plan cambiado exitosamente sin costo adicional",
+        "new_plan_id": payload.new_plan_id,
+        "action": "instant"
+    }
+
+
+@router.post("/cancel")
+async def cancel_subscription(
+    current=Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Cancela la suscripción activa del usuario.
+    Marca como cancelled y guarda fecha de cancelación."""
+    plan_id = current.get("plan_id")
+    sub_status = current.get("subscription_status")
+
+    if sub_status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se puede cancelar una suscripción 'active', actual: '{sub_status}'"
+        )
+
+    if not plan_id:
+        raise HTTPException(status_code=400, detail="No hay plan para cancelar")
+
+    # Registrar cancelación en audit
+    await db.audit_logs.insert_one({
+        "action": "subscription_cancelled",
+        "user_id": str(current["_id"]),
+        "user_email": current["email"],
+        "plan_id": plan_id,
+        "created_at": datetime.utcnow(),
+        "detail": "Usuario canceló su suscripción"
+    })
+
+    # Actualizar estado
+    await db.users.update_one(
+        {"_id": current["_id"]},
+        {"$set": {
+            "subscription_status": "cancelled",
+            "cancelled_at": datetime.utcnow()
+        }}
+    )
+
+    # Notificar admin
+    try:
+        await notifier.create_app_notification(
+            db, target="admin", type="subscription_cancelled",
+            title="Suscripción cancelada",
+            message=f"{current.get('full_name')} canceló su suscripción al plan {plan_id}.",
+        )
+    except Exception:
+        pass
+
+    return {
+        "message": "Suscripción cancelada exitosamente",
+        "plan_id": plan_id,
+        "status": "cancelled",
+        "cancelled_at": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/reactivate")
+async def reactivate_subscription(
+    current=Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Reactiva una suscripción cancelada.
+    Renueva el acceso al plan anterior o permite elegir nuevo plan."""
+    plan_id = current.get("plan_id")
+    sub_status = current.get("subscription_status")
+
+    if sub_status != "cancelled":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se puede reactivar una suscripción 'cancelled', actual: '{sub_status}'"
+        )
+
+    if not plan_id:
+        raise HTTPException(status_code=400, detail="No hay plan para reactivar")
+
+    # Crear nuevo payment intent para reactivación
+    cop_amount = PLAN_PRICES_COP[plan_id]["monthly"]
+    currency = COUNTRY_CURRENCY.get(current.get("country", "Colombia"), "USD")
+    rate = EXCHANGE_RATES.get(currency, EXCHANGE_RATES["USD"])
+    local_amount = round(cop_amount * rate, 2) if currency != "COP" else cop_amount
+
+    gateway = "mercado_pago" if current.get("country", "Colombia") in MERCADO_PAGO_COUNTRIES else "paypal"
+    payment_id = f"REACTV-{uuid.uuid4().hex[:12].upper()}"
+    plan = PLAN_CATALOG.get(plan_id)
+    plan_name = plan["name"] if plan else plan_id
+
+    tx_base = {
+        "payment_id": payment_id,
+        "user_email": current["email"],
+        "user_name": current.get("full_name", ""),
+        "plan_id": plan_id,
+        "billing_cycle": "monthly",
+        "amount_local": local_amount,
+        "currency": currency,
+    }
+
+    preference_id = None
+    if gateway == "mercado_pago":
+        pref = await _create_mp_preference(tx_base, f"Reactivación: {plan_name}")
+        if not pref or not pref.get("url"):
+            raise HTTPException(status_code=502, detail="No se pudo crear la preferencia de Mercado Pago")
+        checkout_url = pref["url"]
+        preference_id = pref["preference_id"]
+    else:
+        checkout_url = f"https://www.paypal.com/checkoutnow?token={payment_id}"
+
+    transaction = {
+        "payment_id": payment_id,
+        "user_email": current["email"],
+        "user_name": current.get("full_name", ""),
+        "plan_id": plan_id,
+        "billing_cycle": "monthly",
+        "amount_cop": cop_amount,
+        "amount_local": local_amount,
+        "currency": currency,
+        "country": current.get("country", "Colombia"),
+        "gateway": gateway,
+        "status": "pending",
+        "checkout_url": checkout_url,
+        "preference_id": preference_id,
+        "type": "reactivation",
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(hours=24)
+    }
+
+    await db.transactions.insert_one(transaction)
+
+    # Registrar en audit
+    await db.audit_logs.insert_one({
+        "action": "subscription_reactivation_initiated",
+        "user_id": str(current["_id"]),
+        "user_email": current["email"],
+        "plan_id": plan_id,
+        "payment_id": payment_id,
+        "created_at": datetime.utcnow(),
+    })
+
+    return {
+        "payment_id": payment_id,
+        "plan_id": plan_id,
+        "checkout_url": checkout_url,
+        "message": "Reactivación iniciada. Completa el pago para restaurar tu acceso.",
+        "type": "reactivation"
+    }

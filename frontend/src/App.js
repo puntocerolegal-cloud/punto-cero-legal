@@ -22,6 +22,7 @@ import { LandingPage } from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivateFirmPage from './pages/ActivateFirmPage';
+import ActivateLawyerPage from './pages/ActivateLawyerPage';
 import VerificacionPendiente from './pages/VerificacionPendiente';
 import CheckoutPage from './pages/CheckoutPage';
 import DashboardHome from './pages/DashboardHome';
@@ -69,6 +70,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/activate-firm" element={<ActivateFirmPage />} />
+            <Route path="/activate-lawyer" element={<ActivateLawyerPage />} />
 
             {/* Directorio de Firmas — Público */}
             <Route path="/firms" element={<FirmsDirectory />} />

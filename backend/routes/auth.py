@@ -31,6 +31,19 @@ async def get_current_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
 
+
+async def get_current_admin(
+    authorization: Optional[str] = Header(None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Verifica que el usuario autenticado es un administrador."""
+    user = await get_current_user(authorization, db)
+    admin_roles = ["admin", "admin_general", "socio_comercial"]
+    if user.get("role") not in admin_roles:
+        raise HTTPException(status_code=403, detail="Acceso denegado: solo administradores")
+    return user
+
+
 @router.get("/me")
 async def get_me(current = Depends(get_current_user)):
     """Devuelve el estado actual del usuario autenticado (fuente de verdad).

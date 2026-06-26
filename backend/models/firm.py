@@ -33,6 +33,13 @@ class Firm(BaseModel):
     approved_by: Optional[str] = Field(None, description="ID del admin que aprobó")
     rejection_reason: Optional[str] = Field(None, description="Motivo del rechazo si aplica")
 
+    # Trial Information
+    trial_status: Optional[str] = Field(default="active", description="active | expired | not_started")
+    trial_started_at: Optional[datetime] = Field(None, description="Fecha de inicio del trial")
+    trial_ends_at: Optional[datetime] = Field(None, description="Fecha de vencimiento del trial")
+    subscription_status: Optional[str] = Field(default="trial", description="trial | paid | suspended | expired")
+    subscription_plan: Optional[str] = Field(default="trial", description="trial | firm_growth | firm_enterprise")
+
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -100,5 +107,10 @@ class FirmResponse(BaseModel):
     owner_email: str
     status: str
     is_verified: bool
+    trial_status: Optional[str] = None
+    trial_started_at: Optional[str] = None
+    trial_ends_at: Optional[str] = None
+    subscription_status: Optional[str] = None
+    subscription_plan: Optional[str] = None
     created_at: str
     updated_at: str

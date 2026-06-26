@@ -26,10 +26,14 @@ export function FirmsOverview() {
     totalLawyers: 0,
     activeCases: 0,
     totalRevenue: 0,
+    activeTrials: 0,
+    expiredTrials: 0,
+    trialsExpiringSoon: 0,
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    nit: '',
     email: '',
     phone: '',
     address: '',
@@ -39,6 +43,7 @@ export function FirmsOverview() {
     founder_name: '',
     founder_email: '',
     founder_phone: '',
+    founder_document: '',
     founder_bar_number: ''
   });
   const [creatingFirm, setCreatingFirm] = useState(false);
@@ -53,7 +58,7 @@ export function FirmsOverview() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const res = await axios.get(`${API}/firms`, { headers });
-      const firmsList = res.data.data || [];
+      const firmsList = res.data || [];
       setFirms(firmsList);
 
       // Calculate metrics
@@ -79,8 +84,19 @@ export function FirmsOverview() {
             totalActiveCases += cases.filter((c) => c.status === "open" || c.status === "in_progress").length;
             totalRevenue += financial.total_revenue || 0;
 
+            // Calculate trial remaining days
+            let trial_remaining_days = 0;
+            if (firm.trial_ends_at) {
+              const trialEndDate = new Date(firm.trial_ends_at);
+              const today = new Date();
+              const diffTime = trialEndDate - today;
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              trial_remaining_days = Math.max(0, diffDays);
+            }
+
             return {
               ...firm,
+              trial_remaining_days,
               lawyersCount: lawyers.length,
               activeCases: cases.filter((c) => c.status === "open" || c.status === "in_progress").length,
               totalCases: cases.length,
@@ -92,6 +108,7 @@ export function FirmsOverview() {
             console.error(`Error fetching details for firm ${firm.id}:`, err);
             return {
               ...firm,
+              trial_remaining_days: 0,
               lawyersCount: 0,
               activeCases: 0,
               totalCases: 0,
@@ -104,11 +121,20 @@ export function FirmsOverview() {
       );
 
       setFirms(firmsWithDetails);
+
+      // Calculate trial metrics
+      const activeTrials = firmsWithDetails.filter(f => f.trial_status === "active").length;
+      const expiredTrials = firmsWithDetails.filter(f => f.trial_status === "expired").length;
+      const trialsExpiringSoon = firmsWithDetails.filter(f => f.trial_status === "active" && f.trial_remaining_days > 0 && f.trial_remaining_days <= 3).length;
+
       setMetrics({
         totalFirms: firmsList.length,
         totalLawyers,
         activeCases: totalActiveCases,
         totalRevenue,
+        activeTrials,
+        expiredTrials,
+        trialsExpiringSoon,
       });
     } catch (err) {
       console.error("Error loading firms:", err);
@@ -129,6 +155,7 @@ export function FirmsOverview() {
       setShowCreateModal(false);
       setFormData({
         name: '',
+        nit: '',
         email: '',
         phone: '',
         address: '',
@@ -138,6 +165,7 @@ export function FirmsOverview() {
         founder_name: '',
         founder_email: '',
         founder_phone: '',
+        founder_document: '',
         founder_bar_number: ''
       });
       loadFirmsData();
@@ -163,7 +191,7 @@ export function FirmsOverview() {
   return (
     <div className="space-y-8">
       {/* KPIs Globales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
         <MetricCard
           icon={Building2}
           title="Total de Firmas"
@@ -192,6 +220,20 @@ export function FirmsOverview() {
           subtitle="Comisiones totales"
           color="border-yellow-700"
         />
+        <MetricCard
+          icon={Building2}
+          title="Trials Activos"
+          value={metrics.activeTrials}
+          subtitle="Pruebas de 7 días"
+          color="border-green-700"
+        />
+        <MetricCard
+          icon={AlertCircle}
+          title="Trials Próximos a Vencer"
+          value={metrics.trialsExpiringSoon}
+          subtitle="Próximos 3 días"
+          color="border-orange-700"
+        />
       </div>
 
       {/* Header */}
@@ -212,6 +254,8 @@ export function FirmsOverview() {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Firma</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Plan</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Trial</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Días Restantes</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Abogados</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Casos Activos</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold">Ingresos</th>
@@ -233,6 +277,30 @@ export function FirmsOverview() {
                       <span className="px-3 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs font-semibold">
                         {firm.plan}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {firm.trial_status === "active" ? (
+                        <span className="px-3 py-1 bg-green-900/30 text-green-300 rounded-full text-xs font-semibold">
+                          Activo
+                        </span>
+                      ) : firm.trial_status === "expired" ? (
+                        <span className="px-3 py-1 bg-red-900/30 text-red-300 rounded-full text-xs font-semibold">
+                          Expirado
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-xs font-semibold">
+                          N/A
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {firm.trial_ends_at ? (
+                        <span className={firm.trial_remaining_days > 0 ? "text-blue-300 font-semibold" : "text-red-400 font-semibold"}>
+                          {Math.max(0, firm.trial_remaining_days)} días
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span className="font-semibold">{firm.lawyersCount}</span>
@@ -363,6 +431,17 @@ export function FirmsOverview() {
                 </div>
 
                 <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">NIT</label>
+                  <input
+                    type="text"
+                    value={formData.nit}
+                    onChange={(e) => setFormData({ ...formData, nit: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
                   <label className="block text-sm font-semibold mb-1">Email de la Firma</label>
                   <input
                     type="email"
@@ -450,6 +529,17 @@ export function FirmsOverview() {
                     value={formData.founder_phone}
                     onChange={(e) => setFormData({ ...formData, founder_phone: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-semibold mb-1">Documento de Identidad</label>
+                  <input
+                    type="text"
+                    value={formData.founder_document}
+                    onChange={(e) => setFormData({ ...formData, founder_document: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+                    required
                   />
                 </div>
 
