@@ -232,6 +232,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",      # Frontend desarrollo (127.0.0.1)
         "http://localhost:5173",      # Vite dev server
         "http://127.0.0.1:5173",      # Vite dev server (127.0.0.1)
+        "https://puntocerolegal.com",  # Producción main domain
+        "https://www.puntocerolegal.com",  # Producción www
         "https://puntocero-legal.onrender.com",  # Producción Vercel/Render
         "https://puntocero-legal-frontend.vercel.app",  # Producción Vercel
     ] if not os.environ.get('CORS_ORIGINS') else os.environ.get('CORS_ORIGINS', '').split(','),
