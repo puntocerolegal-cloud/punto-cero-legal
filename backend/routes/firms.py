@@ -1154,58 +1154,6 @@ async def get_trial_summary(
         "data": summary
     }
 
-# POST /firms/{firm_id}/impersonate - Entrar como firma (super admin only)
-@router.post("/{firm_id}/impersonate", status_code=status.HTTP_200_OK)
-async def impersonate_firm(
-    firm_id: str,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_db),
-):
-    """Generar token temporal para acceder como firma (super admin only)"""
-    if current_user.get("role") not in ["admin", "admin_general"]:
-        raise HTTPException(status_code=403, detail="Solo super admins pueden hacer impersonate")
-
-    try:
-        oid = ObjectId(firm_id)
-    except:
-        raise HTTPException(status_code=400, detail="ID de firma inválido")
-
-    firm = await db.firms.find_one({"_id": oid})
-    if not firm:
-        raise HTTPException(status_code=404, detail="Firma no encontrada")
-
-    # Obtener el firm_owner
-    owner = await db.users.find_one({"_id": ObjectId(firm.get("owner_id"))})
-    if not owner:
-        raise HTTPException(status_code=404, detail="Firm Owner no encontrado")
-
-    # Generar token temporal de 30 minutos
-    from utils.auth import create_access_token
-
-    access_token = create_access_token(data={
-        "sub": owner["email"],
-        "role": "firm_owner",
-        "firm_id": firm_id,
-        "temp_access": True,
-        "accessed_by": str(current_user.get("_id")),
-    }, expires_delta=timedelta(minutes=30))
-
-    return {
-        "success": True,
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": str(owner["_id"]),
-            "email": owner["email"],
-            "full_name": owner.get("full_name"),
-            "role": "firm_owner",
-            "firm_id": firm_id,
-            "firm_name": firm.get("name"),
-        },
-        "expires_in": 1800,
-        "message": "Sesión temporal de 30 minutos como firma"
-    }
-
 # GET /firms/{firm_id}/trial - Obtener estado del trial de una firma (admin only)
 @router.get("/{firm_id}/trial", status_code=status.HTTP_200_OK)
 async def get_firm_trial_status(

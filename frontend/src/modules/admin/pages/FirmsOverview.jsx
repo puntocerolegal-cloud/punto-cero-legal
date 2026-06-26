@@ -323,39 +323,12 @@ export function FirmsOverview() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => window.open(`/firms/${firm.id}`, '_blank')}
-                          className="text-blue-400 hover:text-blue-300 text-sm font-medium"
-                        >
-                          Ver Detalles
-                        </button>
-                        <button
-                          onClick={() => window.open(`/firm-os?firm=${firm.id}`, '_blank')}
-                          className="text-green-400 hover:text-green-300 text-sm font-medium"
-                        >
-                          Dashboard
-                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-                              const headers = token ? { Authorization: `Bearer ${token}` } : {};
-                              const res = await axios.post(`${API}/firms/${firm.id}/impersonate`, {}, { headers });
-                              localStorage.setItem('pcl_user', JSON.stringify(res.data.user));
-                              localStorage.setItem('user', JSON.stringify(res.data.user));
-                              localStorage.setItem('pcl_token', res.data.access_token);
-                              localStorage.setItem('token', res.data.access_token);
-                              window.location.href = '/firm-os';
-                            } catch (err) {
-                              alert('Error al acceder como firma: ' + (err.response?.data?.detail || err.message));
-                            }
-                          }}
-                          className="text-purple-400 hover:text-purple-300 text-sm font-medium"
-                        >
-                          Entrar
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => window.open(`/firms/${firm.id}`, '_blank')}
+                        className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                      >
+                        Ver Detalles
+                      </button>
                     </td>
                   </tr>
                 ))}
