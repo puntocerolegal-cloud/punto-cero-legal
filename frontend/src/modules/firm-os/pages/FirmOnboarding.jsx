@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2, AlertCircle, CheckCircle, Upload, Trash2, Mail, Plus, X } from 'lucide-react';
 import { API } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StepIndicator = ({ currentStep, totalSteps }) => (
   <div className="flex gap-2 mb-8">
@@ -23,6 +24,7 @@ const StepIndicator = ({ currentStep, totalSteps }) => (
 
 export function FirmOnboarding() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,8 +54,7 @@ export function FirmOnboarding() {
     role: 'firm_lawyer'
   });
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const firmId = user.firm_id;
+  const firmId = user?.firm_id;
 
   const loadPracticeAreas = useCallback(async () => {
     try {

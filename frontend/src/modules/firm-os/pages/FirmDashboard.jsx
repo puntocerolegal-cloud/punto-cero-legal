@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Users, FolderKanban, DollarSign, TrendingUp } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFirmOnboarding } from "@/hooks/useFirmOnboarding";
 
 const MetricCard = ({ icon: Icon, title, value, subtitle }) => (
@@ -18,6 +19,7 @@ const MetricCard = ({ icon: Icon, title, value, subtitle }) => (
 );
 
 export function FirmDashboard() {
+  const { user } = useAuth();
   useFirmOnboarding(); // Redirigir a onboarding si no está completado
 
   const [data, setData] = useState({
@@ -36,9 +38,8 @@ export function FirmDashboard() {
       setLoading(true);
       setError(null);
 
-      // Get firm ID from local storage or URL
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const firmId = user.firm_id;
+      // Get firm ID from AuthContext
+      const firmId = user?.firm_id;
 
       if (!firmId) {
         setError("No tienes acceso a un dashboard de firma");
@@ -76,7 +77,7 @@ export function FirmDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.firm_id]);
 
   useEffect(() => {
     loadFirmData();

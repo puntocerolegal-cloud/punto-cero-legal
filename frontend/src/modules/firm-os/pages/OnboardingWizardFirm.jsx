@@ -6,6 +6,7 @@ import {
   Building2, Users, Palette, Flag, CheckCircle2
 } from 'lucide-react';
 import { API } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 const STEPS = [
   { id: 1, title: 'Datos de la Firma', icon: Building2 },
@@ -16,6 +17,7 @@ const STEPS = [
 ];
 
 export default function OnboardingWizardFirm({ firmId, onComplete }) {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -118,8 +120,7 @@ export default function OnboardingWizardFirm({ firmId, onComplete }) {
     setError('');
 
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const actualFirmId = firmId || user.firm_id;
+      const actualFirmId = firmId || user?.firm_id;
 
       if (!actualFirmId) {
         setError('No se encontró firma asociada');

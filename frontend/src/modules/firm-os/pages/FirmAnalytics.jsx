@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { TrendingUp, Users, FolderKanban, DollarSign, Target } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 const KPICard = ({ icon: Icon, title, value, trend, color }) => (
   <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
@@ -17,6 +18,7 @@ const KPICard = ({ icon: Icon, title, value, trend, color }) => (
 );
 
 export function FirmAnalytics() {
+  const { user } = useAuth();
   const [data, setData] = useState({
     lawyers: [],
     cases: [],
@@ -31,8 +33,7 @@ export function FirmAnalytics() {
       setLoading(true);
       setError(null);
 
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const firmId = user.firm_id;
+      const firmId = user?.firm_id;
 
       if (!firmId) {
         setError("No tienes acceso a un dashboard de firma");
@@ -59,7 +60,7 @@ export function FirmAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.firm_id]);
 
   useEffect(() => {
     loadAnalyticsData();

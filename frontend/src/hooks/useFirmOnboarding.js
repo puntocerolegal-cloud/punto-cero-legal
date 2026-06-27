@@ -2,18 +2,17 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function useFirmOnboarding() {
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [isOnboardingRequired, setIsOnboardingRequired] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const token = localStorage.getItem('token');
-
         if (!user?.firm_id || !token) {
           setIsLoading(false);
           return;
@@ -41,7 +40,7 @@ export function useFirmOnboarding() {
     };
 
     checkOnboardingStatus();
-  }, [navigate]);
+  }, [navigate, user?.firm_id, user?.role, token]);
 
   return { isOnboardingRequired, isLoading };
 }

@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function FirmCases() {
+  const { user } = useAuth();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,8 +15,7 @@ export function FirmCases() {
       setLoading(true);
       setError(null);
 
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const firmId = user.firm_id;
+      const firmId = user?.firm_id;
 
       if (!firmId) {
         setError("No tienes acceso a un dashboard de firma");
@@ -30,7 +31,7 @@ export function FirmCases() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.firm_id]);
 
   useEffect(() => {
     loadCases();

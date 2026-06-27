@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { TeamTable } from "../components/TeamTable";
 import { InviteLawyerModal } from "../components/InviteLawyerModal";
 
 export function FirmLawyers() {
+  const { user } = useAuth();
   const [lawyers, setLawyers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,8 +18,7 @@ export function FirmLawyers() {
       setLoading(true);
       setError(null);
 
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const firmId = user.firm_id;
+      const firmId = user?.firm_id;
 
       if (!firmId) {
         setError("No tienes acceso a un dashboard de firma");
@@ -33,7 +34,7 @@ export function FirmLawyers() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.firm_id]);
 
   useEffect(() => {
     loadLawyers();

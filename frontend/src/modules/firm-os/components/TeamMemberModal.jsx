@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { API } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function TeamMemberModal({ member, isOpen, onClose, onSave, practiceAreas = [] }) {
+  const { user, token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -27,24 +29,23 @@ export function TeamMemberModal({ member, isOpen, onClose, onSave, practiceAreas
     if (isOpen) {
       loadTeamMembers();
     }
-  }, [isOpen]);
+  }, [isOpen, loadTeamMembers]);
 
-  const loadTeamMembers = async () => {
+  const loadTeamMembers = useCallback(async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const firmId = user.firm_id;
-      
+      const firmId = user?.firm_id;
+
       if (!firmId) return;
 
       const res = await axios.get(`${API}/rbac/team/${firmId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       setTeamMembers(res.data.team || []);
     } catch (err) {
       console.error('Error loading team members:', err);
     }
-  };
+  }, [user?.firm_id, token]);
 
   const handleSave = async () => {
     setError('');

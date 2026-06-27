@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Users, AlertCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { API } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { TeamTable } from '../components/TeamTable';
 import { TeamMemberModal } from '../components/TeamMemberModal';
 
 export function FirmTeam() {
+  const { user, token } = useAuth();
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,9 +24,7 @@ export function FirmTeam() {
   const [practiceAreas, setPracticeAreas] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const firmId = user.firm_id;
-  const token = localStorage.getItem('token');
+  const firmId = user?.firm_id;
 
   // Cargar equipo
   const loadTeam = useCallback(async () => {
