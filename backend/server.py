@@ -21,10 +21,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# MongoDB connection with graceful fallback
+try:
+    mongo_url = os.environ.get('MONGO_URL')
+    if not mongo_url:
+        logger.warning("MONGO_URL not set, using local fallback")
+        mongo_url = "mongodb://localhost:27017"
+
+    client = AsyncIOMotorClient(
+        mongo_url,
+        serverSelectionTimeoutMS=5000,  # 5 second timeout
+        connectTimeoutMS=5000,
+        retryWrites=False  # Disable retries to fail fast in dev
+    )
+    db = client[os.environ.get('DB_NAME', 'puntocero_legal')]
+    logger.info("MongoDB client initialized")
+except Exception as e:
+    logger.error(f"MongoDB initialization failed: {e}")
+    # Create dummy client that won't crash the app
+    client = None
+    db = None
 
 # Create the main app without a prefix
 app = FastAPI(title="Punto Cero Legal API", version="1.0.0")
@@ -40,7 +56,22 @@ async def root():
 
 @api_router.get("/health")
 async def health_check():
-    return {"status": "healthy", "database": "connected"}
+    """Health check that always returns 200 to prevent Render timeouts."""
+    db_status = "disconnected"
+    try:
+        if db is not None:
+            # Non-blocking ping with timeout
+            await db.command('ping')
+            db_status = "connected"
+    except Exception as e:
+        logger.warning(f"DB ping failed during health check: {e}")
+        # Still return 200 - app is alive even if DB is temporarily down
+
+    return {
+        "status": "healthy",
+        "database": db_status,
+        "version": "1.0.0"
+    }
 
 # Include all module routers
 api_router.include_router(auth.router)
@@ -93,10 +124,18 @@ api_router.include_router(users.router)           # Users — Listar usuarios pa
 @app.on_event("startup")
 async def init_cron_jobs():
     """Inicia el scheduler de tareas automáticas (renovaciones, limpieza, etc)."""
+    if db is None:
+        logger.warning("Skipping cron scheduler: DB not available")
+        return
+
     from services.cron_jobs import init_cron_scheduler
     try:
-        await init_cron_scheduler(db)
+        # Set timeout to prevent startup hanging
+        import asyncio
+        await asyncio.wait_for(init_cron_scheduler(db), timeout=10.0)
         logger.info("Cron scheduler initialized successfully")
+    except asyncio.TimeoutError:
+        logger.error("Cron scheduler initialization timed out after 10s")
     except Exception as e:
         logger.error(f"Error initializing cron scheduler: {e}")
 
@@ -117,106 +156,138 @@ async def shutdown_cron_jobs():
 @app.on_event("startup")
 async def init_db_indexes():
     """Crea índices para optimizar queries en colecciones críticas."""
+    if db is None:
+        logger.warning("Skipping DB index creation: DB not available")
+        return
+
+    import asyncio
+
+    async def create_indexes():
+        try:
+            # Índices para transacciones de pago
+            await db.transactions.create_index([("payment_id", 1)], unique=True)
+            await db.transactions.create_index([("user_email", 1)])
+            await db.transactions.create_index([("status", 1)])
+            await db.transactions.create_index([("created_at", 1)])
+            await db.transactions.create_index([("plan_id", 1)])
+            await db.transactions.create_index([("type", 1)])
+
+            # Índices para usuarios
+            await db.users.create_index([("email", 1)], unique=True)
+            await db.users.create_index([("plan_id", 1)])
+            await db.users.create_index([("subscription_status", 1)])
+            await db.users.create_index([("created_at", 1)])
+
+            # Índices para comprobantes de pago manual
+            await db.receipts.create_index([("user_id", 1)])
+            await db.receipts.create_index([("status", 1)])
+            await db.receipts.create_index([("created_at", 1)])
+
+            # Índices para auditoría de pagos
+            await db.audit_logs.create_index([("action", 1)])
+            await db.audit_logs.create_index([("created_at", 1)])
+
+            # Índices para webhooks
+            await db.webhook_events.create_index([("event_id", 1)], unique=True)
+            await db.webhook_events.create_index([("type", 1)])
+            await db.webhook_events.create_index([("processed", 1)])
+            await db.webhook_events.create_index([("created_at", 1)])
+
+            await db.webhook_logs.create_index([("event_id", 1)])
+            await db.webhook_logs.create_index([("type", 1)])
+            await db.webhook_logs.create_index([("result_status", 1)])
+            await db.webhook_logs.create_index([("created_at", 1)])
+
+            # Índices para reembolsos y chargebacks
+            await db.refunds.create_index([("refund_id", 1)], unique=True)
+            await db.refunds.create_index([("payment_id", 1)])
+            await db.refunds.create_index([("created_at", 1)])
+
+            await db.chargebacks.create_index([("chargeback_id", 1)], unique=True)
+            await db.chargebacks.create_index([("payment_id", 1)])
+            await db.chargebacks.create_index([("created_at", 1)])
+
+            logger.info("DB indexes created successfully")
+        except Exception as e:
+            logger.warning(f"Error creating indexes (may already exist): {e}")
+
     try:
-        # Índices para transacciones de pago
-        await db.transactions.create_index([("payment_id", 1)], unique=True)
-        await db.transactions.create_index([("user_email", 1)])
-        await db.transactions.create_index([("status", 1)])
-        await db.transactions.create_index([("created_at", 1)])
-        await db.transactions.create_index([("plan_id", 1)])
-        await db.transactions.create_index([("type", 1)])  # renewal, plan_change, reactivation
-
-        # Índices para usuarios (suscripción)
-        await db.users.create_index([("email", 1)], unique=True)
-        await db.users.create_index([("plan_id", 1)])
-        await db.users.create_index([("subscription_status", 1)])
-        await db.users.create_index([("created_at", 1)])
-
-        # Índices para comprobantes de pago manual
-        await db.receipts.create_index([("user_id", 1)])
-        await db.receipts.create_index([("status", 1)])
-        await db.receipts.create_index([("created_at", 1)])
-
-        # Índices para auditoría de pagos
-        await db.audit_logs.create_index([("action", 1)])
-        await db.audit_logs.create_index([("created_at", 1)])
-
-        # Índices para webhooks (FASE 2.2)
-        await db.webhook_events.create_index([("event_id", 1)], unique=True)
-        await db.webhook_events.create_index([("type", 1)])
-        await db.webhook_events.create_index([("processed", 1)])
-        await db.webhook_events.create_index([("created_at", 1)])
-
-        await db.webhook_logs.create_index([("event_id", 1)])
-        await db.webhook_logs.create_index([("type", 1)])
-        await db.webhook_logs.create_index([("result_status", 1)])
-        await db.webhook_logs.create_index([("created_at", 1)])
-
-        # Índices para reembolsos y chargebacks
-        await db.refunds.create_index([("refund_id", 1)], unique=True)
-        await db.refunds.create_index([("payment_id", 1)])
-        await db.refunds.create_index([("created_at", 1)])
-
-        await db.chargebacks.create_index([("chargeback_id", 1)], unique=True)
-        await db.chargebacks.create_index([("payment_id", 1)])
-        await db.chargebacks.create_index([("created_at", 1)])
-    except Exception as e:
-        logger.warning(f"Algunos índices ya existen: {e}")
+        await asyncio.wait_for(create_indexes(), timeout=30.0)
+    except asyncio.TimeoutError:
+        logger.error("DB index creation timed out after 30s, continuing anyway")
 
 
 # Inicialización de cuentas maestras y de prueba al arranque
 @app.on_event("startup")
 async def init_master_accounts():
+    if db is None:
+        logger.warning("Skipping master account initialization: DB not available")
+        return
+
     from passlib.context import CryptContext
+    import asyncio
+    from datetime import datetime
+
     pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
     test_users = [
-        # Admin accounts
         {"email": "darwin@puntocerolegal.com", "password": "Admin2025!", "name": "Dr. Darwin Gomez", "role": "admin_general"},
         {"email": "alejandro@puntocerolegal.com", "password": "Socio2025!", "name": "Dr. Alejandro Cetina", "role": "socio_comercial"},
-        # Test: Lawyer
         {"email": "lawyer@test.com", "password": "Lawyer2025!", "name": "Juan Abogado", "role": "lawyer"},
-        # Test: Client
         {"email": "client@test.com", "password": "Client2025!", "name": "Carlos Cliente", "role": "client"},
     ]
-    from datetime import datetime
-    for m in test_users:
-        existing = await db.users.find_one({"email": m["email"]})
-        if not existing:
-            await db.users.insert_one({
-                "email": m["email"],
-                "password_hash": pwd.hash(m["password"][:72]),
-                "full_name": m["name"],
-                "role": m["role"],
-                "status": "ACTIVE",
-                "is_verified": True,
-                "country": "Colombia",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            })
-        else:
-            # Backfill seguro para cuentas maestras pre-existentes
-            updates = {"status": "ACTIVE", "is_verified": True, "role": m["role"]}
-            # Repara el hash de contraseña si quedó vacío/None (cuenta maestra
-            # creada sin clave válida → de lo contrario el login es imposible).
-            if not existing.get("password_hash"):
-                updates["password_hash"] = pwd.hash(m["password"][:72])
-            await db.users.update_one(
-                {"email": m["email"]},
-                {"$set": updates}
-            )
+
+    async def init_accounts():
+        for m in test_users:
+            try:
+                existing = await db.users.find_one({"email": m["email"]})
+                if not existing:
+                    await db.users.insert_one({
+                        "email": m["email"],
+                        "password_hash": pwd.hash(m["password"][:72]),
+                        "full_name": m["name"],
+                        "role": m["role"],
+                        "status": "ACTIVE",
+                        "is_verified": True,
+                        "country": "Colombia",
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow()
+                    })
+                else:
+                    updates = {"status": "ACTIVE", "is_verified": True, "role": m["role"]}
+                    if not existing.get("password_hash"):
+                        updates["password_hash"] = pwd.hash(m["password"][:72])
+                    await db.users.update_one(
+                        {"email": m["email"]},
+                        {"$set": updates}
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to init account {m['email']}: {e}")
+        logger.info("Master accounts initialized")
+
+    try:
+        await asyncio.wait_for(init_accounts(), timeout=20.0)
+    except asyncio.TimeoutError:
+        logger.error("Master account initialization timed out after 20s")
 
     # Punto Cero OS — índices multi-tenant (idempotente).
+    async def init_os_indexes():
+        try:
+            from services.organization_service import ensure_indexes as ensure_org_indexes
+            from services.partner_service import ensure_indexes as ensure_partner_indexes
+            from services.implementation_service import ensure_indexes as ensure_impl_indexes
+            from services.subscription_service import ensure_indexes as ensure_sub_indexes
+            await ensure_org_indexes(db)
+            await ensure_partner_indexes(db)
+            await ensure_impl_indexes(db)
+            await ensure_sub_indexes(db)
+            logger.info("Punto Cero OS indexes initialized")
+        except Exception as e:
+            logger.warning(f"No se pudieron crear índices del OS: {e}")
+
     try:
-        from services.organization_service import ensure_indexes as ensure_org_indexes
-        from services.partner_service import ensure_indexes as ensure_partner_indexes
-        from services.implementation_service import ensure_indexes as ensure_impl_indexes
-        from services.subscription_service import ensure_indexes as ensure_sub_indexes
-        await ensure_org_indexes(db)
-        await ensure_partner_indexes(db)
-        await ensure_impl_indexes(db)
-        await ensure_sub_indexes(db)
-    except Exception as e:
-        logging.getLogger(__name__).warning("No se pudieron crear índices del OS: %s", e)
+        await asyncio.wait_for(init_os_indexes(), timeout=20.0)
+    except asyncio.TimeoutError:
+        logger.error("OS index initialization timed out after 20s")
 
 # Include the router in the main app
 app.include_router(api_router)
