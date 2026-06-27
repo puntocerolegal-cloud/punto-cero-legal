@@ -323,7 +323,8 @@ app.add_middleware(
 
         # ─ Vercel frontend (múltiples variantes) ─
         "https://punto-cero-legal.vercel.app",                    # Production
-        "https://punto-cero-legal-me3ma4jnr-puntocerolegal-3926s-projects.vercel.app",  # Preview
+        "https://punto-cero-legal-me3ma4jnr-puntocerolegal-3926s-projects.vercel.app",  # Preview v1
+        "https://punto-cero-legal-1jqn23vb1-puntocerolegal-3926s-projects.vercel.app",  # Preview v2
 
         # ─ Vercel preview deployments (patrón genérico) ─
         # Permite cualquier subdominio de vercel.app mientras sea del proyecto
