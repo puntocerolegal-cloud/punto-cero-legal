@@ -17,6 +17,7 @@ import ssl
 import asyncio
 import smtplib
 import logging
+import secrets
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -70,12 +71,22 @@ async def create_app_notification(db, *, target: str, type: str, title: str,
 
 def send_email(to_email: str, subject: str, body_html: str) -> dict:
     """Envía un email vía SMTP. Si no hay credenciales, registra y retorna pendiente."""
+    # Generar identificador único de trazabilidad
+    email_trace_id = secrets.token_hex(6)
+
     host = os.environ.get("SMTP_HOST")
     user = os.environ.get("SMTP_USER")
     password = os.environ.get("SMTP_PASS")
     sender = os.environ.get("SMTP_FROM", user or "no-reply@puntocerolegal.com")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+
+    # FASE 1: Logging de configuración
+    user_masked = f"{user[:5]}...{user[-10:]}" if user and len(user) > 15 else "***"
+    logger.info("[EMAIL_TRACE:%s] QA_PHASE1 | SMTP_HOST=%s | SMTP_PORT=%s | SMTP_USER=%s | SMTP_FROM=%s | to_email=%s | subject=%s",
+                email_trace_id, host, port, user_masked, sender, to_email, subject)
+
     if not (host and user and password and to_email):
-        logger.info("[email pendiente] para=%s asunto=%s (SMTP no configurado)", to_email, subject)
+        logger.info("[EMAIL_TRACE:%s] Email pendiente - SMTP no configurado para: %s", email_trace_id, to_email)
         return {"channel": "email", "sent": False, "reason": "smtp_not_configured"}
     try:
         msg = MIMEMultipart("alternative")
@@ -83,16 +94,67 @@ def send_email(to_email: str, subject: str, body_html: str) -> dict:
         msg["From"] = sender
         msg["To"] = to_email
         msg.attach(MIMEText(body_html, "html"))
-        port = int(os.environ.get("SMTP_PORT", "587"))
         context = ssl.create_default_context()
+
+        # FASE 2: Logging antes de conexión
+        logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | Intentando conectar a SMTP %s:%s", email_trace_id, host, port)
+
         with smtplib.SMTP(host, port, timeout=15) as server:
+            logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | Conectado al servidor SMTP exitosamente", email_trace_id)
             server.starttls(context=context)
+            logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | TLS inicializado", email_trace_id)
+
+            logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | Intentando login con usuario: %s", email_trace_id, user_masked)
             server.login(user, password)
+            logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | Autenticación SMTP exitosa", email_trace_id)
+
+            # FASE 3: Logging antes de envío
+            logger.info("[EMAIL_TRACE:%s] QA_PHASE3 | Iniciando sendmail() desde %s a %s", email_trace_id, sender, to_email)
             server.sendmail(sender, [to_email], msg.as_string())
-        return {"channel": "email", "sent": True}
+            logger.info("[EMAIL_TRACE:%s] QA_PHASE3 | Correo enviado correctamente a %s", email_trace_id, to_email)
+
+        # Resumen de éxito
+        logger.info("[EMAIL_TRACE:%s] QA_SUCCESS | Estado: SUCCESS | Servidor SMTP: OK | Autenticación: OK | Sendmail: OK | Destinatario: %s",
+                    email_trace_id, to_email)
+        return {"channel": "email", "sent": True, "email_trace_id": email_trace_id}
     except Exception as e:  # noqa: BLE001
-        logger.warning("Fallo enviando email a %s: %s", to_email, e)
-        return {"channel": "email", "sent": False, "reason": str(e)[:120]}
+        # Extraer información detallada de la excepción
+        error_type = type(e).__name__
+        error_message = str(e)
+        error_repr = repr(e)
+
+        # Intentar extraer códigos SMTP si existen
+        smtp_code = getattr(e, 'smtp_code', None)
+        smtp_error = getattr(e, 'smtp_error', None)
+
+        # Determinar en qué fase falló
+        if "connection" in error_message.lower() or "refused" in error_message.lower():
+            failure_phase = "Conexión"
+        elif "starttls" in error_message.lower() or "ssl" in error_message.lower() or "tls" in error_message.lower():
+            failure_phase = "TLS"
+        elif "login" in error_message.lower() or "authentication" in error_message.lower() or "535" in str(smtp_code):
+            failure_phase = "Login"
+        elif "sendmail" in error_message.lower() or "553" in str(smtp_code) or "550" in str(smtp_code):
+            failure_phase = "Sendmail"
+        else:
+            failure_phase = "Desconocida"
+
+        # Logging detallado de fallo
+        logger.error("[EMAIL_TRACE:%s] QA_FAILURE | Tipo de excepción: %s", email_trace_id, error_type)
+        logger.error("[EMAIL_TRACE:%s] QA_FAILURE | Fase donde falló: %s", email_trace_id, failure_phase)
+        logger.error("[EMAIL_TRACE:%s] QA_FAILURE | Mensaje completo: %s", email_trace_id, error_message)
+        logger.error("[EMAIL_TRACE:%s] QA_FAILURE | Repr: %s", email_trace_id, error_repr)
+
+        if smtp_code is not None:
+            logger.error("[EMAIL_TRACE:%s] QA_FAILURE | SMTP Code: %s", email_trace_id, smtp_code)
+        if smtp_error is not None:
+            logger.error("[EMAIL_TRACE:%s] QA_FAILURE | SMTP Error: %s", email_trace_id, smtp_error)
+
+        # Resumen de fallo
+        logger.error("[EMAIL_TRACE:%s] FAILURE_SUMMARY | Estado: FAILURE | Fase: %s | Tipo: %s | Destinatario: %s",
+                     email_trace_id, failure_phase, error_type, to_email)
+
+        return {"channel": "email", "sent": False, "reason": error_message, "email_trace_id": email_trace_id}
 
 
 def send_whatsapp(to_phone: str, body: str) -> dict:

@@ -14,6 +14,13 @@ from routes import auth, leads, cases, meetings, appointments, messages, dashboa
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# Configure logging FIRST (before any logger usage)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -157,17 +164,22 @@ async def init_db_indexes():
         logger.warning(f"Algunos índices ya existen: {e}")
 
 
-# Inicialización de cuentas maestras al arranque
+# Inicialización de cuentas maestras y de prueba al arranque
 @app.on_event("startup")
 async def init_master_accounts():
     from passlib.context import CryptContext
     pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    masters = [
+    test_users = [
+        # Admin accounts
         {"email": "darwin@puntocerolegal.com", "password": "Admin2025!", "name": "Dr. Darwin Gomez", "role": "admin_general"},
         {"email": "alejandro@puntocerolegal.com", "password": "Socio2025!", "name": "Dr. Alejandro Cetina", "role": "socio_comercial"},
+        # Test: Lawyer
+        {"email": "lawyer@test.com", "password": "Lawyer2025!", "name": "Juan Abogado", "role": "lawyer"},
+        # Test: Client
+        {"email": "client@test.com", "password": "Client2025!", "name": "Carlos Cliente", "role": "client"},
     ]
     from datetime import datetime
-    for m in masters:
+    for m in test_users:
         existing = await db.users.find_one({"email": m["email"]})
         if not existing:
             await db.users.insert_one({
@@ -228,25 +240,32 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=[
-        "http://localhost:3000",      # Frontend desarrollo (port 3000)
-        "http://127.0.0.1:3000",      # Frontend desarrollo (127.0.0.1)
-        "http://localhost:5173",      # Vite dev server
-        "http://127.0.0.1:5173",      # Vite dev server (127.0.0.1)
-        "https://puntocerolegal.com",  # Producción main domain
-        "https://www.puntocerolegal.com",  # Producción www
-        "https://puntocero-legal.onrender.com",  # Producción Vercel/Render
-        "https://puntocero-legal-frontend.vercel.app",  # Producción Vercel
-    ] if not os.environ.get('CORS_ORIGINS') else os.environ.get('CORS_ORIGINS', '').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+        # ─ Desarrollo local ─
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        # ─ Dominios de producción ─
+        "https://puntocerolegal.com",
+        "https://www.puntocerolegal.com",
+
+        # ─ Vercel frontend (múltiples variantes) ─
+        "https://punto-cero-legal.vercel.app",                    # Production
+        "https://punto-cero-legal-me3ma4jnr-puntocerolegal-3926s-projects.vercel.app",  # Preview
+
+        # ─ Vercel preview deployments (patrón genérico) ─
+        # Permite cualquier subdominio de vercel.app mientras sea del proyecto
+        # Nota: Esto se maneja via CORS_ORIGINS env var en Render
+
+        # ─ Render backend (para testing si es necesario) ─
+        "https://puntocero-legal-api.onrender.com",
+    ] if not os.environ.get('CORS_ORIGINS') else os.environ.get('CORS_ORIGINS', '').split(','),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    max_age=86400,  # 24 horas de cache para preflight
 )
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
