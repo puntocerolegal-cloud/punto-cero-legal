@@ -266,7 +266,7 @@ async def complete_onboarding(
 
                     invited_count += 1
                 except Exception as e:
-                    print(f"Error invitando abogado {lawyer_email}: {str(e)}")
+                    logger.error(f"Error invitando abogado {lawyer_email}: {str(e)}")
                     continue
 
         return {

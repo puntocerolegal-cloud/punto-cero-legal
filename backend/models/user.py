@@ -1,22 +1,35 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Literal
+from pydantic import BaseModel, EmailStr, Field, GetJsonSchemaHandler, field_validator
+from pydantic.json_schema import JsonSchemaValue
+from typing import Optional, Literal, Annotated, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
 class PyObjectId(ObjectId):
+    """Custom type for BSON ObjectId in Pydantic v2"""
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_json_schema__(
+        cls, schema: JsonSchemaValue, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        json_schema = handler(schema)
+        json_schema = handler.resolve_ref_schema(json_schema)
+        json_schema['type'] = 'string'
+        return json_schema
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler):
+        from pydantic_core import core_schema
+        return core_schema.no_info_after_validator_function(
+            lambda x: cls.validate(x),
+            core_schema.str_schema(),
+        )
 
     @classmethod
     def validate(cls, v):
+        if isinstance(v, ObjectId):
+            return v
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
 
 class UserBase(BaseModel):
     email: EmailStr

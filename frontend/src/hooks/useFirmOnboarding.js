@@ -11,10 +11,18 @@ export function useFirmOnboarding() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkOnboardingStatus = async () => {
       try {
         if (!user?.firm_id || !token) {
-          setIsLoading(false);
+          if (isMounted) setIsLoading(false);
+          return;
+        }
+
+        // Only check if user is a firm_owner
+        if (user.role !== 'firm_owner') {
+          if (isMounted) setIsLoading(false);
           return;
         }
 
@@ -24,22 +32,36 @@ export function useFirmOnboarding() {
           }
         });
 
+        if (!isMounted) return;
+
         const config = res.data?.data;
 
-        // Si el onboarding no está completado, redirigir
-        if (!config?.onboarding_completed && user.role === 'firm_owner') {
+        // Si el onboarding no está completado, redirigir solo a firm_owner
+        if (!config?.onboarding_completed) {
           setIsOnboardingRequired(true);
           navigate('/firm-os/onboarding', { replace: true });
         }
       } catch (err) {
-        console.error('Error checking onboarding status:', err);
-        // En caso de error, permitir acceso pero no forzar onboarding
+        // Error checking: allow access but don't force onboarding
+        // This is a graceful degradation - the user can still access the dashboard
+        if (isMounted) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error checking onboarding status:', err);
+          }
+          setIsOnboardingRequired(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     checkOnboardingStatus();
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate, user?.firm_id, user?.role, token]);
 
   return { isOnboardingRequired, isLoading };

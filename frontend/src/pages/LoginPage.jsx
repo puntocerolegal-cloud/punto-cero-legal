@@ -20,10 +20,23 @@ export const LoginPage = () => {
     setLoading(true);
     try {
       const userData = await login(credentials.email, credentials.password);
+
+      // CRITICAL: Use userData from login response, not AuthContext user
+      // This ensures we're using the freshly authenticated user, not a stale one
+
+      // Validar si usuario requiere cambio obligatorio de contraseña
+      if (userData.requires_password_change) {
+        navigate('/change-password-required');
+        return;
+      }
+
+      // Route based on the authenticated user's role (from backend response)
       if (['admin', 'admin_general', 'socio_comercial'].includes(userData.role)) {
         navigate('/admin');
       } else if (['firm_owner', 'firm_admin', 'firm_lawyer'].includes(userData.role)) {
         navigate('/firm-os');
+      } else if (userData.role === 'client') {
+        navigate('/portal');
       } else {
         navigate('/dashboard');
       }

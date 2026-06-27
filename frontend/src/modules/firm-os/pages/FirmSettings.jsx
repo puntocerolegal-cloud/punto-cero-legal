@@ -1,7 +1,11 @@
-import React, { useState } from "react";
-import { Save } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Save, AlertCircle } from "lucide-react";
+import axios from "axios";
+import { API } from "@/config/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function FirmSettings() {
+  const { user } = useAuth();
   const [settings, setSettings] = useState({
     firmName: "Firma Jurídica en Crecimiento",
     firmEmail: "contacto@firmacrecimiento.co",
@@ -12,6 +16,68 @@ export function FirmSettings() {
     plan: "firm_growth",
     maxLawyers: 5,
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  // Cargar datos de la firma al montar
+  useEffect(() => {
+    const loadFirmSettings = async () => {
+      try {
+        const firmId = user?.firm_id;
+        if (!firmId) return;
+
+        const res = await axios.get(`${API}/firms/${firmId}`);
+        const firm = res.data;
+
+        setSettings({
+          firmName: firm.name || "",
+          firmEmail: firm.email || "",
+          firmPhone: firm.phone || "",
+          firmAddress: firm.address || "",
+          firmCity: firm.city || "",
+          firmCountry: firm.country || "Colombia",
+          plan: firm.plan || "firm_growth",
+          maxLawyers: firm.max_lawyers || 5,
+        });
+      } catch (err) {
+        console.error("Error loading firm settings:", err);
+      }
+    };
+
+    loadFirmSettings();
+  }, [user?.firm_id]);
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(false);
+
+      const firmId = user?.firm_id;
+      if (!firmId) {
+        setError("No tienes acceso a una firma");
+        return;
+      }
+
+      await axios.patch(`${API}/firms/${firmId}`, {
+        name: settings.firmName,
+        email: settings.firmEmail,
+        phone: settings.firmPhone,
+        address: settings.firmAddress,
+        city: settings.firmCity,
+        country: settings.firmCountry,
+      });
+
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      setError(err.response?.data?.detail || "Error al guardar cambios");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -110,9 +176,26 @@ export function FirmSettings() {
           </div>
         </div>
 
-        <button className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg transition-colors font-semibold mt-8">
+        {error && (
+          <div className="p-4 bg-red-900/30 border border-red-700 rounded-lg flex gap-2 text-red-300">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-4 bg-green-900/30 border border-green-700 rounded-lg text-green-300">
+            ✓ Cambios guardados exitosamente
+          </div>
+        )}
+
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg transition-colors font-semibold mt-8"
+        >
           <Save className="w-5 h-5" />
-          Guardar Cambios
+          {loading ? "Guardando..." : "Guardar Cambios"}
         </button>
       </div>
     </div>

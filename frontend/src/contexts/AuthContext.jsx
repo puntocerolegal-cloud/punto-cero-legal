@@ -141,15 +141,14 @@ export const AuthProvider = ({ children }) => {
           setToken(t);
           axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
         }
-        if (u) {
-          console.log("█ AUTH DEBUG - Stored User Loaded:", u);
-          console.log("█ AUTH DEBUG - Stored user.role:", u?.role);
+        // CRITICAL FIX: Solo cargar usuario si hay token válido
+        // Si no hay token, el usuario guardado es HUÉRFANO (expirado)
+        // No cargarlo fuerza un login genuino
+        if (u && t) {
           setUser(u);
         } else if (DEV_MODE && !t) {
           // Sin sesión real en desarrollo → acceso directo con admin simulado
           // (no se hace fetch a /api/auth/login; el login real sigue intacto).
-          console.log("█ AUTH DEBUG - DEV MODE: Using mock user", DEV_MOCK_USER);
-          console.log("█ AUTH DEBUG - Mock user.role:", DEV_MOCK_USER.role);
           setUser(DEV_MOCK_USER);
         }
       } catch (e) {
@@ -172,13 +171,19 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password });
     const { access_token, user: userData } = response.data;
-    console.log("█ AUTH DEBUG - Login Response:", response.data);
-    console.log("█ AUTH DEBUG - User Data:", userData);
-    console.log("█ AUTH DEBUG - user.role from /auth/login:", userData?.role);
+
+    // CRITICAL: Save token first, then user
+    // This ensures AuthContext only loads user if there's a valid token
     await setStoredToken(access_token);
     await setStoredUser(userData);
+
+    // Update in-memory state after storage
     setToken(access_token);
     setUser(userData);
+
+    // Set Authorization header for subsequent requests
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+
     return userData;
   };
 
@@ -204,8 +209,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.get(`${API}/auth/me`);
       const fresh = res.data;
-      console.log("█ AUTH DEBUG - /auth/me Response:", res.data);
-      console.log("█ AUTH DEBUG - Refreshed user.role:", fresh?.role);
       await setStoredUser(fresh);
       setUser(fresh);
       return fresh;

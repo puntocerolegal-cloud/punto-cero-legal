@@ -55,8 +55,8 @@ export const DashboardLayout = ({ children }) => {
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const apellido = lastName(user?.full_name);
-  const titulo = titleFor(user?.country);
+  const apellido = lastName(user?.full_name || "");
+  const titulo = titleFor(user?.country || "Colombia");
 
   // Contexto global de expediente (cliente/expediente activo).
   const { active, clear } = useCaseContext();

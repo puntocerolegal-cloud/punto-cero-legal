@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
 from datetime import datetime, timedelta
 import secrets
@@ -516,6 +517,7 @@ async def approve_firm(
 
     # PASO 1: Crear firm_owner si no existe
     existing_owner = await db.users.find_one({"email": firm.get("owner_email"), "role": "firm_owner"})
+    temp_password_for_display = None
 
     if existing_owner:
         owner_id = str(existing_owner["_id"])
@@ -639,9 +641,6 @@ async def approve_firm(
     # PASO 4: Preparar respuesta con credenciales para el administrador
     logger.info(f"[APPROVE_FIRM] firm_id={firm_id} | owner_id={owner_id} | email_sent={email_sent} | email_trace={email_trace}")
 
-    # Devolver credenciales al admin (la contraseña solo se muestra una vez aquí)
-    temp_password_display = temp_password_for_display if 'temp_password_for_display' in locals() else "Ya configurada"
-
     return {
         "success": True,
         "message": f"Firma {firm.get('name')} aprobada exitosamente.",
@@ -649,8 +648,8 @@ async def approve_firm(
         "owner_id": owner_id,
         "credentials": {
             "email": firm.get("owner_email"),
-            "temp_password": temp_password_display,
-            "note": "Contraseña temporal válida para primer acceso. Usuario debe cambiarla al ingresar."
+            "temp_password": temp_password_for_display,
+            "note": "Contraseña temporal válida para primer acceso. Usuario debe cambiarla al ingresar." if temp_password_for_display else "Propietario ya tiene acceso configurado."
         },
         "trial": {
             "status": "active",
@@ -665,7 +664,7 @@ async def approve_firm(
         }
     }
 
-# POST /firms/:id/reject - Rechazar firma (admin only)
+# POST /firms/:id/reject - Rechazar firma con auditoría completa (admin only)
 @router.post("/{firm_id}/reject", status_code=status.HTTP_200_OK)
 async def reject_firm(
     firm_id: str,
@@ -673,7 +672,19 @@ async def reject_firm(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Rechazar firma con motivo validado (solo admin)"""
+    """PHASE 3: Rechazar firma con registro de auditoría (solo admin)
+
+    FLUJO:
+    1. Verifica que sea admin
+    2. Busca firma (debe estar en PENDING_APPROVAL)
+    3. Registra rechazo en DB con auditoría completa
+    4. Intenta enviar correo de notificación (no bloquea si falla)
+    5. Devuelve confirmación con detalles de auditoría
+    """
+    from utils.notifier import send_email
+    import logging
+    logger = logging.getLogger(__name__)
+
     if current_user.get("role") not in ["admin", "admin_general"]:
         raise HTTPException(status_code=403, detail="Solo administradores pueden rechazar firmas")
 
@@ -687,21 +698,46 @@ async def reject_firm(
         raise HTTPException(status_code=404, detail="Firma no encontrada")
 
     rejection_reason = rejection_request.reason
+    now = datetime.utcnow()
 
-    # Cambiar status a REJECTED
+    # Validar que esté en PENDING_APPROVAL (mejor práctica: solo rechazar solicitudes pendientes)
+    current_status = firm.get("status", "unknown")
+    if current_status not in ["PENDING_APPROVAL", "REJECTED"]:
+        logger.warning(f"[REJECT_FIRM] Intento de rechazar firma en estado {current_status} | firm_id={firm_id} | rejected_by={str(current_user.get('_id'))}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Firma no puede ser rechazada desde estado '{current_status}'. Solo se pueden rechazar firmas en PENDING_APPROVAL."
+        )
+
+    # PASO 1: Actualizar firma con rechazo (auditoría completa)
+    rejection_doc = {
+        "status": "REJECTED",
+        "approval_status": "rejected",
+        "rejection_reason": rejection_reason,
+        "rejected_by": str(current_user.get("_id")),
+        "rejected_at": now,
+        "updated_at": now
+    }
+
+    # Si la firma tenía un owner_id, mantener la referencia pero desactivar el usuario
+    if firm.get("owner_id"):
+        await db.users.update_one(
+            {"_id": ObjectId(firm.get("owner_id"))},
+            {"$set": {
+                "status": "REJECTED",
+                "updated_at": now
+            }}
+        )
+
     await db.firms.update_one(
         {"_id": oid},
-        {"$set": {
-            "status": "REJECTED",
-            "approval_status": "rejected",
-            "rejection_reason": rejection_reason,
-            "updated_at": datetime.utcnow()
-        }}
+        {"$set": rejection_doc}
     )
 
-    # Enviar correo de rechazo
-    from utils.notifier import send_email
+    # Logging de auditoría
+    logger.info(f"[REJECT_FIRM] firm_id={firm_id} | firm_name={firm.get('name')} | rejected_by={str(current_user.get('_id'))} | reason={rejection_reason[:50]}...")
 
+    # PASO 2: Intentar enviar correo de notificación (no bloquear si falla)
     email_html = f"""
     <html>
     <head>
@@ -713,6 +749,7 @@ async def reject_firm(
             .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
             .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
             .section {{ margin: 20px 0; padding: 15px; background: #fef2f2; border-left: 4px solid #ef4444; }}
+            .reason {{ background: #f3f4f6; padding: 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #374151; }}
             .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
         </style>
     </head>
@@ -722,36 +759,71 @@ async def reject_firm(
                 <div class="logo">PUNTO CERO</div>
             </div>
 
-            <div class="title">Solicitud de Firma Revisada</div>
+            <div class="title">Revisión de Solicitud Completada</div>
             <p>Hola <strong>{firm.get('owner_name')}</strong>,</p>
 
-            <p>Hemos revisado tu solicitud de registro para <strong>{firm.get('name')}</strong>.</p>
+            <p>Hemos revisado tu solicitud de registro para la firma <strong>{firm.get('name')}</strong>.</p>
 
             <div class="section">
-                <p><strong>Status: No Aprobado</strong></p>
-                <p>Motivo: {rejection_reason or 'Información incompleta o inconsistente'}</p>
+                <p><strong>⚠️ Estatus: No Aprobado</strong></p>
+                <div class="reason">
+                    <strong>Motivo:</strong><br>
+                    {rejection_reason}
+                </div>
             </div>
 
-            <p style="margin-top: 30px;">Para más información o si tienes preguntas, contacta a nuestro equipo en <strong>soporte@puntocerolegal.com</strong></p>
+            <p style="margin-top: 30px; color: #6b7280;">
+                Si tienes dudas o deseas apelar esta decisión, por favor contacta a nuestro equipo de soporte en <strong>soporte@puntocerolegal.com</strong>
+            </p>
 
             <div class="footer">
                 <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
+                <p>Contáctanos: soporte@puntocerolegal.com | +57 1 XXXX-XXXX</p>
             </div>
         </div>
     </body>
     </html>
     """
 
-    send_email(
-        to_email=firm.get("owner_email"),
-        subject=f"Revisión de Solicitud - {firm.get('name')}",
-        body_html=email_html
-    )
+    email_sent = False
+    email_trace = "skipped"
 
+    try:
+        email_result = send_email(
+            to_email=firm.get("owner_email"),
+            subject=f"Resultado de Revisión - {firm.get('name')}",
+            body_html=email_html
+        )
+        email_sent = email_result.get("sent", False)
+        email_trace = email_result.get("email_trace_id", "unknown")
+        logger.info(f"[REJECT_FIRM_EMAIL] email_sent={email_sent} | trace_id={email_trace} | recipient={firm.get('owner_email')}")
+    except Exception as e:
+        logger.warning(f"[REJECT_FIRM_EMAIL_FAILED] firm_id={firm_id} | error={str(e)[:100]}")
+        email_trace = "email_failed"
+
+    # PASO 3: Respuesta al admin con detalles de auditoría
     return {
         "success": True,
-        "message": f"Firma {firm.get('name')} rechazada.",
-        "firm_id": firm_id
+        "message": f"Firma '{firm.get('name')}' rechazada exitosamente.",
+        "firm_id": firm_id,
+        "firm_name": firm.get("name"),
+        "rejection": {
+            "reason": rejection_reason,
+            "rejected_by_admin": str(current_user.get("_id")),
+            "rejected_at": now.isoformat(),
+            "audit_record": {
+                "firm_status_before": current_status,
+                "firm_status_after": "REJECTED",
+                "owner_id": firm.get("owner_id"),
+                "owner_status_after": "REJECTED" if firm.get("owner_id") else None
+            }
+        },
+        "email_notification": {
+            "sent": email_sent,
+            "trace_id": email_trace,
+            "recipient": firm.get("owner_email"),
+            "note": "Notificación enviada al propietario de la firma (si SMTP disponible)"
+        }
     }
 
 # POST /firms/activate-account - Activar cuenta de firm_owner (sin autenticación - usa token)
@@ -816,38 +888,76 @@ async def activate_firm_account(
         "email": user.get("email")
     }
 
-# GET /firms/pending - Listar firmas pendientes de aprobación (admin only)
+# GET /firms/status/pending - Listar firmas pendientes de aprobación (admin only)
 @router.get("/status/pending", status_code=status.HTTP_200_OK)
 async def get_pending_firms(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Listar firmas pendientes de aprobación"""
+    """PHASE 4: Listar firmas pendientes de aprobación con filtros y detalles completos"""
     if current_user.get("role") not in ["admin", "admin_general"]:
         raise HTTPException(status_code=403, detail="Solo administradores pueden ver firmas pendientes")
 
-    firms = await db.firms.find({"status": "PENDING_VERIFICATION"}).sort("created_at", -1).to_list(None)
+    firms = await db.firms.find({"status": "PENDING_APPROVAL"}).sort("created_at", -1).to_list(None)
 
     result = []
     for firm in firms:
         result.append({
             "id": str(firm["_id"]),
             "name": firm["name"],
-            "nit": firm["nit"],
+            "nit": firm.get("nit", "N/A"),
             "email": firm["email"],
-            "city": firm["city"],
-            "country": firm["country"],
+            "phone": firm.get("phone", ""),
+            "address": firm.get("address", ""),
+            "city": firm.get("city", ""),
+            "country": firm.get("country", "Colombia"),
             "plan": firm["plan"],
             "owner_name": firm["owner_name"],
             "owner_email": firm["owner_email"],
             "created_at": firm["created_at"].isoformat() if isinstance(firm["created_at"], datetime) else firm["created_at"],
-            "status": firm["status"]
+            "updated_at": firm.get("updated_at", firm["created_at"]).isoformat() if isinstance(firm.get("updated_at", firm["created_at"]), datetime) else firm.get("updated_at", firm["created_at"]),
+            "status": firm["status"],
+            "trial_status": firm.get("trial_status", "inactive"),
+            "approval_status": firm.get("approval_status", "pending")
         })
 
     return {
         "success": True,
         "data": result,
         "count": len(result)
+    }
+
+# GET /firms/stats/summary - Estadísticas de firmas (admin only)
+@router.get("/stats/summary", status_code=status.HTTP_200_OK)
+async def get_firms_summary(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """PHASE 4: Obtener estadísticas completas de firmas para dashboard"""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden ver estadísticas")
+
+    # Contar firmas por estado
+    pending_count = await db.firms.count_documents({"status": "PENDING_APPROVAL"})
+    approved_count = await db.firms.count_documents({"status": "ACTIVE"})
+    rejected_count = await db.firms.count_documents({"status": "REJECTED"})
+    total_count = await db.firms.count_documents({})
+
+    # Contar trials activos
+    trial_active_count = await db.firms.count_documents({
+        "trial_status": "active",
+        "status": "ACTIVE"
+    })
+
+    return {
+        "success": True,
+        "data": {
+            "pending": pending_count,
+            "approved": approved_count,
+            "rejected": rejected_count,
+            "total": total_count,
+            "trial_active": trial_active_count
+        }
     }
 
 # GET /firms/:id/lawyers - Obtener abogados de una firma

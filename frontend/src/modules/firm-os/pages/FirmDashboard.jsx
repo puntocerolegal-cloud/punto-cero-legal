@@ -84,12 +84,26 @@ export function FirmDashboard() {
   }, [loadFirmData]);
 
   if (loading) {
-    return <div className="text-center py-8">Cargando datos...</div>;
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando datos de la firma...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-400">{error}</div>;
+    return (
+      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+        <p className="text-red-400 font-semibold">{error}</p>
+        <p className="text-red-300 text-sm mt-2">Por favor, intenta recargar la página</p>
+      </div>
+    );
   }
+
+  const hasData = data.lawyers > 0 || data.activeCases > 0 || data.totalClients > 0;
 
   return (
     <div className="space-y-8">
@@ -98,31 +112,31 @@ export function FirmDashboard() {
         <MetricCard
           icon={Users}
           title="Abogados Activos"
-          value={data.lawyers}
-          subtitle={`${data.lawyers} en firma`}
+          value={data.lawyers || 0}
+          subtitle={`${data.lawyers || 0} en firma`}
         />
         <MetricCard
           icon={FolderKanban}
           title="Casos Activos"
-          value={data.activeCases}
+          value={data.activeCases || 0}
           subtitle="En progreso"
         />
         <MetricCard
           icon={Users}
           title="Clientes"
-          value={data.totalClients}
+          value={data.totalClients || 0}
           subtitle="Cartera"
         />
         <MetricCard
           icon={DollarSign}
           title="Ingresos Total"
-          value={`$${(data.monthlyRevenue / 1000).toFixed(0)}K`}
+          value={`$${((data.monthlyRevenue || 0) / 1000).toFixed(0)}K`}
           subtitle="Acumulado"
         />
       </div>
 
       {/* Rendimiento por Abogado */}
-      {data.lawyersPerformance.length > 0 && (
+      {data.lawyersPerformance && data.lawyersPerformance.length > 0 && (
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-400" />
@@ -146,7 +160,7 @@ export function FirmDashboard() {
       )}
 
       {/* Próximos Casos */}
-      {data.upcomingDeadlines.length > 0 && (
+      {data.upcomingDeadlines && data.upcomingDeadlines.length > 0 && (
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
           <h2 className="text-xl font-bold mb-4">Casos Recientes</h2>
           <div className="space-y-3">

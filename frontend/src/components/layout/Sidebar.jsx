@@ -19,25 +19,10 @@ export function SidebarNav({ onNavigate }) {
   const { user } = useAuth();
   const supportActive = isSupportAccessActive();
 
-  // ===== DEBUGGING LOGS =====
-  console.log("█ SIDEBAR DEBUG - User Object:", user);
-  console.log("█ SIDEBAR DEBUG - user.role:", user?.role);
-  console.log("█ SIDEBAR DEBUG - user.role TYPE:", typeof user?.role);
-
-  const allModules = getOsModules();
-  console.log("█ SIDEBAR DEBUG - ALL MODULES COUNT:", allModules.length);
-  console.log("█ SIDEBAR DEBUG - ALL MODULES:", allModules.map(m => ({ key: m.key, label: m.label, visibleToRoles: m.visibleToRoles })));
-
   const visible = getOsModules()
     .filter((m) => canAccess(m.requiredFeature))
     .filter((m) => !m.requiresSupportToken || supportActive)
-    .filter((m) => {
-      const includesRole = !m.visibleToRoles || m.visibleToRoles.includes(user?.role);
-      console.log(`█ SIDEBAR DEBUG - Module '${m.key}' visibleToRoles: ${JSON.stringify(m.visibleToRoles)}, user.role: '${user?.role}', INCLUDED: ${includesRole}`);
-      return includesRole;
-    });
-
-  console.log("█ SIDEBAR DEBUG - VISIBLE MODULES AFTER FILTER:", visible.map(m => ({ key: m.key, label: m.label })));
+    .filter((m) => !m.visibleToRoles || m.visibleToRoles.includes(user?.role));
 
   return (
     <div className="space-y-5">

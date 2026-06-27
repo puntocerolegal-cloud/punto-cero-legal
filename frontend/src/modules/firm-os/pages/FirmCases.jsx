@@ -47,26 +47,42 @@ export function FirmCases() {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando casos...</div>;
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando casos...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-400">{error}</div>;
+    return (
+      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+        <p className="text-red-400 font-semibold">{error}</p>
+        <p className="text-red-300 text-sm mt-2">Por favor, intenta recargar la página</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Casos ({cases.length})</h1>
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors">
+        <h1 className="text-3xl font-bold">Casos ({cases?.length || 0})</h1>
+        <button
+          disabled
+          title="Funcionalidad en desarrollo"
+          className="flex items-center gap-2 bg-gray-700 text-gray-400 px-4 py-2 rounded-lg transition-colors cursor-not-allowed opacity-50"
+        >
           <Plus className="w-5 h-5" />
           Nuevo Caso
         </button>
       </div>
 
       {/* Cases Grid */}
-      {cases.length > 0 ? (
+      {cases && cases.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cases.map((caseItem, idx) => (
             <div key={idx} className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors">
@@ -86,7 +102,11 @@ export function FirmCases() {
                 </div>
               </div>
 
-              <button className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors text-sm font-medium">
+              <button
+                disabled
+                title="Funcionalidad en desarrollo"
+                className="w-full mt-4 px-4 py-2 bg-gray-700 text-gray-400 rounded transition-colors text-sm font-medium cursor-not-allowed opacity-50"
+              >
                 Ver Detalles
               </button>
             </div>

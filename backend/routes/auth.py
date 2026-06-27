@@ -55,6 +55,8 @@ async def get_me(current = Depends(get_current_user)):
         "role": current["role"],
         "status": current.get("status", "PENDING_VERIFICATION"),
         "is_verified": bool(current.get("is_verified", False)),
+        "requires_password_change": bool(current.get("requires_password_change", False)),
+        "firm_id": current.get("firm_id"),
         "country": current.get("country"),
         "specialty": current.get("specialty"),
         "phone": current.get("phone"),
@@ -159,11 +161,87 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
             "role": role,
             "status": user.get("status", "PENDING_VERIFICATION"),
             "is_verified": is_verified,
+            "requires_password_change": bool(user.get("requires_password_change", False)),
+            "firm_id": user.get("firm_id"),
             "country": user.get("country"),
             "specialty": user.get("specialty"),
             "phone": user.get("phone"),
             "bar_number": user.get("bar_number"),
             "firm_name": user.get("firm_name"),
             "id_document": user.get("id_document")
+        }
+    }
+
+@router.post("/change-password-first-login", response_model=dict, status_code=status.HTTP_200_OK)
+async def change_password_first_login(
+    payload: dict,
+    current_user = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Cambiar contraseña en primer login (requiere requires_password_change=True)
+
+    Validaciones:
+    1. Usuario debe tener requires_password_change = True
+    2. Nueva contraseña debe ser diferente a la actual
+    3. Nueva contraseña debe cumplir requisitos de seguridad
+    """
+    from utils.auth import verify_password, get_password_hash
+
+    new_password = payload.get("new_password", "").strip()
+    current_password = payload.get("current_password", "").strip()
+
+    # Validar que requires_password_change sea true
+    if not current_user.get("requires_password_change"):
+        raise HTTPException(
+            status_code=400,
+            detail="Este usuario no requiere cambio de contraseña"
+        )
+
+    # Validar que la contraseña actual sea correcta
+    if not current_password or not verify_password(current_password, current_user.get("password_hash", "")):
+        raise HTTPException(
+            status_code=401,
+            detail="Contraseña actual incorrecta"
+        )
+
+    # Validar nueva contraseña
+    if not new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="La nueva contraseña es requerida"
+        )
+
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="La contraseña debe tener al menos 8 caracteres"
+        )
+
+    # Validar que sea diferente
+    if verify_password(new_password, current_user.get("password_hash")):
+        raise HTTPException(
+            status_code=400,
+            detail="La nueva contraseña debe ser diferente a la anterior"
+        )
+
+    # Actualizar contraseña
+    password_hash = get_password_hash(new_password)
+
+    await db.users.update_one(
+        {"_id": ObjectId(current_user["_id"])},
+        {"$set": {
+            "password_hash": password_hash,
+            "requires_password_change": False,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    return {
+        "success": True,
+        "message": "Contraseña actualizada exitosamente",
+        "user": {
+            "id": str(current_user["_id"]),
+            "email": current_user["email"],
+            "requires_password_change": False
         }
     }

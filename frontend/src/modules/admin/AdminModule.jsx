@@ -26,6 +26,7 @@ import { OrganizationsDashboard } from "../organizations";
 import { BillingDashboard } from "../billing";
 import { AnalyticsDashboard } from "../analytics";
 import { PendingFirmsCenter } from "./pages/PendingFirmsCenter";
+import { FirmSolicitudesModule } from "./pages/FirmSolicitudesModule";
 import { OSDataProvider } from "@/context/OSDataProvider";
 import { OSStoreProvider } from "@/store/os/osStore";
 import { TenantProvider } from "@/context/TenantContext";
@@ -62,6 +63,7 @@ export function AdminModule() {
       <Route path="legal-os" element={<AdminOSLayout title="Legal Operating System"><LegalOS /></AdminOSLayout>} />
       <Route path="firms" element={<AdminOSLayout title="Directorio de Firmas"><FirmsOverview /></AdminOSLayout>} />
       <Route path="firms-approval" element={<AdminOSLayout title="Centro de Aprobación de Firmas"><PendingFirmsCenter /></AdminOSLayout>} />
+      <Route path="firms-solicitudes" element={<AdminOSLayout title="Solicitudes de Firmas"><FirmSolicitudesModule /></AdminOSLayout>} />
       <Route path="firm-dashboard" element={<AdminOSLayout title="Dashboard de Firma"><FirmDashboard /></AdminOSLayout>} />
       <Route path="sales-command-center" element={<AdminOSLayout title="Sales Command Center"><SalesCommandCenter /></AdminOSLayout>} />
       <Route path="ai-command-center" element={<AdminOSLayout title="Copiloto IA"><AICommandCenter /></AdminOSLayout>} />

@@ -51,15 +51,32 @@ export function FirmFinance() {
   }, [loadFinancialData]);
 
   if (loading) {
-    return <div className="text-center py-8">Cargando datos financieros...</div>;
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando datos financieros...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-400">{error}</div>;
+    return (
+      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
+        <p className="text-red-400 font-semibold">{error}</p>
+        <p className="text-red-300 text-sm mt-2">Por favor, intenta recargar la página</p>
+      </div>
+    );
   }
 
   if (!data) {
-    return <div className="text-center py-8 text-gray-400">Sin datos disponibles</div>;
+    return (
+      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-8 text-center">
+        <p className="text-gray-400">Aún no hay datos financieros disponibles</p>
+        <p className="text-gray-500 text-sm mt-2">Los datos aparecerán cuando se registren transacciones</p>
+      </div>
+    );
   }
 
   return (
