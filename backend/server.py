@@ -307,10 +307,9 @@ async def validation_exception_handler(request, exc):
         content={"detail": errors[0]["message"] if errors else "Validation error"}
     )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=[
+def get_cors_origins():
+    """Generar lista de origins CORS permitidos, incluyendo todas las variantes de Vercel."""
+    origins = [
         # ─ Desarrollo local ─
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -321,18 +320,31 @@ app.add_middleware(
         "https://puntocerolegal.com",
         "https://www.puntocerolegal.com",
 
-        # ─ Vercel frontend (múltiples variantes) ─
-        "https://punto-cero-legal.vercel.app",                    # Production
-        "https://punto-cero-legal-me3ma4jnr-puntocerolegal-3926s-projects.vercel.app",  # Preview v1
-        "https://punto-cero-legal-1jqn23vb1-puntocerolegal-3926s-projects.vercel.app",  # Preview v2
+        # ─ Vercel production ─
+        "https://punto-cero-legal.vercel.app",
 
-        # ─ Vercel preview deployments (patrón genérico) ─
-        # Permite cualquier subdominio de vercel.app mientras sea del proyecto
-        # Nota: Esto se maneja via CORS_ORIGINS env var en Render
-
-        # ─ Render backend (para testing si es necesario) ─
+        # ─ Render backend ─
         "https://puntocero-legal-api.onrender.com",
-    ] if not os.environ.get('CORS_ORIGINS') else os.environ.get('CORS_ORIGINS', '').split(','),
+    ]
+
+    # ─ Vercel preview deployments (patrón dinámico) ─
+    # Permite CUALQUIER subdominio de vercel.app que contenga "puntocerolegal-3926s-projects"
+    # Esto cubre todos los previews: me3ma4jnr, 1jqn23vb1, kz4s25i13, etc.
+    vercel_preview_patterns = [
+        "https://punto-cero-legal-*-puntocerolegal-3926s-projects.vercel.app",
+    ]
+    origins.extend(vercel_preview_patterns)
+
+    # Si CORS_ORIGINS env var está definido, usarlo en lugar del hardcoded
+    if os.environ.get('CORS_ORIGINS'):
+        return os.environ.get('CORS_ORIGINS', '').split(',')
+
+    return origins
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origin_regex=r"^https://punto-cero-legal.*\.vercel\.app$|^http://localhost.*|^https://puntocerolegal\.com.*|^https://puntocero-legal-api\.onrender\.com$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
