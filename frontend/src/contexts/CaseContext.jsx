@@ -16,8 +16,12 @@ export function CaseContextProvider({ children }) {
 
   const select = useCallback((ctx) => {
     setActive(ctx);
-    if (ctx) localStorage.setItem(KEY, JSON.stringify(ctx));
-    else localStorage.removeItem(KEY);
+    try {
+      if (ctx) localStorage.setItem(KEY, JSON.stringify(ctx));
+      else localStorage.removeItem(KEY);
+    } catch (e) {
+      /* localStorage no disponible: estado se mantiene en memoria */
+    }
   }, []);
 
   const clear = useCallback(() => select(null), [select]);

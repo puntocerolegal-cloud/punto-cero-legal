@@ -46,8 +46,12 @@ export const AIPage = () => {
   const [usage, setUsage] = useState(null);
   const [forceUpgrade, setForceUpgrade] = useState(false); // por error de límite de Gemini
   const [dismissed, setDismissed] = useState(() => {
-    const until = parseInt(localStorage.getItem(UPGRADE_DISMISS_KEY) || '0', 10);
-    return Date.now() < until;
+    try {
+      const until = parseInt(localStorage.getItem(UPGRADE_DISMISS_KEY) || '0', 10);
+      return Date.now() < until;
+    } catch (e) {
+      return false;
+    }
   });
   const messagesEndRef = useRef(null);
 
@@ -84,7 +88,11 @@ export const AIPage = () => {
   const showUpgrade = !dismissed && (forceUpgrade || (usage?.used || 0) >= UPGRADE_THRESHOLD);
 
   const dismissUpgrade = () => {
-    localStorage.setItem(UPGRADE_DISMISS_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    try {
+      localStorage.setItem(UPGRADE_DISMISS_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    } catch (e) {
+      /* localStorage no disponible: dismiss se aplica solo en memoria */
+    }
     setDismissed(true);
     setForceUpgrade(false);
   };
