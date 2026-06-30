@@ -5,6 +5,7 @@ import { isApiEnabled } from "@/config/api/features";
 import { normalizeInvoice, normalizeInvoices } from "@/utils/normalizers";
 import { eventBus, OS_EVENTS } from "@/core/events/eventBus";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const MOCK = {
   KPIS: mock.KPIS,
@@ -87,27 +88,62 @@ export const billingService = {
 
   // ── Mutaciones (emiten eventos en el EventBus) ──
   async createInvoice(payload) {
-    const data = normalizeInvoice(unwrap(await apiClient.post("/billing/", payload)));
-    eventBus.emit(OS_EVENTS.invoiceCreated, data);
-    return data;
+    try {
+      const data = normalizeInvoice(unwrap(await apiClient.post("/billing/", payload)));
+      eventBus.emit(OS_EVENTS.invoiceCreated, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'billing',
+        operation: 'createInvoice',
+        resourceType: 'invoice',
+      });
+    }
   },
 
   async updateInvoice(id, payload) {
-    const data = normalizeInvoice(unwrap(await apiClient.put(`/billing/${id}`, payload)));
-    eventBus.emit(OS_EVENTS.invoiceUpdated, data);
-    return data;
+    try {
+      const data = normalizeInvoice(unwrap(await apiClient.put(`/billing/${id}`, payload)));
+      eventBus.emit(OS_EVENTS.invoiceUpdated, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'billing',
+        operation: 'updateInvoice',
+        resourceId: id,
+        resourceType: 'invoice',
+      });
+    }
   },
 
   async deleteInvoice(id) {
-    await apiClient.delete(`/billing/${id}`);
-    eventBus.emit(OS_EVENTS.invoiceDeleted, { id });
-    return true;
+    try {
+      await apiClient.delete(`/billing/${id}`);
+      eventBus.emit(OS_EVENTS.invoiceDeleted, { id });
+      return true;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'billing',
+        operation: 'deleteInvoice',
+        resourceId: id,
+        resourceType: 'invoice',
+      });
+    }
   },
 
   async payInvoice(id, paymentMethod, paidDate) {
-    const data = normalizeInvoice(unwrap(await apiClient.post(`/billing/${id}/pay`, { paymentMethod, paidDate })));
-    eventBus.emit(OS_EVENTS.invoicePaid, data);
-    return data;
+    try {
+      const data = normalizeInvoice(unwrap(await apiClient.post(`/billing/${id}/pay`, { paymentMethod, paidDate })));
+      eventBus.emit(OS_EVENTS.invoicePaid, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'billing',
+        operation: 'payInvoice',
+        resourceId: id,
+        resourceType: 'invoice',
+      });
+    }
   },
 };
 

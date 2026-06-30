@@ -5,6 +5,7 @@ import * as mock from "@/modules/plans/mockData";
 import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const FLAG = "ENABLE_PLANS_API";
 
@@ -51,22 +52,57 @@ export const plansService = {
 
   async create(payload) {
     if (!isApiEnabled(FLAG)) return { ...payload };
-    return unwrap(await apiClient.post("/plans", payload));
+    try {
+      return unwrap(await apiClient.post("/plans", payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'plans',
+        operation: 'create',
+        resourceType: 'plan',
+      });
+    }
   },
 
   async update(id, payload) {
     if (!isApiEnabled(FLAG)) return { _id: id, ...payload };
-    return unwrap(await apiClient.put(`/plans/${id}`, payload));
+    try {
+      return unwrap(await apiClient.put(`/plans/${id}`, payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'plans',
+        operation: 'update',
+        resourceId: id,
+        resourceType: 'plan',
+      });
+    }
   },
 
   async duplicate(id) {
     if (!isApiEnabled(FLAG)) return { _id: id, duplicated: true };
-    return unwrap(await apiClient.post(`/plans/${id}/duplicate`, {}));
+    try {
+      return unwrap(await apiClient.post(`/plans/${id}/duplicate`, {}));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'plans',
+        operation: 'duplicate',
+        resourceId: id,
+        resourceType: 'plan',
+      });
+    }
   },
 
   async setStatus(id, status) {
     if (!isApiEnabled(FLAG)) return { _id: id, status };
-    return unwrap(await apiClient.patch(`/plans/${id}/status`, { status }));
+    try {
+      return unwrap(await apiClient.patch(`/plans/${id}/status`, { status }));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'plans',
+        operation: 'setStatus',
+        resourceId: id,
+        resourceType: 'plan',
+      });
+    }
   },
   activate(id) { return this.setStatus(id, "ACTIVO"); },
   deactivate(id) { return this.setStatus(id, "INACTIVO"); },

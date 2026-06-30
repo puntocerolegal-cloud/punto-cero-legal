@@ -5,6 +5,7 @@ import { isApiEnabled } from "@/config/api/features";
 import { normalizeSubscription, normalizeSubscriptions } from "@/utils/normalizers";
 import { eventBus, OS_EVENTS } from "@/core/events/eventBus";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const MOCK = {
   KPIS: mock.KPIS,
@@ -63,31 +64,66 @@ export const subscriptionsService = {
 
   // ── Mutaciones (emiten eventos en el EventBus) ──
   async create(payload) {
-    const data = normalizeSubscription(unwrap(await apiClient.post("/subscriptions/", payload)));
-    eventBus.emit(OS_EVENTS.subscriptionCreated, data);
-    return data;
+    try {
+      const data = normalizeSubscription(unwrap(await apiClient.post("/subscriptions/", payload)));
+      eventBus.emit(OS_EVENTS.subscriptionCreated, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'subscriptions',
+        operation: 'create',
+        resourceType: 'subscription',
+      });
+    }
   },
 
   async update(id, payload) {
-    const prevStatus = payload?._prevStatus;
-    const data = normalizeSubscription(unwrap(await apiClient.put(`/subscriptions/${id}`, payload)));
-    eventBus.emit(OS_EVENTS.subscriptionUpdated, data);
-    if (payload?.status && prevStatus && payload.status !== prevStatus) {
-      eventBus.emit(OS_EVENTS.subscriptionStatusChanged, data);
+    try {
+      const prevStatus = payload?._prevStatus;
+      const data = normalizeSubscription(unwrap(await apiClient.put(`/subscriptions/${id}`, payload)));
+      eventBus.emit(OS_EVENTS.subscriptionUpdated, data);
+      if (payload?.status && prevStatus && payload.status !== prevStatus) {
+        eventBus.emit(OS_EVENTS.subscriptionStatusChanged, data);
+      }
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'subscriptions',
+        operation: 'update',
+        resourceId: id,
+        resourceType: 'subscription',
+      });
     }
-    return data;
   },
 
   async remove(id) {
-    await apiClient.delete(`/subscriptions/${id}`);
-    eventBus.emit(OS_EVENTS.subscriptionDeleted, { id });
-    return true;
+    try {
+      await apiClient.delete(`/subscriptions/${id}`);
+      eventBus.emit(OS_EVENTS.subscriptionDeleted, { id });
+      return true;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'subscriptions',
+        operation: 'remove',
+        resourceId: id,
+        resourceType: 'subscription',
+      });
+    }
   },
 
   async renewSubscription(id, renewalDate) {
-    const data = normalizeSubscription(unwrap(await apiClient.post(`/subscriptions/${id}/renew`, { renewalDate })));
-    eventBus.emit(OS_EVENTS.subscriptionRenewed, data);
-    return data;
+    try {
+      const data = normalizeSubscription(unwrap(await apiClient.post(`/subscriptions/${id}/renew`, { renewalDate })));
+      eventBus.emit(OS_EVENTS.subscriptionRenewed, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'subscriptions',
+        operation: 'renewSubscription',
+        resourceId: id,
+        resourceType: 'subscription',
+      });
+    }
   },
 };
 

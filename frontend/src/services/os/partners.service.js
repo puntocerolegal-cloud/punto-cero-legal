@@ -5,6 +5,7 @@ import { isApiEnabled } from "@/config/api/features";
 import { normalizePartner, normalizePartners } from "@/utils/normalizers";
 import { eventBus, OS_EVENTS } from "@/core/events/eventBus";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 // Tenant por defecto de la organización en producción. El backend exige tenant
 // para CREAR/EDITAR/ELIMINAR; SUPER_ADMIN lo ignora al leer. Configurable por env.
@@ -64,22 +65,48 @@ export const partnersService = {
   // ── CRUD (Red de Agentes) — persiste en backend y emite eventos reactivos ──
   // CREAR exige tenant en el backend → enviamos X-Tenant-ID de la organización.
   async createPartner(payload) {
-    const res = await apiClient.post("/partners/", payload, { headers: { "X-Tenant-ID": DEFAULT_TENANT } });
-    const data = normalizePartner(unwrap(res));
-    eventBus.emit(OS_EVENTS.partnerCreated, data);
-    return data;
+    try {
+      const res = await apiClient.post("/partners/", payload, { headers: { "X-Tenant-ID": DEFAULT_TENANT } });
+      const data = normalizePartner(unwrap(res));
+      eventBus.emit(OS_EVENTS.partnerCreated, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'partners',
+        operation: 'createPartner',
+        resourceType: 'partner',
+      });
+    }
   },
 
   async updatePartner(id, payload) {
-    const data = normalizePartner(unwrap(await apiClient.put(`/partners/${id}`, payload, { headers: { "X-Tenant-ID": DEFAULT_TENANT } })));
-    eventBus.emit(OS_EVENTS.partnerUpdated, data);
-    return data;
+    try {
+      const data = normalizePartner(unwrap(await apiClient.put(`/partners/${id}`, payload, { headers: { "X-Tenant-ID": DEFAULT_TENANT } })));
+      eventBus.emit(OS_EVENTS.partnerUpdated, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'partners',
+        operation: 'updatePartner',
+        resourceId: id,
+        resourceType: 'partner',
+      });
+    }
   },
 
   async deletePartner(id) {
-    await apiClient.delete(`/partners/${id}`, { headers: { "X-Tenant-ID": DEFAULT_TENANT } });
-    eventBus.emit(OS_EVENTS.partnerDeleted, { id });
-    return true;
+    try {
+      await apiClient.delete(`/partners/${id}`, { headers: { "X-Tenant-ID": DEFAULT_TENANT } });
+      eventBus.emit(OS_EVENTS.partnerDeleted, { id });
+      return true;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'partners',
+        operation: 'deletePartner',
+        resourceId: id,
+        resourceType: 'partner',
+      });
+    }
   },
 };
 

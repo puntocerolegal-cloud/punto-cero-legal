@@ -3,6 +3,7 @@ import * as mock from "@/modules/roles/mockData";
 import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const FLAG = "ENABLE_ROLES_API";
 
@@ -35,22 +36,57 @@ export const rolesService = {
 
   async create(payload) {
     if (!isApiEnabled(FLAG)) return { ...payload };
-    return unwrap(await apiClient.post("/roles", payload));
+    try {
+      return unwrap(await apiClient.post("/roles", payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'roles',
+        operation: 'create',
+        resourceType: 'role',
+      });
+    }
   },
 
   async update(id, payload) {
     if (!isApiEnabled(FLAG)) return { _id: id, ...payload };
-    return unwrap(await apiClient.put(`/roles/${id}`, payload));
+    try {
+      return unwrap(await apiClient.put(`/roles/${id}`, payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'roles',
+        operation: 'update',
+        resourceId: id,
+        resourceType: 'role',
+      });
+    }
   },
 
   async duplicate(id) {
     if (!isApiEnabled(FLAG)) return { _id: id, duplicated: true };
-    return unwrap(await apiClient.post(`/roles/${id}/duplicate`, {}));
+    try {
+      return unwrap(await apiClient.post(`/roles/${id}/duplicate`, {}));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'roles',
+        operation: 'duplicate',
+        resourceId: id,
+        resourceType: 'role',
+      });
+    }
   },
 
   async setStatus(id, status) {
     if (!isApiEnabled(FLAG)) return { _id: id, status };
-    return unwrap(await apiClient.patch(`/roles/${id}/status`, { status }));
+    try {
+      return unwrap(await apiClient.patch(`/roles/${id}/status`, { status }));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'roles',
+        operation: 'setStatus',
+        resourceId: id,
+        resourceType: 'role',
+      });
+    }
   },
   activate(id) { return this.setStatus(id, "ACTIVO"); },
   deactivate(id) { return this.setStatus(id, "INACTIVO"); },

@@ -5,6 +5,7 @@ import * as mock from "@/modules/users/mockData";
 import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const FLAG = "ENABLE_USERS_API";
 
@@ -39,18 +40,44 @@ export const usersService = {
 
   async create(payload) {
     if (!isApiEnabled(FLAG)) return { ...payload };
-    return unwrap(await apiClient.post("/users", payload));
+    try {
+      return unwrap(await apiClient.post("/users", payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'users',
+        operation: 'create',
+        resourceType: 'user',
+      });
+    }
   },
 
   async update(id, payload) {
     if (!isApiEnabled(FLAG)) return { _id: id, ...payload };
-    return unwrap(await apiClient.put(`/users/${id}`, payload));
+    try {
+      return unwrap(await apiClient.put(`/users/${id}`, payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'users',
+        operation: 'update',
+        resourceId: id,
+        resourceType: 'user',
+      });
+    }
   },
 
   // ── Ciclo de vida / acceso ──
   async setStatus(id, status) {
     if (!isApiEnabled(FLAG)) return { _id: id, status };
-    return unwrap(await apiClient.patch(`/users/${id}/status`, { status }));
+    try {
+      return unwrap(await apiClient.patch(`/users/${id}/status`, { status }));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'users',
+        operation: 'setStatus',
+        resourceId: id,
+        resourceType: 'user',
+      });
+    }
   },
   activate(id) { return this.setStatus(id, "ACTIVO"); },
   deactivate(id) { return this.setStatus(id, "INACTIVO"); },
@@ -58,15 +85,42 @@ export const usersService = {
 
   async resetAccess(id) {
     if (!isApiEnabled(FLAG)) return { _id: id, reset: true };
-    return unwrap(await apiClient.post(`/users/${id}/reset-access`, {}));
+    try {
+      return unwrap(await apiClient.post(`/users/${id}/reset-access`, {}));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'users',
+        operation: 'resetAccess',
+        resourceId: id,
+        resourceType: 'user',
+      });
+    }
   },
   async changeOrganization(id, organization) {
     if (!isApiEnabled(FLAG)) return { _id: id, organization };
-    return unwrap(await apiClient.patch(`/users/${id}/organization`, { organization }));
+    try {
+      return unwrap(await apiClient.patch(`/users/${id}/organization`, { organization }));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'users',
+        operation: 'changeOrganization',
+        resourceId: id,
+        resourceType: 'user',
+      });
+    }
   },
   async changeRole(id, role) {
     if (!isApiEnabled(FLAG)) return { _id: id, role };
-    return unwrap(await apiClient.patch(`/users/${id}/role`, { role }));
+    try {
+      return unwrap(await apiClient.patch(`/users/${id}/role`, { role }));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'users',
+        operation: 'changeRole',
+        resourceId: id,
+        resourceType: 'user',
+      });
+    }
   },
 };
 

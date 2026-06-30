@@ -3,6 +3,7 @@ import * as mock from "@/modules/permissions/mockData";
 import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const FLAG = "ENABLE_PERMISSIONS_API";
 
@@ -34,13 +35,29 @@ export const permissionsService = {
   // Alterna un permiso puntual { type, module, role, value, scope, scopeEntity }.
   async setPermission(payload) {
     if (!isApiEnabled(FLAG)) return { ...payload };
-    return unwrap(await apiClient.patch("/permissions", payload));
+    try {
+      return unwrap(await apiClient.patch("/permissions", payload));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'permissions',
+        operation: 'setPermission',
+        resourceType: 'permission',
+      });
+    }
   },
 
   // Persiste la matriz completa.
   async saveMatrix(matrix) {
     if (!isApiEnabled(FLAG)) return { saved: true };
-    return unwrap(await apiClient.put("/permissions/matrix", { matrix }));
+    try {
+      return unwrap(await apiClient.put("/permissions/matrix", { matrix }));
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'permissions',
+        operation: 'saveMatrix',
+        resourceType: 'matrix',
+      });
+    }
   },
 };
 

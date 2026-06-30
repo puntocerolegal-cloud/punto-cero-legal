@@ -5,6 +5,7 @@ import { isApiEnabled } from "@/config/api/features";
 import { normalizeImplementation, normalizeImplementations } from "@/utils/normalizers";
 import { eventBus, OS_EVENTS } from "@/core/events/eventBus";
 import { unwrap } from "@/lib/httpUnwrap";
+import { normalizeHTTPError } from "@/lib/osErrorHandler";
 
 const MOCK = {
   STAGES: mock.STAGES,
@@ -61,25 +62,51 @@ export const implementationsService = {
 
   // ── Mutaciones (emiten eventos en el EventBus) ──
   async create(payload) {
-    const data = normalizeImplementation(unwrap(await apiClient.post("/implementations/", payload)));
-    eventBus.emit(OS_EVENTS.implementationCreated, data);
-    return data;
+    try {
+      const data = normalizeImplementation(unwrap(await apiClient.post("/implementations/", payload)));
+      eventBus.emit(OS_EVENTS.implementationCreated, data);
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'implementations',
+        operation: 'create',
+        resourceType: 'implementation',
+      });
+    }
   },
 
   async update(id, payload) {
-    const prevStage = payload?._prevStage;
-    const data = normalizeImplementation(unwrap(await apiClient.put(`/implementations/${id}`, payload)));
-    eventBus.emit(OS_EVENTS.implementationUpdated, data);
-    if (payload?.stage && prevStage && payload.stage !== prevStage) {
-      eventBus.emit(OS_EVENTS.implementationStageChanged, data);
+    try {
+      const prevStage = payload?._prevStage;
+      const data = normalizeImplementation(unwrap(await apiClient.put(`/implementations/${id}`, payload)));
+      eventBus.emit(OS_EVENTS.implementationUpdated, data);
+      if (payload?.stage && prevStage && payload.stage !== prevStage) {
+        eventBus.emit(OS_EVENTS.implementationStageChanged, data);
+      }
+      return data;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'implementations',
+        operation: 'update',
+        resourceId: id,
+        resourceType: 'implementation',
+      });
     }
-    return data;
   },
 
   async remove(id) {
-    await apiClient.delete(`/implementations/${id}`);
-    eventBus.emit(OS_EVENTS.implementationDeleted, { id });
-    return true;
+    try {
+      await apiClient.delete(`/implementations/${id}`);
+      eventBus.emit(OS_EVENTS.implementationDeleted, { id });
+      return true;
+    } catch (err) {
+      normalizeHTTPError(err, {
+        service: 'implementations',
+        operation: 'remove',
+        resourceId: id,
+        resourceType: 'implementation',
+      });
+    }
   },
 };
 
