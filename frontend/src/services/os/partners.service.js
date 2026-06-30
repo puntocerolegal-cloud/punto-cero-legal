@@ -4,17 +4,11 @@ import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
 import { normalizePartner, normalizePartners } from "@/utils/normalizers";
 import { eventBus, OS_EVENTS } from "@/core/events/eventBus";
+import { unwrap } from "@/lib/httpUnwrap";
 
 // Tenant por defecto de la organización en producción. El backend exige tenant
 // para CREAR/EDITAR/ELIMINAR; SUPER_ADMIN lo ignora al leer. Configurable por env.
 const DEFAULT_TENANT = process.env.REACT_APP_DEFAULT_TENANT || "puntocero-org";
-
-// Desempaqueta la respuesta estándar { success, data, message, errors }.
-function unwrap(res) {
-  const body = res?.data;
-  if (body && typeof body === "object" && "success" in body && "data" in body) return body.data;
-  return body;
-}
 
 const MOCK = {
   KPIS: mock.KPIS,

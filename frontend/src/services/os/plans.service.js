@@ -4,12 +4,7 @@
 import * as mock from "@/modules/plans/mockData";
 import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
-
-function unwrap(res) {
-  const body = res?.data;
-  if (body && typeof body === "object" && "success" in body && "data" in body) return body.data;
-  return body;
-}
+import { unwrap } from "@/lib/httpUnwrap";
 
 const FLAG = "ENABLE_PLANS_API";
 

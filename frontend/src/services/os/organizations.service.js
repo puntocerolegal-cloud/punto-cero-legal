@@ -5,13 +5,7 @@ import * as mock from "@/modules/organizations/mockData";
 import { apiClient } from "@/config/api/apiClient";
 import { isApiEnabled } from "@/config/api/features";
 import { normalizeOrganizations } from "@/utils/normalizers";
-
-// Desempaqueta la respuesta estándar { success, data, message, errors }.
-function unwrap(res) {
-  const body = res?.data;
-  if (body && typeof body === "object" && "success" in body && "data" in body) return body.data;
-  return body;
-}
+import { unwrap } from "@/lib/httpUnwrap";
 
 const MOCK = {
   KPIS: mock.KPIS,
