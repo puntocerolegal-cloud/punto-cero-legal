@@ -1,0 +1,7 @@
+INSTRUMENTATION: Add detailed SMTP logging for QA debugging
+
+- PHASE 1: Log SMTP configuration (HOST, PORT, USER masked, FROM, to_email, subject)
+- PHASE 2: Log connection success, TLS init, login attempt, authentication success
+- PHASE 3: Log sendmail execution and success
+- On failure: Log complete exception message (not truncated), exception type
+- Purpose: Identify exact point of SMTP failure in production

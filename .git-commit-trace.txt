@@ -1,0 +1,12 @@
+FEATURE: Add email trace ID for enhanced SMTP debugging
+
+- Generate unique email_trace_id per send_email() call (secrets.token_hex(6))
+- Include email_trace_id in ALL log messages for complete request traceability
+- Log all SMTP phases: connection, TLS, login, sendmail, success/failure
+- Capture complete exception details without truncation
+- Extract SMTP-specific codes and errors (smtp_code, smtp_error attributes)
+- Auto-detect failure phase (Connection/TLS/Login/Sendmail)
+- Generate detailed failure summary with all diagnostic information
+- Return email_trace_id in response for client-side logging correlation
+- No changes to business logic, endpoints, or HTTP responses
+- Pure diagnostic and audit enhancement for production troubleshooting

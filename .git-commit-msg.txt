@@ -1,0 +1,8 @@
+FIX: Replace localStorage direct access with useAuth() hook in Firm OS
+
+- FirmDashboard, FirmLawyers, FirmCases, FirmFinance, FirmAnalytics: Use useAuth() instead of localStorage.getItem('user')
+- FirmTeam, FirmOnboarding, OnboardingWizardFirm: Replace localStorage reads with AuthContext
+- TeamMemberModal, useFirmOnboarding: Use useAuth() hook for user and token access
+- Add missing React Hook dependencies: user?.firm_id, token
+- Root cause: Direct localStorage access was out of sync with AuthContext, causing blank screen on Firm OS access after registration
+- Solution: All Firm OS components now read from AuthContext which is properly synchronized

@@ -1,0 +1,74 @@
+═══════════════════════════════════════════════════════════════════════════════
+DEVOPS AUTONOMOUS AGENT — PUNTO CERO LEGAL FRONTEND DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Status: ✅ AGENTE LISTO PARA EJECUCIÓN AUTOMÁTICA
+
+El agente automatiza TODOS los pasos del despliegue EXCEPTO:
+  • Configuración de credenciales GitHub (requiere usuario)
+  • Integración Vercel (requiere verificación en dashboard)
+
+═══════════════════════════════════════════════════════════════════════════════
+OPCIÓN 1: EJECUTAR EN LINUX/MAC (BASH)
+═══════════════════════════════════════════════════════════════════════════════
+
+Abre terminal en la raíz del proyecto y ejecuta:
+
+  chmod +x deploy-automation.sh
+  ./deploy-automation.sh
+
+Qué hace:
+  ✅ Detecta/inicializa Git
+  ✅ Realiza commit automático de cambios
+  ✅ Pushea a GitHub main
+  ✅ Compila frontend (npm run build)
+  ✅ Verifica configuración Vercel
+  ✅ Proporciona instrucciones para Vercel Dashboard
+
+Tiempo: ~5-10 minutos
+
+═══════════════════════════════════════════════════════════════════════════════
+OPCIÓN 2: EJECUTAR EN WINDOWS (POWERSHELL)
+═══════════════════════════════════════════════════════════════════════════════
+
+Abre PowerShell como Administrador y ejecuta:
+
+  Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+  .\deploy-automation.ps1
+
+O simplemente:
+
+  powershell -ExecutionPolicy Bypass -File .\deploy-automation.ps1
+
+Qué hace:
+  (Idéntico a Bash - versión Windows)
+
+Tiempo: ~5-10 minutos
+
+═══════════════════════════════════════════════════════════════════════════════
+REQUISITOS PREVIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Git instalado
+✅ Node.js 16+ instalado
+✅ npm disponible
+✅ GitHub CLI configurado (opcional pero recomendado)
+  
+Verificar:
+  git --version    → Debe mostrar versión
+  node --version   → Debe mostrar v16.0.0 o superior
+  npm --version    → Debe mostrar 8.0.0 o superior
+
+═══════════════════════════════════════════════════════════════════════════════
+FLUJO AUTOMÁTICO DEL AGENTE
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ 1. DETECTAR GIT                                             │
+│    ├─ Si no existe → Inicializar                           │
+│    └─ Si existe → Usar branch actual o cambiar a main      │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 2. COMMIT AUTOMÁTICO                                        │
+│    ├─ Detectar cambios: git

@@ -1,0 +1,133 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║                    GUÍA RÁPIDA: SOLUCIÓN CORS VERCEL/RENDER              ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─ PROBLEMA ───────────────────────────────────────────────────────────────┐
+│ Frontend Vercel no puede conectar a Backend Render por CORS bloqueado    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ SOLUCIÓN IMPLEMENTADA ───────────────────────────────────────────────────┐
+│ ✅ Actualizado: backend/server.py (línea 239-268)                        │
+│    - URLs de Vercel agregadas (producción + preview)                    │
+│    - Métodos explícitos: GET, POST, PUT, PATCH, DELETE, OPTIONS        │
+│    - Cache preflight: 24 horas                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ 4 PASOS PARA COMPLETAR ───────────────────────────────────────────────────┐
+│                                                                             │
+│ 1️⃣  PUSH A GITHUB (en terminal)                                           │
+│     ────────────────────────────────────────────────────────────────       │
+│     git add backend/server.py                                             │
+│     git commit -m "fix: Actualizar CORS middleware para Vercel"           │
+│     git push origin main  ← CRÍTICO                                       │
+│     Tiempo: 1 minuto                                                      │
+│                                                                             │
+│ 2️⃣  REDEPLIEGUE EN RENDER (automático)                                    │
+│     ────────────────────────────────────────────────────────────────       │
+│     • Va a: https://dashboard.render.com                                  │
+│     • Busca nuevo deploy en "puntocero-legal-api"                        │
+│     • Espera a que status sea "Live" (verde)                             │
+│     Tiempo: 2-3 minutos                                                   │
+│                                                                             │
+│ 3️⃣  VALIDAR BACKEND (en terminal)                                         │
+│     ────────────────────────────────────────────────────────────────       │
+│     curl https://puntocero-legal-api.onrender.com/api/health             │
+│     → Debe retornar: {"status": "healthy", "database": "connected"}      │
+│     Tiempo: 1 minuto                                                      │
+│                                                                             │
+│ 4️⃣  VALIDAR FRONTEND (en navegador)                                       │
+│     ────────────────────────────────────────────────────────────────       │
+│     • Abre: https://punto-cero-legal-me3ma4jnr-...vercel.app            │
+│     • Abre DevTools (F12)                                                │
+│     • Intenta login (admin@puntocerolegal.com / AdminPassword123!)       │
+│     • Verifica: Network tab → /api/auth/login sea 200 OK                 │
+│     • Verifica: Console sin errores CORS                                 │
+│     Tiempo: 2 minutos                                                     │
+│                                                                             │
+│ TOTAL: ~7-10 minutos                                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ ARCHIVOS DE REFERENCIA ──────────────────────────────────────────────────┐
+│                                                                             │
+│ 📋 INSTRUCCIONES_PASOS_A_PASOS.md        ← LEE ESTO PRIMERO              │
+│    Pasos explicados en detalle en español                                │
+│                                                                             │
+│ 🔧 COMANDOS_EXACTOS.sh                   ← COPIA Y PEGA                  │
+│    Comandos listos para ejecutar sin pensar                              │
+│                                                                             │
+│ 📊 ESTADO_ACTUAL_COMPLETO.md             ← REFERENCIA TÉCNICA             │
+│    Estado de cada componente y URLs                                       │
+│                                                                             │
+│ 📋 PLAN_COMPLETO_DESPLIEGUE_CORS.md      ← GUÍA DETALLADA               │
+│    Troubleshooting y casos especiales                                     │
+│                                                                             │
+│ 🆘 RESUMEN_EJECUTIVO_CORS.txt            ← OVERVIEW EJECUTIVO             │
+│    Resumen de 1 página                                                    │
+│                                                                             │
+│ ✅ test_cors_validacion.sh               ← VALIDACIÓN AUTOMÁTICA         │
+│    Script bash para validar todo post-deploy                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHECKLIST RÁPIDO ────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ☐ Cambios en backend/server.py                   (YA LISTO)             │
+│  ☐ git push origin main                           (HACER AHORA)          │
+│  ☐ Render redepliegue completado (Live)           (ESPERAR 2-3 MIN)      │
+│  ☐ /api/health retorna 200 OK                     (VALIDAR)              │
+│  ☐ Login en Vercel sin errores CORS               (TEST FINAL)           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ URLS IMPORTANTES ────────────────────────────────────────────────────────┐
+│                                                                             │
+│ Dashboard Render:  https://dashboard.render.com                           │
+│ Frontend Vercel:   https://punto-cero-legal-me3ma4jnr-...vercel.app     │
+│ Backend API:       https://puntocero-legal-api.onrender.com              │
+│                                                                             │
+│ Credenciales test:                                                        │
+│   Email:    admin@puntocerolegal.com                                      │
+│   Password: AdminPassword123!                                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ SI ALGO FALLA ────────────────────────────────────────────────────────────┐
+│                                                                             │
+│ ❌ "No veo deploy en Render"                                              │
+│    → Espera 2-3 minutos después de git push                              │
+│    → Render automáticamente detecta cambios                              │
+│                                                                             │
+│ ❌ "Deploy está en Failed"                                                │
+│    → Ve a dashboard.render.com → puntocero-legal-api → Logs              │
+│    → Busca mensajes de error Python                                      │
+│                                                                             │
+│ ❌ "CORS aún falla en navegador"                                          │
+│    → Espera 2 minutos más (cacheo)                                       │
+│    → Limpia cache navegador (Ctrl+Shift+Delete)                          │
+│    → Hard refresh: Ctrl+Shift+R                                          │
+│                                                                             │
+│ ❌ "No puedo hacer git push"                                              │
+│    → Verifica: git status (debe mostrar cambios)                         │
+│    → Verifica credenciales de GitHub                                     │
+│    → Intenta: git add . && git commit && git push origin main            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─ SIGUIENTES PASOS ────────────────────────────────────────────────────────┐
+│                                                                             │
+│ 1. Lee: INSTRUCCIONES_PASOS_A_PASOS.md (2 minutos)                       │
+│                                                                             │
+│ 2. Ejecuta: Los 4 pasos listados arriba (7-10 minutos)                   │
+│                                                                             │
+│ 3. Valida: CORS funciona end-to-end en Vercel                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║                      🚀 LISTO PARA COMENZAR 🚀                           ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝

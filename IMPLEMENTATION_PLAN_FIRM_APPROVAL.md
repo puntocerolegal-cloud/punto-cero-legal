@@ -1,263 +1,354 @@
-# Implementation Plan: Manual Firm Approval Flow
+# Manual Firm Approval Workflow - Implementation Plan
 
-## Objective
-Replace email-based activation with manual approval from Admin OS.
-
-## Current State Analysis
-
-### What exists today:
-- `POST /api/firms/register` creates firm + firm_owner + sends activation email
-- `POST /api/firms/{id}/approve` generates activation token, sends email with activation link
-- Firm Owner activates via `/activate-firm?token=...` endpoint
-- Trial starts on registration, not on approval
-
-### What needs to change:
-- Registration should NOT create firm_owner
-- Registration should NOT send emails
-- Registration state: PENDING_APPROVAL
-- Approval creates firm_owner + generates temp password
-- Admin OS needs UI to list and approve solicitudes
-- First login after approval must force password change
+## Overview
+Replace the automatic email-based firm activation flow with a manual Admin OS approval workflow. This ensures:
+- Complete auditability and operational oversight
+- No email-dependency for access
+- Clear authorization chain
+- Four-product isolation intact (User OS, Lawyer OS, Firm OS, Admin OS)
 
 ---
 
-## Implementation Phases
+## Phase 1: Registration Creates PENDING_APPROVAL Request ✅ COMPLETED
 
-### Phase 1: Backend - Modify Registration Endpoint
-**File:** `backend/routes/firms.py`
-**Function:** `register_firm()`
+**Endpoint**: `POST /api/firms/register`  
+**Status**: Registration now creates a `PENDING_APPROVAL` request with no session/credentials  
+**Key Changes**:
+- Creates firm document with `status: "PENDING_APPROVAL"`
+- Does NOT create `firm_owner` user
+- Does NOT activate trial
+- Does NOT send activation email
+- Does NOT create session token
+- Returns simple confirmation message only
 
-**Changes:**
-- Remove firm_owner creation from registration
-- Set state to "PENDING_APPROVAL" instead of "PENDING_VERIFICATION"
-- Remove email sending from registration
-- Return simple success message
-- Keep trial_status = "inactive" (starts on approval)
+**Request**:
+```json
+{
+  "name": "Firma ABC",
+  "nit": "900123456",
+  "email": "info@firmabc.com",
+  "phone": "+57123456789",
+  "address": "Cra 7 #120",
+  "city": "Bogotá",
+  "country": "Colombia",
+  "plan": "firm_growth",
+  "founder_name": "Juan Pérez",
+  "founder_email": "juan@firmabc.com",
+  "founder_phone": "+57312345678",
+  "founder_document": "1234567890",
+  "founder_bar_number": "12345"
+}
+```
 
-**Affected endpoints:**
-- `POST /api/firms/register` (modified)
-
----
-
-### Phase 2: Backend - Enhance Approval Endpoint
-**File:** `backend/routes/firms.py`
-**Function:** `approve_firm()` (enhance existing)
-
-**Changes:**
-- Change from sending activation token to generating temp password
-- Create firm_owner if doesn't exist
-- Mark account as ACTIVE
-- Generate secure temp password (`secrets.token_urlsafe(16)`)
-- Set flag: `requires_password_change = True`
-- Activate trial (set trial_started_at to now)
-- Attempt email send but don't block on failure
-- Return credentials to admin UI
-
-**Affected endpoints:**
-- `POST /api/firms/{id}/approve` (enhanced)
-
----
-
-### Phase 3: Backend - Add Rejection Endpoint
-**File:** `backend/routes/firms.py`
-**Function:** `reject_firm()` (enhance existing)
-
-**Changes:**
-- Accept rejection reason
-- Set status to "REJECTED"
-- Store rejection_reason field
-- Don't delete record
-
-**Affected endpoints:**
-- `POST /api/firms/{id}/reject` (enhance)
-
----
-
-### Phase 4: Backend - Force Password Change on First Login
-**File:** `backend/routes/auth.py`
-**Function:** `login()` (modify)
-
-**Changes:**
-- Check if user has `requires_password_change = True`
-- If yes: return special response with flag
-- Don't return session token yet
-- Client redirects to password change form
-
-**New endpoint:**
-- `POST /auth/change-password-first-login` (new)
-
----
-
-### Phase 5: Frontend - Update Landing Registration
-**File:** `frontend/src/pages/LandingPage.jsx`
-**Component:** `FirmRegistrationStreamlined`
-
-**Changes:**
-- After successful registration, don't login
-- Show message: "Gracias. Hemos recibido tu solicitud. Nuestro equipo revisará la información y se comunicará contigo."
-- Clear form
-- Don't redirect to Firm OS
-- No session creation
-
----
-
-### Phase 6: Frontend - Create Admin OS Module (Solicitudes de Firmas)
-**New files:**
-- `frontend/src/modules/admin/pages/FirmSolicitudes.jsx`
-- `frontend/src/modules/admin/components/SolicitudesTable.jsx`
-- `frontend/src/modules/admin/components/ApprovalModal.jsx`
-
-**Features:**
-- List all PENDING_APPROVAL firms
-- Show: name, founder, email, phone, country, plan, date, status
-- Actions: View, Approve, Reject
-- ApprovalModal shows temp credentials
-- Copy button for credentials
-
----
-
-### Phase 7: Frontend - Password Change on First Login
-**New file:**
-- `frontend/src/pages/ChangePasswordFirstLogin.jsx`
-
-**Features:**
-- Mandatory password change form
-- Only access after login with temp password
-- Redirect to Firm OS after successful change
-
----
-
-## Data Model Changes
-
-### Firm collection updates:
-- Add/update fields:
-  - `status`: PENDING_APPROVAL | ACTIVE | REJECTED | SUSPENDED
-  - `trial_status`: inactive | active | expired
-  - `rejection_reason`: string (optional)
-  - `approved_at`: datetime (optional)
-  - `approved_by`: string (optional)
-
-### User (firm_owner) collection updates:
-- Add field:
-  - `requires_password_change`: boolean (default: false)
-
----
-
-## Database Queries to Add
-
-```javascript
-// Get pending solicitudes
-db.firms.find({"status": "PENDING_APPROVAL"})
-
-// Get firm with full details
-db.firms.findOne({"_id": ObjectId(firm_id)})
-
-// Get users with requires_password_change
-db.users.find({"requires_password_change": true})
+**Response** (HTTP 201):
+```json
+{
+  "success": true,
+  "message": "Gracias. Hemos recibido tu solicitud. Nuestro equipo revisará la información y se comunicará contigo.",
+  "firm_id": "507f1f77bcf86cd799439011",
+  "status": "PENDING_APPROVAL"
+}
 ```
 
 ---
 
-## API Endpoints Affected
+## Phase 2: Admin Approval Creates Owner + Temp Password ✅ COMPLETED
 
-| Method | Endpoint | Change | Impact |
-|--------|----------|--------|--------|
-| POST | `/api/firms/register` | Modified | No email, state=PENDING_APPROVAL |
-| POST | `/api/firms/{id}/approve` | Enhanced | Gen temp pwd, create owner |
-| POST | `/api/firms/{id}/reject` | Enhanced | Store reason, no deletion |
-| POST | `/auth/login` | Modified | Check requires_password_change |
-| POST | `/auth/change-password-first-login` | New | Force pwd change before access |
-| GET | `/api/firms/pending` | New | List PENDING_APPROVAL for admin |
+**Endpoint**: `POST /api/firms/{firm_id}/approve`  
+**Status**: Approval now creates firm owner with temporary credentials  
+**Key Changes**:
+- Verifies firm is in `PENDING_APPROVAL` status
+- Creates `firm_owner` user with temporary password
+- Generates secure temp password: `secrets.token_urlsafe(16)` (22 chars)
+- Hashes password with bcrypt (`get_password_hash()`)
+- Sets `requires_password_change: true` (forced on first login)
+- Activates firm: `status: "ACTIVE"`
+- Activates trial: 7 days from approval
+- Sends welcome email (non-blocking, does not prevent approval)
+- Returns credentials in HTTP response for admin to deliver manually
 
----
+**Request**:
+```bash
+POST /api/firms/507f1f77bcf86cd799439011/approve
+Authorization: Bearer {admin_token}
+```
 
-## Frontend Routes Affected
+**Response** (HTTP 200):
+```json
+{
+  "success": true,
+  "message": "Firma 'Firma ABC' aprobada exitosamente.",
+  "firm_id": "507f1f77bcf86cd799439011",
+  "owner_id": "507f1f77bcf86cd799439012",
+  "credentials": {
+    "email": "juan@firmabc.com",
+    "temp_password": "abcd1234EfGhIjKlMn_-",
+    "note": "Contraseña temporal válida para primer acceso. Usuario debe cambiarla al ingresar."
+  },
+  "trial": {
+    "status": "active",
+    "days": 7,
+    "started_at": "2025-06-28T14:30:00Z",
+    "ends_at": "2025-07-05T14:30:00Z"
+  },
+  "email_notification": {
+    "sent": true,
+    "trace_id": "a1b2c3d4e5f6",
+    "note": "Email de bienvenida enviado (si SMTP está disponible). Admin debe comunicar credenciales manualmente."
+  }
+}
+```
 
-| Route | Component | Change |
-|-------|-----------|--------|
-| `/` | LandingPage | Remove auto-login after registration |
-| `/admin/solicitudes` | New | Admin solicitudes listing |
-| `/change-password` | New | Mandatory password change |
-| `/login` | Modified | Handle requires_password_change |
+**Database Changes** (Firm Document):
+```javascript
+{
+  status: "ACTIVE",
+  approval_status: "approved",
+  approval_date: ISODate("2025-06-28T14:30:00Z"),
+  approved_by: ObjectId("admin_user_id"),
+  owner_id: ObjectId("firm_owner_user_id"),
+  trial_status: "active",
+  trial_started_at: ISODate("2025-06-28T14:30:00Z"),
+  trial_ends_at: ISODate("2025-07-05T14:30:00Z"),
+  subscription_status: "trial",
+  subscription_plan: "trial",
+  updated_at: ISODate("2025-06-28T14:30:00Z")
+}
+```
 
----
-
-## Testing Strategy
-
-### E2E Tests:
-1. **Registration Flow**
-   - Register firm → verify PENDING_APPROVAL
-   - Verify no email sent
-   - Verify no session created
-
-2. **Approval Flow**
-   - Admin approves firm
-   - Verify firm_owner created
-   - Verify temp password generated
-   - Verify trial activated
-   - Verify credentials shown to admin
-
-3. **First Login Flow**
-   - Login with temp password
-   - Verify redirect to password change
-   - Change password
-   - Verify redirect to Firm OS
-
-4. **Rejection Flow**
-   - Admin rejects firm
-   - Verify status = REJECTED
-   - Verify reason stored
-   - Verify record not deleted
-
----
-
-## Files to Modify
-
-**Backend:**
-1. `backend/routes/firms.py` (3 functions)
-2. `backend/routes/auth.py` (1 function, 1 new endpoint)
-3. `backend/models/firm.py` (optional - if adding new fields)
-4. `backend/models/user.py` (optional - if adding new fields)
-
-**Frontend:**
-1. `frontend/src/pages/LandingPage.jsx`
-2. `frontend/src/modules/admin/AdminModule.jsx` (add route)
-3. `frontend/src/modules/admin/pages/FirmSolicitudes.jsx` (new)
-4. `frontend/src/modules/admin/components/SolicitudesTable.jsx` (new)
-5. `frontend/src/modules/admin/components/ApprovalModal.jsx` (new)
-6. `frontend/src/pages/ChangePasswordFirstLogin.jsx` (new)
-7. `frontend/src/pages/LoginPage.jsx` (modify)
-
----
-
-## Rollback Strategy
-
-If issues found:
-1. Revert commits
-2. Restore email-based activation
-3. Keep git history for reference
-
----
-
-## Success Criteria
-
-- ✅ Registration creates PENDING_APPROVAL firm
-- ✅ No automatic firm_owner creation
-- ✅ No email sent during registration
-- ✅ Admin OS shows solicitudes list
-- ✅ Admin can approve with temp credentials
-- ✅ Admin can reject with reason
-- ✅ First login forces password change
-- ✅ Trial activates on approval, not registration
-- ✅ All E2E tests pass
-- ✅ Architecture isolation maintained
-- ✅ RBAC not modified
-- ✅ No cross-product access added
+**Database Changes** (User Document - firm_owner):
+```javascript
+{
+  email: "juan@firmabc.com",
+  full_name: "Juan Pérez",
+  password_hash: "$2b$12$...",  // bcrypt hash
+  role: "firm_owner",
+  firm_id: "507f1f77bcf86cd799439011",
+  status: "ACTIVE",
+  is_verified: true,
+  requires_password_change: true,  // Forced password change on first login
+  created_at: ISODate("2025-06-28T14:30:00Z"),
+  updated_at: ISODate("2025-06-28T14:30:00Z")
+}
+```
 
 ---
 
-## Next Step
+## Phase 3: Admin Rejection Endpoint ✅ COMPLETED
 
-Begin **Phase 1: Backend - Modify Registration**
+**Endpoint**: `POST /api/firms/{firm_id}/reject`  
+**Status**: Rejection now properly records audit trail  
+**Key Changes**:
+- Validates firm is in `PENDING_APPROVAL` status
+- Records rejection reason (required, min 5 chars, max 500 chars)
+- Stores complete audit trail in firm document
+- Sets `status: "REJECTED"`
+- Deactivates any associated `firm_owner` user to status `"REJECTED"`
+- Sends rejection notification email (non-blocking)
+- Logs rejection in structured audit trail
+- Preserves all records for compliance (does NOT delete)
 
-Estimated total time: 4-6 hours for complete implementation + testing.
+**Request**:
+```bash
+POST /api/firms/507f1f77bcf86cd799439011/reject
+Authorization: Bearer {admin_token}
+Content-Type: application/json
+
+{
+  "reason": "Información de NIT incompleta o inválida. Por favor verificar documento de constitución."
+}
+```
+
+**Response** (HTTP 200):
+```json
+{
+  "success": true,
+  "message": "Firma 'Firma ABC' rechazada exitosamente.",
+  "firm_id": "507f1f77bcf86cd799439011",
+  "firm_name": "Firma ABC",
+  "rejection": {
+    "reason": "Información de NIT incompleta o inválida. Por favor verificar documento de constitución.",
+    "rejected_by_admin": "507f1f77bcf86cd799439099",
+    "rejected_at": "2025-06-28T14:35:00Z",
+    "audit_record": {
+      "firm_status_before": "PENDING_APPROVAL",
+      "firm_status_after": "REJECTED",
+      "owner_id": null,
+      "owner_status_after": null
+    }
+  },
+  "email_notification": {
+    "sent": true,
+    "trace_id": "x1y2z3w4v5u6",
+    "recipient": "juan@firmabc.com",
+    "note": "Notificación enviada al propietario de la firma (si SMTP disponible)"
+  }
+}
+```
+
+**Database Changes** (Firm Document):
+```javascript
+{
+  status: "REJECTED",
+  approval_status: "rejected",
+  rejection_reason: "Información de NIT incompleta o inválida. Por favor verificar documento de constitución.",
+  rejected_by: ObjectId("admin_user_id"),
+  rejected_at: ISODate("2025-06-28T14:35:00Z"),
+  updated_at: ISODate("2025-06-28T14:35:00Z")
+}
+```
+
+**Database Changes** (User Document - if owner existed):
+```javascript
+{
+  status: "REJECTED",
+  updated_at: ISODate("2025-06-28T14:35:00Z")
+}
+```
+
+**Audit Logging**:
+```
+[REJECT_FIRM] firm_id=507f1f77bcf86cd799439011 | firm_name=Firma ABC | rejected_by=507f1f77bcf86cd799439099 | reason=Información de NIT incompleta...
+[REJECT_FIRM_EMAIL] email_sent=true | trace_id=x1y2z3w4v5u6 | recipient=juan@firmabc.com
+```
+
+---
+
+## Phase 4: Admin OS "Solicitudes de Firmas" Module (PENDING)
+
+**Scope**: Create Admin OS UI to manage pending firm approvals  
+**Features**:
+- List all `PENDING_APPROVAL` firms with creation date, plan, contact info
+- Individual firm detail view with full application data
+- Approve button → shows modal with owner credentials (one-time display)
+- Copy credentials button → copies email + temp password to clipboard
+- Reject button → requires rejection reason input
+- Filter by status: Pending, Approved, Rejected
+- Search by firm name, email, NIT
+- Audit log: who approved/rejected, when, reason
+
+**Endpoints Used**:
+- `GET /api/firms/status/pending` - List pending approvals
+- `GET /api/firms/{firm_id}` - Get firm details
+- `POST /api/firms/{firm_id}/approve` - Approve and get credentials
+- `POST /api/firms/{firm_id}/reject` - Reject with reason
+- `GET /api/firms/{firm_id}/trial` - Check trial status
+
+---
+
+## Phase 5: Landing Page Update (PENDING)
+
+**Scope**: Update landing page registration to use new flow  
+**Changes**:
+- Remove automatic session creation on registration
+- Update confirmation message to explain manual approval
+- Remove "redirecting to Firm OS" messaging
+- Add expected approval timeline (e.g., "Within 24 hours")
+- Remove activation email dependency messaging
+
+---
+
+## Phase 6: First-Login Password Change (PENDING)
+
+**Scope**: Implement forced password change on first login  
+**Flow**:
+1. `firm_owner` logs in with temp password
+2. Frontend detects `requires_password_change: true`
+3. Redirects to forced password change page
+4. User cannot access Firm OS until password changed
+5. After password set: `requires_password_change: false`, can proceed to dashboard
+
+**Endpoint** (New):
+```bash
+POST /api/auth/change-password-first-login
+Authorization: Bearer {temp_password_token}
+{
+  "current_password": "tempPassword123_",
+  "new_password": "secureNewPassword456!"
+}
+```
+
+---
+
+## Phase 7: Admin Credentials Display/Copy UI (PENDING)
+
+**Scope**: Create clean UI in Admin OS for credential delivery  
+**Features**:
+- Display credentials in admin-only modal after approval
+- One-time visibility (encourage admin to copy immediately)
+- Copy-to-clipboard buttons for email and password
+- "Credentials Copied" toast notification
+- Option to re-approve if credentials were not saved
+- Audit log shows credential copy events
+
+---
+
+## Security & Compliance
+
+### Audit Trail
+- Every approval/rejection recorded with:
+  - Admin who performed action (user_id)
+  - Timestamp
+  - Reason (for rejections)
+  - Status changes
+  - Related user IDs
+
+### Temporary Passwords
+- Generated with `secrets.token_urlsafe(16)` (22 chars, URL-safe)
+- Hashed with bcrypt before storage
+- Only displayed once in HTTP response
+- Not logged in any form
+- Marked for required change on first login
+
+### Email Delivery
+- All email sends are non-blocking
+- Failures do not prevent approval/rejection
+- Email trace ID logged for diagnostics
+- Manual delivery option for admins
+
+### Four-Product Isolation
+- User OS: Standard user accounts only
+- Lawyer OS: Lawyer-scoped access
+- Firm OS: Firm owner + admin + lawyer roles (within firm_id)
+- Admin OS: Global admin role only
+
+---
+
+## Status Summary
+
+| Phase | Description | Status | Next Step |
+|-------|-------------|--------|-----------|
+| 1 | Registration → PENDING_APPROVAL | ✅ COMPLETED | Commit to backend |
+| 2 | Approval → Create Owner + Temp Pwd | ✅ COMPLETED | Commit to backend |
+| 3 | Rejection → Full Audit Trail | ✅ COMPLETED | Commit to backend |
+| 4 | Admin OS Solicitudes Module | PENDING | Design UI mockup |
+| 5 | Landing Page Update | PENDING | Remove session auto-create |
+| 6 | First-Login Password Change | PENDING | Implement endpoint + frontend UI |
+| 7 | Admin Credentials Display UI | PENDING | Build modal component |
+
+---
+
+## Testing Checklist (After All Phases)
+
+- [ ] Registration creates PENDING_APPROVAL firm
+- [ ] Admin approval creates firm_owner + temp password
+- [ ] Admin can copy credentials from approval response
+- [ ] Firm owner logs in with temp password
+- [ ] First login forces password change
+- [ ] After password change, can access Firm OS
+- [ ] Admin rejection creates REJECTED status
+- [ ] Rejection email sent with reason
+- [ ] Rejected firm cannot log in
+- [ ] All audit trails logged correctly
+- [ ] Trial activates on approval
+- [ ] Trial countdown works correctly
+
+---
+
+## Deployment Notes
+
+1. Deploy Phase 1-3 together (registration, approval, rejection)
+2. Update admin dashboard to use new approval endpoint
+3. Keep old activation email flow disabled (but code remains for rollback)
+4. Monitor rejection rates and email delivery
+5. Phase 4-7 can be deployed incrementally after Phase 1-3 stabilizes

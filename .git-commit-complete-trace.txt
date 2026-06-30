@@ -1,0 +1,32 @@
+FEATURE: Complete email trace system from frontend to SMTP
+
+**PHASE 1 - Database Traceability:**
+- Save complete email_result in firm_registrations collection
+- Store: email_trace_id, email_sent, email_reason, email_timestamp, email_provider
+- Full diagnostics available per email send attempt
+
+**PHASE 2 - Endpoint Logging:**
+- Log [REGISTER_FIRM] with email_trace_id, firm_id, email, result
+- Every registration tracked by unique identifier
+
+**PHASE 3 - HTTP Response Enrichment:**
+- Add email_notification object to HTTP 201 response
+- Include: sent, trace_id, provider, reason
+- No change to status code (remains 201)
+
+**PHASE 4 - Email Summary Logs:**
+- Log [EMAIL_SUMMARY] with complete context
+- Trace ID, Firm ID, Destination, Result, Provider
+
+**PHASE 5 - Documentation:**
+- EMAIL_TRACE_DOCUMENTATION.md created
+- Complete guide on using trace_id for diagnostics
+- Examples: SUCCESS and FAILURE paths
+- Sub-1-minute diagnosis procedure
+
+**No Breaking Changes:**
+- Zero changes to business logic
+- Endpoints unchanged (only response enriched)
+- Database schema expanded, not broken
+- SMTP behavior preserved
+- Pure observability enhancement
