@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AdminOSLayout } from "./AdminOSLayout";
 import { ExecutiveDashboard } from "./pages/ExecutiveDashboard";
 import { SalesRoomModule } from "./pages/SalesRoomModule";
@@ -41,6 +41,7 @@ import { AutonomousControl } from "./pages/AutonomousControl";
 import { GlobalNetwork } from "./pages/GlobalNetwork";
 import { LegalOS } from "./pages/LegalOS";
 import { FirmsOverview } from "./pages/FirmsOverview";
+import ObservabilityDashboard from "@/pages/system/ObservabilityDashboard";
 
 /**
  * Módulo Administrativo de Punto Cero OS.
@@ -55,11 +56,13 @@ export function AdminModule() {
         <OSStoreProvider>
           <Routes>
       <Route index element={<AdminOSLayout title="PUNTO CERO SYSTEM OS"><ExecutiveDashboard /></AdminOSLayout>} />
-      <Route path="executive-intelligence" element={<AdminOSLayout title="Centro de Inteligencia Ejecutiva"><ExecutiveIntelligenceCenter /></AdminOSLayout>} />
+      {/* PR-08.1: Inteligencia Ejecutiva integrada en Punto Cero System OS. Ruta legacy para compatibilidad. */}
+      <Route path="executive-intelligence" element={<Navigate to="/admin" replace />} />
       <Route path="financial-os" element={<AdminOSLayout title="Financial OS"><FinancialDashboard /></AdminOSLayout>} />
       <Route path="ai-copilot" element={<AdminOSLayout title="AI Legal Autopilot"><AICopilot /></AdminOSLayout>} />
-      <Route path="autonomous-control" element={<AdminOSLayout title="Autonomous Legal OS"><AutonomousControl /></AdminOSLayout>} />
-      <Route path="global-network" element={<AdminOSLayout title="Global Network OS"><GlobalNetwork /></AdminOSLayout>} />
+      <Route path="autonomous-control" element={<AdminOSLayout title="Autonomous & Global Legal OS"><AutonomousControl /></AdminOSLayout>} />
+      {/* PR-08.1: Global Network integrada en Autonomous Legal OS. Ruta legacy para compatibilidad. */}
+      <Route path="global-network" element={<Navigate to="/admin/autonomous-control" replace />} />
       <Route path="legal-os" element={<AdminOSLayout title="Legal Operating System"><LegalOS /></AdminOSLayout>} />
       <Route path="firms" element={<AdminOSLayout title="Directorio de Firmas"><FirmsOverview /></AdminOSLayout>} />
       <Route path="firms-approval" element={<AdminOSLayout title="Centro de Aprobación de Firmas"><PendingFirmsCenter /></AdminOSLayout>} />
@@ -67,7 +70,7 @@ export function AdminModule() {
       <Route path="firm-dashboard" element={<AdminOSLayout title="Dashboard de Firma"><FirmDashboard /></AdminOSLayout>} />
       <Route path="sales-command-center" element={<AdminOSLayout title="Sales Command Center"><SalesCommandCenter /></AdminOSLayout>} />
       <Route path="ai-command-center" element={<AdminOSLayout title="Copiloto IA"><AICommandCenter /></AdminOSLayout>} />
-      <Route path="sales-room" element={<AdminOSLayout title="Sala de Ventas"><SalesRoomModule /></AdminOSLayout>} />
+      <Route path="sales-room" element={<AdminOSLayout title="Directorio de Abogados"><SalesRoomModule /></AdminOSLayout>} />
       <Route path="cases-portal" element={<AdminOSLayout title="Portal de Casos"><CasesPortal /></AdminOSLayout>} />
       <Route path="master" element={<AdminOSLayout title="Control Maestro"><MasterControl /></AdminOSLayout>} />
       <Route path="countries" element={<AdminOSLayout title="Segmentación por Países"><CountrySegmentation /></AdminOSLayout>} />
@@ -76,12 +79,13 @@ export function AdminModule() {
       <Route path="roles" element={<AdminOSLayout title="Roles"><RolesDashboard /></AdminOSLayout>} />
       <Route path="permissions" element={<AdminOSLayout title="Permisos"><PermissionsDashboard /></AdminOSLayout>} />
       <Route path="verticals" element={<AdminOSLayout title="Motor Multivertical"><VerticalsDashboard /></AdminOSLayout>} />
-      <Route path="partners" element={<AdminOSLayout title="Socios Comerciales"><PartnersDashboard /></AdminOSLayout>} />
+      <Route path="partners" element={<AdminOSLayout title="Red de Agentes"><PartnersDashboard /></AdminOSLayout>} />
       <Route path="implementations" element={<AdminOSLayout title="Implementaciones"><ImplementationsDashboard /></AdminOSLayout>} />
       <Route path="subscriptions" element={<AdminOSLayout title="Suscripciones y Facturación"><SubscriptionsDashboard /></AdminOSLayout>} />
       <Route path="plans" element={<AdminOSLayout title="Motor de Planes"><PlansDashboard /></AdminOSLayout>} />
-      <Route path="subscription-center" element={<AdminOSLayout title="Centro de Suscripción"><SubscriptionCenter /></AdminOSLayout>} />
-      <Route path="upgrade" element={<AdminOSLayout title="Actualizar Plan"><UpgradeCenter /></AdminOSLayout>} />
+      <Route path="subscription-center" element={<AdminOSLayout title="Centro de Suscripciones"><SubscriptionCenter /></AdminOSLayout>} />
+      {/* PR-08.1: Actualizar Plan integrado en Centro de Suscripciones. Ruta legacy para compatibilidad. */}
+      <Route path="upgrade" element={<Navigate to="/admin/subscription-center" replace />} />
       <Route path="billing" element={<AdminOSLayout title="Facturación y Contabilidad"><BillingDashboard /></AdminOSLayout>} />
       <Route path="referrals" element={<AdminOSLayout title="Referidos"><ReferralsDashboard /></AdminOSLayout>} />
       <Route path="notifications" element={<AdminOSLayout title="Notificaciones"><NotificationsDashboard /></AdminOSLayout>} />
@@ -92,6 +96,8 @@ export function AdminModule() {
       <Route path="security" element={<AdminOSLayout title="Seguridad"><SupportAccessGate><SecurityDashboard /></SupportAccessGate></AdminOSLayout>} />
       {/* Panel emisor/revocador de tokens de soporte (no requiere token). */}
       <Route path="support-access" element={<AdminOSLayout title="Accesos de Soporte"><SupportAccessPanel /></AdminOSLayout>} />
+      {/* Dashboard de Observabilidad - Read-only system monitoring */}
+      <Route path="observability" element={<AdminOSLayout title="Observability Dashboard"><ObservabilityDashboard /></AdminOSLayout>} />
           </Routes>
         </OSStoreProvider>
       </OSDataProvider>

@@ -11,7 +11,7 @@
 import {
   LayoutDashboard, Building2, Handshake, CreditCard, Receipt, BarChart3,
   Boxes, Rocket, ShieldCheck, Layers, UsersRound, KeyRound, Tag, BadgeCheck,
-  Gift, Bell, Bot, Sparkles, Lock, Megaphone, FolderKanban, Globe, TrendingUp, Brain, Briefcase, Zap, Cpu,
+  Gift, Bell, Bot, Sparkles, Lock, Megaphone, FolderKanban, Globe, TrendingUp, Brain, Briefcase, Zap, Cpu, Activity,
 } from "lucide-react";
 
 // ── Grupos del Sidebar (Flujo de Valor) con codificación de color ──
@@ -29,11 +29,9 @@ export const MODULE_GROUPS = [
 export const MODULE_REGISTRY = [
   // OPERACIONES (Cian)
   { key: "executive",     label: "Punto Cero System OS",  to: "/admin",                     icon: LayoutDashboard, end: true, area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
-  { key: "exec-intel",    label: "Inteligencia Ejecutiva", to: "/admin/executive-intelligence", icon: Briefcase,      area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
   { key: "financial-os",  label: "Financial OS",          to: "/admin/financial-os",        icon: CreditCard,      area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
   { key: "ai-legal",      label: "AI Legal Autopilot",    to: "/admin/ai-copilot",          icon: Brain,           area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
-  { key: "autonomous-os", label: "Autonomous Legal OS",    to: "/admin/autonomous-control",  icon: Zap,             area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
-  { key: "global-network", label: "Global Network OS",      to: "/admin/global-network",      icon: Globe,           area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
+  { key: "autonomous-os", label: "Autonomous & Global Legal OS", to: "/admin/autonomous-control",  icon: Zap,             area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
   { key: "legal-os",      label: "Legal Operating System", to: "/admin/legal-os",           icon: Cpu,             area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
   { key: "firms",         label: "Directorio de Firmas",  to: "/admin/firms",              icon: Building2,       area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
   { key: "firm",          label: "Dashboard de Firma",    to: "/admin/firm-dashboard",      icon: Building2,       area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general"] },
@@ -41,19 +39,18 @@ export const MODULE_REGISTRY = [
   { key: "ai-copilot",    label: "Copiloto IA",          to: "/admin/ai-command-center",   icon: Bot,             area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin"] },
   { key: "master",        label: "Control Maestro",       to: "/admin/master",              icon: ShieldCheck,     area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin"] },
   { key: "cases-portal",  label: "Portal de Casos",       to: "/admin/cases-portal",        icon: FolderKanban,    area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general", "lawyer"] },
-  { key: "sales-room",    label: "Sala de Ventas",        to: "/admin/sales-room",          icon: Megaphone,       area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general", "socio_comercial"] },
+  { key: "sales-room",    label: "Directorio de Abogados",    to: "/admin/sales-room",          icon: Megaphone,       area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general", "socio_comercial"] },
   { key: "countries",     label: "Segmentación por Países", to: "/admin/countries",         icon: Globe,           area: "os", group: "operaciones", requiredFeature: null, flag: null, visibleToRoles: ["admin"] },
   { key: "analytics",     label: "Analytics Empresarial", to: "/admin/analytics",           icon: BarChart3,       area: "os", group: "operaciones", requiredFeature: null, flag: "ENABLE_ANALYTICS_API", visibleToRoles: ["admin", "admin_general"] },
   // NEGOCIO (Oro)
   { key: "subscriptions", label: "Suscripciones",         to: "/admin/subscriptions",       icon: CreditCard,      area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_SUBSCRIPTIONS_API", visibleToRoles: ["admin", "admin_general"] },
   { key: "plans",         label: "Planes",                to: "/admin/plans",               icon: Tag,             area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_PLANS_API", visibleToRoles: ["admin", "admin_general"] },
-  { key: "subscription-center", label: "Centro de Suscripción", to: "/admin/subscription-center", icon: BadgeCheck, area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_SUBSCRIPTION_CENTER_API", visibleToRoles: ["admin", "admin_general", "socio_comercial", "lawyer"] },
-  { key: "upgrade",       label: "Actualizar Plan",       to: "/admin/upgrade",             icon: Sparkles,        area: "os", group: "negocio", requiredFeature: null, flag: null, visibleToRoles: ["admin", "admin_general", "socio_comercial", "lawyer"] },
+  { key: "subscription-center", label: "Centro de Suscripciones", to: "/admin/subscription-center", icon: BadgeCheck, area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_SUBSCRIPTION_CENTER_API", visibleToRoles: ["admin", "admin_general", "socio_comercial", "lawyer"] },
   { key: "billing",       label: "Facturación y Contabilidad", to: "/admin/billing",        icon: Receipt,         area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_BILLING_API", visibleToRoles: ["admin", "admin_general"] },
   { key: "commercial-ai", label: "IA Comercial",          to: "/admin/commercial-ai",       icon: Bot,             area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_COMMERCIAL_AI_API", visibleToRoles: ["admin", "admin_general", "socio_comercial"] },
   { key: "notifications", label: "Notificaciones",        to: "/admin/notifications",       icon: Bell,            area: "os", group: "negocio", requiredFeature: null, flag: "ENABLE_NOTIFICATIONS_API", visibleToRoles: ["admin", "admin_general", "socio_comercial", "lawyer"] },
   // RED Y TALENTO (Violeta)
-  { key: "partners",      label: "Socios Comerciales",    to: "/admin/partners",            icon: Handshake,       area: "os", group: "red", requiredFeature: null, flag: "ENABLE_PARTNERS_API", visibleToRoles: ["admin", "admin_general"] },
+  { key: "partners",      label: "Red de Agentes",    to: "/admin/partners",            icon: Handshake,       area: "os", group: "red", requiredFeature: null, flag: "ENABLE_PARTNERS_API", visibleToRoles: ["admin", "admin_general"] },
   { key: "organizations", label: "Organizaciones",        to: "/admin/organizations",       icon: Building2,       area: "os", group: "red", requiredFeature: null, flag: "ENABLE_ORGANIZATIONS_API", visibleToRoles: ["admin"] },
   { key: "users",         label: "Usuarios",              to: "/admin/users",               icon: UsersRound,      area: "os", group: "red", requiredFeature: null, flag: "ENABLE_USERS_API", visibleToRoles: ["admin", "admin_general"] },
   { key: "referrals",     label: "Referidos",             to: "/admin/referrals",           icon: Gift,            area: "os", group: "red", requiredFeature: null, flag: "ENABLE_REFERRALS_API", visibleToRoles: ["admin", "admin_general", "socio_comercial", "lawyer"] },
@@ -67,6 +64,8 @@ export const MODULE_REGISTRY = [
   { key: "security",      label: "Seguridad",             to: "/admin/security",            icon: ShieldCheck,     area: "os", group: "sistema", requiredFeature: null, flag: null, requiresSupportToken: true, visibleToRoles: ["admin"] },
   // Panel emisor de tokens (NO requiere token: es quien los genera/revoca).
   { key: "support-access", label: "Accesos de Soporte",   to: "/admin/support-access",      icon: Lock,            area: "os", group: "sistema", requiredFeature: null, flag: null, visibleToRoles: ["admin"] },
+  // Dashboard de Observabilidad: lectura de observability store en tiempo real.
+  { key: "observability", label: "Observability",         to: "/admin/observability",       icon: Activity,        area: "os", group: "sistema", requiredFeature: null, flag: null, visibleToRoles: ["admin"] },
 ];
 
 // ── Features de las verticales (consumidas por FeatureGate/useEntitlement) ──
