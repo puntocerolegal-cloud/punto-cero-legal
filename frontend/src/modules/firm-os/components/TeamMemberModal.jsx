@@ -15,22 +15,6 @@ export function TeamMemberModal({ member, isOpen, onClose, onSave, practiceAreas
   });
   const [teamMembers, setTeamMembers] = useState([]);
 
-  useEffect(() => {
-    if (member) {
-      setFormData({
-        role: member.role || 'lawyer',
-        practice_area: member.practice_area || '',
-        supervisor_id: member.supervisor_id || '',
-      });
-    }
-  }, [member]);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadTeamMembers();
-    }
-  }, [isOpen, loadTeamMembers]);
-
   const loadTeamMembers = useCallback(async () => {
     try {
       const firmId = user?.firm_id;
@@ -46,6 +30,22 @@ export function TeamMemberModal({ member, isOpen, onClose, onSave, practiceAreas
       console.error('Error loading team members:', err);
     }
   }, [user?.firm_id, token]);
+
+  useEffect(() => {
+    if (member) {
+      setFormData({
+        role: member.role || 'lawyer',
+        practice_area: member.practice_area || '',
+        supervisor_id: member.supervisor_id || '',
+      });
+    }
+  }, [member]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadTeamMembers();
+    }
+  }, [isOpen, loadTeamMembers]);
 
   const handleSave = async () => {
     setError('');

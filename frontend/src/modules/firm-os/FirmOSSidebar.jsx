@@ -1,60 +1,193 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { BarChart3, Users, UserCheck, FolderKanban, Settings, Building2, DollarSign, TrendingUp } from "lucide-react";
+import {
+  LayoutDashboard, Users, FolderKanban, BookOpen, Calendar,
+  Brain, Video, Receipt, FileText, Settings, Building2, LogOut, Menu, X,
+  Sparkles, UserCheck, DollarSign, TrendingUp, BarChart3, Briefcase, MessageCircle, AlertCircle, Zap, Activity, Cpu, Shield
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFirmCoreData } from "@/modules/firm-os/hooks/useFirmCoreData";
+import { useAutomation } from "@/modules/firm-os/hooks/useAutomation";
+import { useNotifications } from "@/modules/firm-os/hooks/useNotifications";
+import NotificationBadge from "@/modules/firm-os/components/automation/NotificationBadge";
 
-export function FirmOSSidebar({ onNavigate }) {
-  const menuItems = [
-    { icon: BarChart3, label: "Dashboard", path: "/firm-os" },
-    { icon: Users, label: "Abogados", path: "/firm-os/lawyers" },
-    { icon: UserCheck, label: "Equipo", path: "/firm-os/team" },
-    { icon: FolderKanban, label: "Casos", path: "/firm-os/cases" },
-    { icon: DollarSign, label: "Finanzas", path: "/firm-os/finance" },
-    { icon: DollarSign, label: "Facturación", path: "/firm-os/billing" },
-    { icon: TrendingUp, label: "CRM", path: "/firm-os/crm" },
-    { icon: TrendingUp, label: "IA Corporativa", path: "/firm-os/ia" },
-    { icon: Building2, label: "Directorio Público", path: "/firm-os/directory" },
-    { icon: TrendingUp, label: "Analytics", path: "/firm-os/analytics" },
-    { icon: Settings, label: "Configuración", path: "/firm-os/settings" },
+/**
+ * FirmOSSidebar — Extensión dinámica de Lawyer OS
+ * Reutiliza todos los módulos de Lawyer OS + agrega específicos de firma.
+ * Menú base = Lawyer OS + extensiones de firma.
+ */
+export function FirmOSSidebar() {
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  const { lawyers = [], cases = [], clients = [], loading } = useFirmCoreData();
+  const { automationVM = {}, history = [] } = useAutomation(lawyers, cases, clients);
+  const { sidebarBadge = { show: false, count: 0, hasCritical: false } } = useNotifications(
+    automationVM?.alerts || [],
+    automationVM?.recommendations || [],
+    history
+  );
+
+  // Mission Control status indicator
+  const isMissionHealthy = !sidebarBadge?.hasCritical;
+
+  // Base: módulos de Lawyer OS (reutilizados desde DashboardLayout)
+  const lawyerItems = [
+    { icon: BarChart3, label: 'Centro de Operaciones', path: '/firm-os' },
+    { icon: Users, label: 'CRM Jurídico', path: '/firm-os/crm' },
+    { icon: FolderKanban, label: 'Portal de Casos', path: '/firm-os/cases' },
+    { icon: BookOpen, label: 'Directorio Clientes', path: '/firm-os/clients' },
+    { icon: Calendar, label: 'Agenda Inteligente', path: '/firm-os/agenda' },
+    { icon: Brain, label: 'IA Jurídica', path: '/firm-os/ai', highlight: true },
+    { icon: FileText, label: 'Documentos', path: '/firm-os/documents' },
+    { icon: Video, label: 'Sala de Conferencias', path: '/firm-os/meetings' },
+    { icon: Receipt, label: 'Facturación', path: '/firm-os/invoices' },
   ];
+
+  // Extensiones: solo módulos específicos de firma
+  const firmItems = [
+    { icon: AlertCircle, label: 'Centro de Alertas', path: '/firm-os/alerts' },
+    { icon: Building2, label: 'Estructura Organizacional', path: '/firm-os/structure' },
+    { icon: FileText, label: 'Expedientes', path: '/firm-os/expedientes' },
+    { icon: Building2, label: 'Oficinas', path: '/firm-os/offices' },
+    { icon: Briefcase, label: 'Departamentos', path: '/firm-os/departments' },
+    { icon: UserCheck, label: 'Equipo Jurídico', path: '/firm-os/team' },
+    { icon: Users, label: 'Control de Abogados', path: '/firm-os/lawyers' },
+    { icon: FolderKanban, label: 'Asignación de Casos', path: '/firm-os/assignments' },
+    { icon: MessageCircle, label: 'Comunicación', path: '/firm-os/communication' },
+    { icon: BarChart3, label: 'Indicadores', path: '/firm-os/analytics' },
+    { icon: Zap, label: 'Centro de Automatización', path: '/firm-os/automation', badge: sidebarBadge },
+  ];
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <div className="h-full flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-700">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-blue-400" />
-          <span className="text-xl font-bold">Firm OS</span>
+      {/* Header con logo */}
+      <div className="p-5 border-b border-white/10 flex items-center gap-3">
+        <Building2 className="w-6 h-6 text-[#f97316]" />
+        <div className="leading-tight">
+          <div className="font-bold text-sm">Firma</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Enterprise</div>
         </div>
       </div>
 
-      {/* Menu */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/firm-os"}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800"
-                }`
-              }
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm font-medium">{item.label}</span>
-            </NavLink>
-          );
-        })}
+      {/* Navegación */}
+      <nav className="flex-1 p-3 overflow-y-auto space-y-4">
+        {/* Sección: Lawyer OS Modules */}
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] font-semibold text-white/40 px-4 mb-2">
+            Operaciones Jurídicas
+          </div>
+          <ul className="space-y-0.5">
+            {lawyerItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  end={item.path === '/firm-os'}
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm transition-all ${
+                    isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  <span>{item.label}</span>
+                  {item.highlight && <Sparkles className="w-3 h-3 text-[#f97316] ml-auto" />}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Sección: Firm-specific modules */}
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] font-semibold text-white/40 px-4 mb-2">
+            Gestión Empresarial
+          </div>
+          <ul className="space-y-0.5">
+            {firmItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  end={item.path === '/firm-os'}
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm transition-all ${
+                    isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  <span>{item.label}</span>
+                  {item.badge?.show && (
+                    <span className="ml-auto">
+                      <NotificationBadge count={item.badge.count} hasCritical={item.badge.hasCritical} />
+                    </span>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Enterprise Controls - Master & Autonomous */}
+        <div className="border-t border-white/10 pt-4 space-y-1">
+          <NavLink
+            to="/firm-os/mission-control"
+            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              isActive ? 'bg-gradient-to-r from-green-500/20 to-blue-500/20 text-white border border-green-500/30' : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="relative">
+              <Activity className="w-4 h-4 flex-shrink-0" />
+              <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${isMissionHealthy ? 'bg-green-400' : 'bg-red-400'}`} />
+            </div>
+            <span>Mission Control</span>
+          </NavLink>
+
+          <NavLink
+            to="/firm-os/autonomous-operations"
+            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              isActive ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white border border-purple-500/30' : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Cpu className="w-4 h-4 flex-shrink-0" />
+            <span>Autopilot</span>
+          </NavLink>
+
+          <NavLink
+            to="/firm-os/governance"
+            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              isActive ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-white border border-amber-500/30' : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            <span>Governance</span>
+          </NavLink>
+
+          {/* Config */}
+          <NavLink
+            to="/firm-os/settings"
+            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Settings className="w-4 h-4 flex-shrink-0" />
+            <span>Configuración</span>
+          </NavLink>
+        </div>
       </nav>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
-        <p>Firm OS v1.0</p>
+      {/* Footer: Logout */}
+      <div className="p-3 border-t border-white/10">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 text-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          Cerrar Sesión
+        </button>
       </div>
     </div>
   );

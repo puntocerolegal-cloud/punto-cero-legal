@@ -3,8 +3,7 @@ import {
   Users, TrendingUp, DollarSign, FolderKanban, Globe, AlertCircle,
   CheckCircle2, Clock, BarChart3, Activity
 } from "lucide-react";
-import axios from "axios";
-import { API } from "@/config/api";
+import { apiClient } from "@/config/api/apiClient";
 import { MetricCard, EmptyState } from "@/shared/components";
 
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
@@ -27,16 +26,14 @@ export function SalesCommandCenter() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-      const headers = { Authorization: `Bearer ${token}` };
-
+      // Headers automáticos desde apiClient (token + tenant)
       const [metricsRes, agentsRes, countriesRes, funnelRes, commissionsRes, alertsRes] = await Promise.allSettled([
-        axios.get(`${API}/sales-analytics/global-metrics`, { headers }),
-        axios.get(`${API}/sales-analytics/top-agents?limit=5`, { headers }),
-        axios.get(`${API}/sales-analytics/top-countries?limit=5`, { headers }),
-        axios.get(`${API}/sales-analytics/sales-funnel`, { headers }),
-        axios.get(`${API}/sales-analytics/commission-summary`, { headers }),
-        axios.get(`${API}/sales-analytics/alerts`, { headers }),
+        apiClient.get("/sales-analytics/global-metrics"),
+        apiClient.get("/sales-analytics/top-agents?limit=5"),
+        apiClient.get("/sales-analytics/top-countries?limit=5"),
+        apiClient.get("/sales-analytics/sales-funnel"),
+        apiClient.get("/sales-analytics/commission-summary"),
+        apiClient.get("/sales-analytics/alerts"),
       ]);
 
       if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value.data?.data || {});

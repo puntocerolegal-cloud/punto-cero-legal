@@ -3,21 +3,19 @@ import { Plus, Search, Users, AlertCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { API } from '@/config/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFirmCoreData } from '../hooks/useFirmCoreData';
+import { calculateLawyerMetrics } from '../domain';
 import { TeamTable } from '../components/TeamTable';
 import { TeamMemberModal } from '../components/TeamMemberModal';
 
 export function FirmTeam() {
   const { user, token } = useAuth();
+  const { lawyers } = useFirmCoreData();
+  const lawyerMetrics = calculateLawyerMetrics(lawyers);
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [metrics, setMetrics] = useState({
-    total: 0,
-    active: 0,
-    suspended: 0,
-    byRole: {}
-  });
 
   const [selectedMember, setSelectedMember] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,23 +42,6 @@ export function FirmTeam() {
 
       const teamData = res.data.team || [];
       setTeam(teamData);
-
-      // Calcular métricas
-      const active = teamData.filter(m => m.status === 'ACTIVE' || m.status === 'active').length;
-      const suspended = teamData.filter(m => m.status === 'suspended' || m.status === 'SUSPENDED').length;
-      
-      const byRole = {};
-      teamData.forEach(m => {
-        const role = m.role;
-        byRole[role] = (byRole[role] || 0) + 1;
-      });
-
-      setMetrics({
-        total: teamData.length,
-        active,
-        suspended,
-        byRole
-      });
     } catch (err) {
       console.error('Error loading team:', err);
       setError('Error al cargar el equipo');
@@ -180,34 +161,19 @@ export function FirmTeam() {
       {/* Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-          <p className="text-gray-400 text-sm mb-2">Total de Miembros</p>
-          <p className="text-4xl font-bold text-white">{metrics.total}</p>
+          <p className="text-gray-400 text-sm mb-2">Total Abogados</p>
+          <p className="text-4xl font-bold text-white">{lawyerMetrics.totalLawyers}</p>
         </div>
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
           <p className="text-gray-400 text-sm mb-2">Activos</p>
-          <p className="text-4xl font-bold text-green-400">{metrics.active}</p>
+          <p className="text-4xl font-bold text-green-400">{lawyerMetrics.activeLawyers}</p>
         </div>
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-          <p className="text-gray-400 text-sm mb-2">Suspendidos</p>
-          <p className="text-4xl font-bold text-red-400">{metrics.suspended}</p>
+          <p className="text-gray-400 text-sm mb-2">Inactivos/Suspendidos</p>
+          <p className="text-4xl font-bold text-red-400">{lawyerMetrics.suspendedLawyers + lawyerMetrics.inactiveLawyers}</p>
         </div>
       </div>
 
-      {/* Distribución por Rol */}
-      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Distribución por Rol
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Object.entries(metrics.byRole).map(([role, count]) => (
-            <div key={role} className="text-center p-3 bg-gray-700/50 rounded-lg">
-              <p className="text-xs text-gray-400 uppercase">{role.replace('_', ' ')}</p>
-              <p className="text-2xl font-bold text-white mt-1">{count}</p>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Encabezado y búsqueda */}
       <div className="flex flex-col gap-4">

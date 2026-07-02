@@ -11,8 +11,7 @@ import {
   BarChart3,
   AlertTriangle,
 } from "lucide-react";
-import axios from "axios";
-import { API } from "@/config/api";
+import { apiClient } from "@/config/api/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
@@ -29,10 +28,8 @@ export function AICopilot() {
   const loadAIData = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const res = await axios.get(`${API}/ai/copilot-summary/${orgId}`, { headers });
+      // Headers automáticos desde apiClient
+      const res = await apiClient.get(`/ai/copilot-summary/${orgId}`);
       setSummary(res.data?.data || {});
     } catch (err) {
       console.error("Error loading AI data:", err);

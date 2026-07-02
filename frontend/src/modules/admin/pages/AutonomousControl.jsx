@@ -11,8 +11,7 @@ import {
   Settings,
   TrendingUp,
 } from "lucide-react";
-import axios from "axios";
-import { API } from "@/config/api";
+import { apiClient } from "@/config/api/apiClient";
 
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
 const n = (v) => Number(v || 0).toLocaleString("es-CO");
@@ -33,12 +32,10 @@ export function AutonomousControl() {
   const loadAutonomousData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-      const headers = { Authorization: `Bearer ${token}` };
-
+      // Headers automáticos desde apiClient (token + tenant)
       const [loopRes, orchestraRes] = await Promise.allSettled([
-        axios.get(`${API}/autonomous/loop-status`, { headers }),
-        axios.get(`${API}/autonomous/global-orchestrator`, { headers }),
+        apiClient.get("/autonomous/loop-status"),
+        apiClient.get("/autonomous/global-orchestrator"),
       ]);
 
       if (loopRes.status === "fulfilled") {
@@ -56,10 +53,8 @@ export function AutonomousControl() {
 
   const triggerDecisionCycle = async () => {
     try {
-      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-      await axios.post(`${API}/autonomous/decision-engine/run`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // Headers automáticos desde apiClient
+      await apiClient.post("/autonomous/decision-engine/run", {});
       loadAutonomousData();
       alert("Ciclo de decisiones ejecutado");
     } catch (err) {
@@ -69,10 +64,8 @@ export function AutonomousControl() {
 
   const triggerSelfHealing = async () => {
     try {
-      const token = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-      await axios.post(`${API}/autonomous/self-heal`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // Headers automáticos desde apiClient
+      await apiClient.post("/autonomous/self-heal", {});
       loadAutonomousData();
       alert("Auto-corrección ejecutada");
     } catch (err) {

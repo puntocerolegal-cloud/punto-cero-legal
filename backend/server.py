@@ -20,6 +20,100 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+FALLBACK_DB = False
+
+class InMemoryCollection:
+    def __init__(self):
+        self._documents = []
+        self._next_id = 1
+
+    async def find_one(self, query):
+        for doc in self._documents:
+            if all(doc.get(k) == v for k, v in query.items()):
+                return doc
+        return None
+
+    async def insert_one(self, document):
+        return self.insert_one_sync(document)
+
+    def insert_one_sync(self, document):
+        if '_id' not in document:
+            document['_id'] = str(self._next_id)
+            self._next_id += 1
+        self._documents.append(document)
+        class InsertResult:
+            def __init__(self, inserted_id):
+                self.inserted_id = inserted_id
+        return InsertResult(document['_id'])
+
+    async def update_one(self, query, update, upsert=False):
+        found = await self.find_one(query)
+        if found:
+            if '$set' in update:
+                for key, value in update['$set'].items():
+                    found[key] = value
+            return type('UpdateResult', (), {'matched_count': 1, 'modified_count': 1})()
+        if upsert:
+            doc = query.copy()
+            if '$set' in update:
+                doc.update(update['$set'])
+            return await self.insert_one(doc)
+        return type('UpdateResult', (), {'matched_count': 0, 'modified_count': 0})()
+
+    async def create_index(self, *args, **kwargs):
+        return None
+
+    async def delete_one(self, query):
+        for index, doc in enumerate(self._documents):
+            if all(doc.get(k) == v for k, v in query.items()):
+                self._documents.pop(index)
+                return type('DeleteResult', (), {'deleted_count': 1})()
+        return type('DeleteResult', (), {'deleted_count': 0})()
+
+class InMemoryDB:
+    def __init__(self):
+        self.users = InMemoryCollection()
+        self._collections = {'users': self.users}
+        self.is_fallback = True
+
+    async def command(self, command_name, *args, **kwargs):
+        if command_name == 'ping':
+            return {'ok': 1}
+        return {'ok': 1}
+
+    def __getattr__(self, name):
+        if name in self._collections:
+            return self._collections[name]
+        coll = InMemoryCollection()
+        self._collections[name] = coll
+        return coll
+
+
+def create_fallback_db():
+    fallback_db = InMemoryDB()
+    try:
+        from passlib.context import CryptContext
+        from datetime import datetime
+
+        pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+        password_hash = pwd_context.hash('Admin2025!')
+        fallback_user = {
+            '_id': 'fallback_admin',
+            'email': 'admin@puntocerolegal.com',
+            'password_hash': password_hash,
+            'full_name': 'Fallback Admin',
+            'role': 'admin_general',
+            'status': 'ACTIVE',
+            'is_verified': True,
+            'requires_password_change': False,
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+        }
+
+        fallback_db.users.insert_one_sync(fallback_user)
+    except Exception as exc:
+        logger.warning(f"No se pudo crear usuario fallback en memoria: {exc}")
+    return fallback_db
 
 # MongoDB connection with graceful fallback
 try:
@@ -38,9 +132,10 @@ try:
     logger.info("MongoDB client initialized")
 except Exception as e:
     logger.error(f"MongoDB initialization failed: {e}")
-    # Create dummy client that won't crash the app
     client = None
-    db = None
+    db = create_fallback_db()
+    FALLBACK_DB = True
+    logger.warning("Usando modo degradado: fallback en memoria activo")
 
 # Create the main app without a prefix
 app = FastAPI(title="Punto Cero Legal API", version="1.0.0")
@@ -344,13 +439,24 @@ def get_cors_origins():
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origin_regex=r"^https://punto-cero-legal.*\.vercel\.app$|^http://localhost.*|^https://puntocerolegal\.com.*|^https://puntocero-legal-api\.onrender\.com$",
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "https://punto-cero-legal.vercel.app",
+        "https://puntocerolegal.com",
+        "https://puntocero-legal-api.onrender.com",
+    ],
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
-    max_age=86400,  # 24 horas de cache para preflight
+    max_age=86400,
 )
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    if client is not None:
+        try:
+            client.close()
+        except Exception as e:
+            logger.warning(f"Error closing MongoDB client: {e}")

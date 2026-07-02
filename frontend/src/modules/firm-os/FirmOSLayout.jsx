@@ -1,59 +1,24 @@
-import React, { useState } from "react";
-import { Menu, X, LogOut } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import DashboardLayout from "@/components/DashboardLayout";
 import { FirmOSSidebar } from "./FirmOSSidebar";
 
-export function FirmOSLayout({ title, children }) {
-  const { logout, user } = useAuth();
-  const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
+/**
+ * Firm OS Layout — Extensión de Lawyer OS
+ * Reutiliza DashboardLayout pero con FirmOSSidebar dinámico.
+ * Solo agrega contexto de firma, todo lo demás es del Lawyer OS.
+ */
+export function FirmOSLayout({ children }) {
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-black border-r border-gray-700 transform transition-transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 lg:static`}>
-        <FirmOSSidebar onNavigate={() => setSidebarOpen(false)} />
-      </div>
+    <div className="min-h-screen bg-[#0f172a] text-white">
+      {/* Reutiliza estructura de DashboardLayout pero con sidebar de Firm */}
+      <aside className="fixed top-0 left-0 h-full w-64 z-40 flex flex-col bg-[#0f172a] border-r border-white/10">
+        <FirmOSSidebar />
+      </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-black border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-gray-800 rounded-lg"
-            >
-              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-            <h1 className="text-2xl font-bold text-white">{title || "Firm OS"}</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-400">
-              {user?.full_name} ({user?.role})
-            </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-8">
-          {children}
-        </main>
-      </div>
+      <main className="relative z-10 lg:ml-64 min-h-screen">
+        {/* Delega header y layout al contenido envuelto */}
+        {children}
+      </main>
     </div>
   );
 }

@@ -7,7 +7,9 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { CaseContextProvider } from './contexts/CaseContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { UpgradeModal } from './components/commerce/UpgradeModal';
-import { FeatureGate } from './components/commerce/FeatureGate';
+import { LawyerShell } from './shells/lawyer/LawyerShell';
+import { FirmShell } from './shells/firm/FirmShell';
+import { AdminShell } from './shells/admin/AdminShell';
 
 // Compatibilidad: las rutas antiguas /admin/os/* ahora viven en /admin/*.
 // Redirige preservando el subpath para no romper enlaces ni marcadores previos.
@@ -35,19 +37,6 @@ import CookiePolicy from './pages/legal/CookiePolicy';
 import TermsConditions from './pages/legal/TermsConditions';
 import SubscriptionAgreement from './pages/legal/SubscriptionAgreement';
 import AdminPanel from './pages/AdminPanel';
-import AdminModule from './modules/admin/AdminModule';
-import FirmOSModule from './modules/firm-os/FirmOSModule';
-
-// Páginas del Dashboard
-import CRMPage from './pages/dashboard/CRMPage';
-import CasesPage from './pages/dashboard/CasesPage';
-import ClientsPage from './pages/dashboard/ClientsPage';
-import AgendaPage from './pages/dashboard/AgendaPage';
-import AIPage from './pages/dashboard/AIPage';
-import MeetingsPage from './pages/dashboard/MeetingsPage';
-import InvoicesPage from './pages/dashboard/InvoicesPage';
-import DocumentsPage from './pages/dashboard/DocumentsPage';
-import SettingsPage from './pages/dashboard/SettingsPage';
 
 // Partners y Analytics NO se importan aquí: son módulos nativos de Punto Cero
 // System OS y viven exclusivamente bajo /admin/* (ver modules/admin/AdminModule.jsx).
@@ -81,19 +70,7 @@ function App() {
             <Route path="/verificacion-pendiente" element={<ProtectedRoute allowUnverified={true}><VerificacionPendiente /></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute allowUnverified={true}><CheckoutPage /></ProtectedRoute>} />
 
-            {/* Rutas del Dashboard — cada página se auto-envuelve en DashboardLayout
-                (se eliminó el wrapper externo que causaba doble layout). Cada feature
-                consulta el Motor de Planes vía FeatureGate. */}
-            <Route path="/dashboard" element={<ProtectedRoute require={LAWYER_ROLES}><DashboardHome /></ProtectedRoute>} />
-            <Route path="/dashboard/crm" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><CRMPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/cases" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="cases"><CasesPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/clients" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><ClientsPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/agenda" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="agenda"><AgendaPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/ai" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="ai"><AIPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/meetings" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="video"><MeetingsPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/invoices" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="billing"><InvoicesPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/documents" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="documents"><DocumentsPage /></FeatureGate></ProtectedRoute>} />
-            <Route path="/dashboard/settings" element={<ProtectedRoute require={LAWYER_ROLES}><SettingsPage /></ProtectedRoute>} />
+            <Route path="/dashboard/*" element={<LawyerShell />} />
 
             {/* Páginas legales institucionales (públicas) */}
             <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -111,10 +88,10 @@ function App() {
             {/* Compatibilidad histórica: el antiguo /admin/legacy redirige al acceso Maestro. */}
             <Route path="/admin/legacy" element={<Navigate to="/admin/master/legacy" replace />} />
             <Route path="/admin/os/*" element={<LegacyOsRedirect />} />
-            <Route path="/admin/*" element={<ProtectedRoute require={ADMIN_ROLES}><AdminModule /></ProtectedRoute>} />
+            <Route path="/admin/*" element={<AdminShell />} />
 
             {/* Firm OS — Nueva capa para firmas en crecimiento y consolidación empresarial */}
-            <Route path="/firm-os/*" element={<ProtectedRoute require={["firm_owner", "firm_admin", "firm_lawyer"]}><FirmOSModule /></ProtectedRoute>} />
+            <Route path="/firm-os/*" element={<FirmShell />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

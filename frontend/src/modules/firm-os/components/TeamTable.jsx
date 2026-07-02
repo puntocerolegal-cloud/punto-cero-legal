@@ -83,7 +83,7 @@ export function TeamTable({
               )}
               {columns.includes('specialty') && (
                 <td className="px-6 py-4 text-gray-400">
-                  {member.specialty || member.active_cases !== undefined ? `${member.active_cases} casos activos` : '—'}
+                  {member.specialty || (member.active_cases !== undefined ? `${member.active_cases} casos activos` : '—')}
                 </td>
               )}
               {columns.includes('area') && (

@@ -3,19 +3,8 @@ import { DollarSign, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
 import { useAuth } from "@/contexts/AuthContext";
-
-const MetricCard = ({ icon: Icon, title, value, subtitle, color }) => (
-  <div className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border ${color}`}>
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-gray-400 text-sm">{title}</p>
-        <p className="text-3xl font-bold mt-2">{value}</p>
-        {subtitle && <p className="text-gray-500 text-xs mt-1">{subtitle}</p>}
-      </div>
-      <Icon className="w-8 h-8 text-blue-400" />
-    </div>
-  </div>
-);
+import { MetricCard } from "../components/shared/MetricCard";
+import { LoadingState } from "../components/shared/LoadingState";
 
 export function FirmFinance() {
   const { user } = useAuth();
@@ -51,14 +40,7 @@ export function FirmFinance() {
   }, [loadFinancialData]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Cargando datos financieros...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Cargando datos financieros..." />;
   }
 
   if (error) {

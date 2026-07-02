@@ -1,183 +1,259 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Users, FolderKanban, DollarSign, TrendingUp } from "lucide-react";
-import axios from "axios";
-import { API } from "@/config/api";
+import React from "react";
+import {
+  Users, FolderKanban, TrendingUp, Calendar,
+  AlertCircle, CheckCircle2, Clock, FileText,
+  Zap, ArrowRight, BarChart3, Activity
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useFirmOnboarding } from "@/hooks/useFirmOnboarding";
+import { useFirmCoreData } from "../hooks/useFirmCoreData";
+import { usePreferences } from "../hooks/usePreferences";
+import { useAutomation } from "../hooks/useAutomation";
+import { useNotifications } from "../hooks/useNotifications";
+import { buildDashboardViewModel } from "../application";
+import { buildDashboardExportViewModel } from "../application/exportApplication";
+import { buildDashboardPreferences } from "../application/preferencesApplication";
+import { buildDashboardChartsViewModel } from "../application/chartsApplication";
+import { buildAutomationHealthCard } from "../application/notificationApplication";
+import { SectionCard } from "../components/shared/SectionCard";
+import { KPICard } from "../components/shared/KPICard";
+import { LoadingState } from "../components/shared/LoadingState";
+import { ExportButton } from "../components/export/ExportButton";
+import { PreferenceButton } from "../components/preferences/PreferenceButton";
+import { DashboardWidget } from "../components/charts/DashboardWidget";
+import AutomationHealthCard from "../components/automation/AutomationHealthCard";
+import AutomationTimeline from "../components/automation/AutomationTimeline";
+import { useNavigate } from "react-router-dom";
 
-const MetricCard = ({ icon: Icon, title, value, subtitle }) => (
-  <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-gray-400 text-sm">{title}</p>
-        <p className="text-3xl font-bold mt-2">{value}</p>
-        {subtitle && <p className="text-gray-500 text-xs mt-1">{subtitle}</p>}
+const CapacityBar = ({ used, total, label, color = "#3b82f6" }) => {
+  const percentage = Math.round((used / total) * 100);
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm text-white/70">{label}</span>
+        <span className="text-sm font-semibold text-white">{used}/{total}</span>
       </div>
-      <Icon className="w-8 h-8 text-blue-400" />
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full transition-all" style={{ width: `${percentage}%`, background: color }}></div>
+      </div>
+      <p className="mt-1 text-xs text-white/50">{percentage}% utilizado</p>
     </div>
-  </div>
-);
+  );
+};
+
+const AlertItem = ({ icon: Icon, title, description, type = "warning" }) => {
+  const colors = {
+    warning: "bg-amber-500/20 border-amber-500/30 text-amber-300",
+    danger: "bg-red-500/20 border-red-500/30 text-red-300",
+    info: "bg-blue-500/20 border-blue-500/30 text-blue-300",
+    success: "bg-emerald-500/20 border-emerald-500/30 text-emerald-300",
+  };
+  return (
+    <div className={`rounded-lg border p-3 ${colors[type]}`}>
+      <div className="flex gap-3">
+        <Icon className="h-5 w-5 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-medium">{title}</p>
+          <p className="text-xs opacity-90 mt-0.5">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const iconMap = {
+  "ArrowRight": ArrowRight,
+  "Calendar": Calendar,
+  "FileText": FileText,
+};
 
 export function FirmDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  useFirmOnboarding(); // Redirigir a onboarding si no está completado
+  const { access } = useSubscription();
+  useFirmOnboarding();
 
-  const [data, setData] = useState({
-    lawyers: 0,
-    activeCases: 0,
-    totalClients: 0,
-    monthlyRevenue: 0,
-    lawyersPerformance: [],
-    upcomingDeadlines: [],
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { loading, error, lawyers, cases, clients } = useFirmCoreData();
+  const { preferences } = usePreferences();
+  const { automationVM, history } = useAutomation(lawyers, cases, clients);
+  const { notifications, timelineVM, recommendationsCenter } = useNotifications(
+    automationVM?.alerts || [],
+    automationVM?.recommendations || [],
+    history
+  );
 
-  const loadFirmData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  if (loading) return <LoadingState message="Cargando Centro de Operaciones..." />;
+  if (error) return <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6"><p className="text-red-400">{error}</p></div>;
 
-      // Get firm ID from AuthContext
-      const firmId = user?.firm_id;
+  const vm = buildDashboardViewModel(lawyers, cases, clients, access?.plan?.name);
 
-      if (!firmId) {
-        setError("No tienes acceso a un dashboard de firma");
-        setLoading(false);
-        return;
-      }
-
-      // Fetch lawyers data
-      const lawyersRes = await axios.get(`${API}/firms/${firmId}/lawyers`);
-      const lawyers = lawyersRes.data.data || [];
-
-      // Fetch cases data
-      const casesRes = await axios.get(`${API}/firms/${firmId}/cases`);
-      const cases = casesRes.data.data || [];
-
-      // Fetch clients data
-      const clientsRes = await axios.get(`${API}/firms/${firmId}/clients`);
-      const clients = clientsRes.data.data || [];
-
-      // Calculate metrics
-      const activeCases = cases.filter(c => c.status === "open" || c.status === "in_progress").length;
-      const totalRevenue = lawyers.reduce((sum, l) => sum + (l.revenue || 0), 0);
-
-      setData({
-        lawyers: lawyers.length,
-        activeCases,
-        totalClients: clients.length,
-        monthlyRevenue: totalRevenue,
-        lawyersPerformance: lawyers.slice(0, 5),
-        upcomingDeadlines: cases.slice(0, 3),
-      });
-    } catch (err) {
-      console.error("Error loading firm data:", err);
-      setError("Error al cargar los datos de la firma");
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.firm_id]);
-
-  useEffect(() => {
-    loadFirmData();
-  }, [loadFirmData]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Cargando datos de la firma...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 text-center">
-        <p className="text-red-400 font-semibold">{error}</p>
-        <p className="text-red-300 text-sm mt-2">Por favor, intenta recargar la página</p>
-      </div>
-    );
-  }
-
-  const hasData = data.lawyers > 0 || data.activeCases > 0 || data.totalClients > 0;
+  const kpis = [
+    { label: 'Abogados Activos', value: vm.teamSection.metrics[0]?.value || 0, status: 'Normal' },
+    { label: 'Casos Abiertos', value: vm.casesSection.metrics[0]?.value || 0, status: 'Normal' },
+    { label: 'Clientes', value: vm.casesSection.metrics[3]?.value || 0, status: 'Normal' },
+  ];
+  const exportVM = buildDashboardExportViewModel(kpis, vm.alertsSection?.alerts || [], user);
+  const chartsVM = buildDashboardChartsViewModel(lawyers, cases, clients, vm.alertsSection?.alerts || []);
+  const dashboardPrefsVM = buildDashboardPreferences(preferences);
+  const healthCard = buildAutomationHealthCard(automationVM);
 
   return (
-    <div className="space-y-8">
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          icon={Users}
-          title="Abogados Activos"
-          value={data.lawyers || 0}
-          subtitle={`${data.lawyers || 0} en firma`}
-        />
-        <MetricCard
-          icon={FolderKanban}
-          title="Casos Activos"
-          value={data.activeCases || 0}
-          subtitle="En progreso"
-        />
-        <MetricCard
-          icon={Users}
-          title="Clientes"
-          value={data.totalClients || 0}
-          subtitle="Cartera"
-        />
-        <MetricCard
-          icon={DollarSign}
-          title="Ingresos Total"
-          value={`$${((data.monthlyRevenue || 0) / 1000).toFixed(0)}K`}
-          subtitle="Acumulado"
-        />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-white">Centro de Operaciones</h1>
+        <div className="flex items-center gap-2">
+          <PreferenceButton preferencesPanel={<p className="text-xs text-white/60">Preferencias de dashboard disponibles</p>} />
+          <ExportButton exportViewModel={exportVM} />
+        </div>
       </div>
 
-      {/* Rendimiento por Abogado */}
-      {data.lawyersPerformance && data.lawyersPerformance.length > 0 && (
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-400" />
-            Rendimiento por Abogado
-          </h2>
-          <div className="space-y-3">
-            {data.lawyersPerformance.map((lawyer, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-900 rounded">
-                <div>
-                  <p className="font-medium">{lawyer.name}</p>
-                  <p className="text-sm text-gray-400">{lawyer.active_cases} casos activos</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">${(lawyer.revenue / 1000).toFixed(0)}K</p>
-                  <p className="text-xs text-gray-400">Ingresos</p>
+      <SectionCard title="1. Estado de la Firma">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-white/50 uppercase">Nombre</p>
+                <p className="text-lg font-semibold text-white">{user?.firm_id || "Firma"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 uppercase">Plan</p>
+                <p className="text-lg font-semibold text-white">{access?.plan?.name || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 uppercase">Estado</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${access?.status === 'ACTIVO' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
+                  <p className={`font-semibold ${access?.status === 'ACTIVO' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {access?.status === 'ACTIVO' ? 'Activa' : 'Trial'}
+                  </p>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+          <div>
+            <CapacityBar used={vm.capacityBar.used} total={vm.capacityBar.total} label={vm.capacityBar.label} color={vm.capacityBar.color} />
+            <button className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              Actualizar Plan
+            </button>
           </div>
         </div>
-      )}
+      </SectionCard>
 
-      {/* Próximos Casos */}
-      {data.upcomingDeadlines && data.upcomingDeadlines.length > 0 && (
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-bold mb-4">Casos Recientes</h2>
-          <div className="space-y-3">
-            {data.upcomingDeadlines.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-900 rounded border-l-4 border-blue-500">
-                <div>
-                  <p className="font-medium">{item.case_number}</p>
-                  <p className="text-sm text-gray-400">{item.client_name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-orange-400">{item.status}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      <SectionCard title={vm.teamSection.title}>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+          {vm.teamSection.metrics.map((metric) => (
+            <KPICard key={metric.key} icon={[Users, CheckCircle2, Calendar, TrendingUp, Clock][vm.teamSection.metrics.indexOf(metric)]} label={metric.label} value={metric.value} color={metric.color} />
+          ))}
         </div>
-      )}
+        <button className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
+          Administrar Equipo
+        </button>
+      </SectionCard>
+
+      <SectionCard title={vm.casesSection.title}>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
+          {vm.casesSection.metrics.map((metric) => (
+            <KPICard key={metric.key} icon={[FolderKanban, AlertCircle, CheckCircle2, Users, FileText, Zap][vm.casesSection.metrics.indexOf(metric)]} label={metric.label} value={metric.value} color={metric.color} />
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title={vm.activitySection.title}>
+        <div className="space-y-3">
+          {vm.activitySection.items.map((item, idx) => {
+            const Icon = iconMap[item.icon] || ArrowRight;
+            const colorMap = { blue: "text-blue-400", amber: "text-amber-400", purple: "text-purple-400" };
+            return (
+              <div key={idx} className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-5 w-5 ${colorMap[item.color]}`} />
+                  <div>
+                    <p className="text-sm font-medium text-white">{item.label}</p>
+                    <p className="text-xs text-white/60">{item.sublabel}</p>
+                  </div>
+                </div>
+                <span className={`text-2xl font-bold ${colorMap[item.color]}`}>{item.value}</span>
+              </div>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      <SectionCard title={vm.alertsSection.title}>
+        <div className="space-y-3">
+          {vm.alertsSection.alerts.map((alert, idx) => {
+            const iconMap2 = {
+              "cases-no-lawyer": FolderKanban,
+              "overloaded-lawyers": TrendingUp,
+              "upcoming-hearings": Calendar,
+              "plan-capacity": Zap,
+              "clients-no-follow": TrendingUp,
+              "pending-docs": FileText,
+              "all-clear": CheckCircle2,
+            };
+            const Icon = iconMap2[alert.id] || AlertCircle;
+            return (
+              <AlertItem
+                key={idx}
+                icon={Icon}
+                title={alert.title}
+                description={alert.description}
+                type={alert.type === "critical" ? "danger" : alert.type}
+              />
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white mt-12">Centro Inteligente</h2>
+          <button
+            onClick={() => navigate('/firm-os/mission-control')}
+            className="mt-12 flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 text-green-300 hover:from-green-500/30 hover:to-blue-500/30 transition-all text-sm font-medium"
+          >
+            <Activity size={16} />
+            Mission Control
+            <ArrowRight size={14} className="ml-1" />
+          </button>
+        </div>
+
+        <AutomationHealthCard health={healthCard} status={healthCard.status} />
+
+        {recommendationsCenter?.topRecommendations?.length > 0 && (
+          <SectionCard title="Recomendaciones Prioritarias">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recommendationsCenter.topRecommendations.map((rec, idx) => (
+                <div key={idx} className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+                  <p className="font-semibold text-sm text-amber-900">{rec.title}</p>
+                  <p className="text-xs text-amber-700 mt-1">{rec.description}</p>
+                  <span className="mt-2 inline-block text-xs font-medium text-amber-800 bg-amber-100 px-2 py-1 rounded">
+                    Prioridad: {rec.priority}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {timelineVM?.events?.length > 0 && (
+          <SectionCard title="Timeline de Automatización">
+            <AutomationTimeline events={timelineVM.events.slice(0, 5)} limit={5} />
+          </SectionCard>
+        )}
+      </div>
+
+      <div className="space-y-8">
+        <h2 className="text-2xl font-bold text-white mt-12">Inteligencia de Negocios</h2>
+        <div className="space-y-6">
+          {chartsVM.widgets.map(widget => (
+            <DashboardWidget key={widget.id} widget={widget} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
+
+export default FirmDashboard;
