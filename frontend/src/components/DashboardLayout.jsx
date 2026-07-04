@@ -110,7 +110,7 @@ export const DashboardLayout = ({ children }) => {
       {/* Main — ml-64 sin espacio muerto; relative z-10 sobre la marca de agua */}
       <main className="relative z-10 lg:ml-64 min-h-screen">
         {/* Cabecera personalizada — saludo destacado del abogado conectado */}
-        <header className="px-6 lg:px-8 pt-6 pb-4 pl-16 lg:pl-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <header className="pt-6 pb-4 px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-[0.25em] text-white/40">Punto Cero System OS · Oficina Virtual</div>
             <h1 className="text-3xl lg:text-4xl font-extrabold mt-1.5 leading-tight">
@@ -146,7 +146,7 @@ export const DashboardLayout = ({ children }) => {
         </header>
 
         {/* Contenido del módulo */}
-        <div className="px-6 lg:px-8 py-5">{children}</div>
+        <div className="px-8 py-5">{children}</div>
       </main>
     </div>
   );

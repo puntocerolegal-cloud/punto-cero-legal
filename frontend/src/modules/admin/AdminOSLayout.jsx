@@ -77,8 +77,8 @@ export function AdminOSLayout({ title, children }) {
 
       {/* Main */}
       <main className="lg:ml-72 min-h-screen">
-        <header className="sticky top-0 z-20 backdrop-blur-xl bg-[#0f172a]/70 border-b border-white/10 px-6 lg:px-10 py-4 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold pl-12 lg:pl-0">{title}</h1>
+        <header className="sticky top-0 z-20 backdrop-blur-xl bg-[#0f172a]/70 border-b border-white/10 px-10 py-4 flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold">{title}</h1>
           {/* Campanita + Alertas Inteligentes del System OS (reutiliza componentes existentes) */}
           <div className="flex items-center gap-2.5">
             <HeaderAlerts variant="admin" />
@@ -89,7 +89,7 @@ export function AdminOSLayout({ title, children }) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="p-6 lg:p-10"
+          className="p-10"
         >
           {children}
         </motion.div>

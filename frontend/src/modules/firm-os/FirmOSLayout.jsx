@@ -17,7 +17,7 @@ export function FirmOSLayout({ children }) {
 
       <main className="relative z-10 lg:ml-64 min-h-screen">
         {/* Delega header y layout al contenido envuelto */}
-        {children}
+        <div className="px-8 py-5">{children}</div>
       </main>
     </div>
   );
