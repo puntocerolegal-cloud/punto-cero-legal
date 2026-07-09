@@ -1,0 +1,16 @@
+(node:14616) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+Failed to compile.
+
+[eslint] 
+src\components\DashboardLayout.jsx
+  Line 67:20:  React Hook "useNavigate" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                     react-hooks/rules-of-hooks
+  Line 68:28:  React Hook "useAuth" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                         react-hooks/rules-of-hooks
+  Line 69:41:  React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                        react-hooks/rules-of-hooks
+  Line 75:29:  React Hook "useCaseContext" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?   react-hooks/rules-of-hooks
+  Line 78:22:  React Hook "useSubscription" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+
+Search for the keywords to learn more about each error.
+
+

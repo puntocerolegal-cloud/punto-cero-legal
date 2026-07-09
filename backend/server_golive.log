@@ -1,0 +1,228 @@
+2026-07-09 13:38:43,159 - server - INFO - MongoDB client initialized
+2026-07-09 13:38:43,160 - security.guarded_db - INFO - [DB_BARRIER] GuardedDB initialized - direct access blocked
+2026-07-09 13:38:43,160 - server - INFO - MongoDB wrapped in GuardedDB hard barrier
+INFO:     Started server process [23356]
+INFO:     Waiting for application startup.
+2026-07-09 13:38:43,453 - utils.graceful_shutdown - INFO - [SHUTDOWN] Starting up application
+2026-07-09 13:38:43,453 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGTERM
+2026-07-09 13:38:43,453 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGINT
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-07-09 13:38:43,653 - pymongo.serverSelection - INFO - {"message": "Waiting for suitable server to become available", "selector": "Primary()", "operation": "ping", "topologyDescription": "<TopologyDescription id: 6a4feab39f0dfd4e924bf00c, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None>]>", "clientId": {"$oid": "6a4feab39f0dfd4e924bf00c"}, "remainingTimeMS": 5}
+INFO:     127.0.0.1:59371 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59377 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-07-09 13:38:44,093 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:38:44,093 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/payment/init | method=POST | request_id=77354349-c0d1-425d-9397-0eae8bd60e7d | ip_address=127.0.0.1
+2026-07-09 13:38:44,093 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/payment/init method=POST request_id=77354349-c0d1-425d-9397-0eae8bd60e7d
+2026-07-09 13:38:44,094 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=351a333a-e9cd-43f7-bb14-e30e6cea659f | path=/api/payment/init | method=POST | ip=127.0.0.1
+2026-07-09 13:38:44,094 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=351a333a-e9cd-43f7-bb14-e30e6cea659f | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:38:44,094 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=351a333a-e9cd-43f7-bb14-e30e6cea659f | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:38:44,094 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=351a333a-e9cd-43f7-bb14-e30e6cea659f | firm_id=6a4454e94cf5df136bac9408
+2026-07-09 13:38:44,097 - repositories.transaction.transaction_repository - INFO - [transactions] TransactionRepository initialized collection=puntocero_legal.transactions
+INFO:     127.0.0.1:59378 - "POST /api/payment/init HTTP/1.1" 502 Bad Gateway
+2026-07-09 13:38:44,173 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:38:44,173 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/payment/init | method=POST | request_id=c73865b5-2dcc-4977-98ab-3cc8cf4790b6 | ip_address=127.0.0.1
+2026-07-09 13:38:44,173 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/payment/init method=POST request_id=c73865b5-2dcc-4977-98ab-3cc8cf4790b6
+2026-07-09 13:38:44,173 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=d7d3f583-8c4a-4eed-901e-526150ff7c78 | path=/api/payment/init | method=POST | ip=127.0.0.1
+2026-07-09 13:38:44,174 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=d7d3f583-8c4a-4eed-901e-526150ff7c78 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:38:44,174 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=d7d3f583-8c4a-4eed-901e-526150ff7c78 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:38:44,174 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=d7d3f583-8c4a-4eed-901e-526150ff7c78 | firm_id=6a4454e94cf5df136bac9408
+2026-07-09 13:38:44,176 - repositories.transaction.transaction_repository - INFO - [transactions] TransactionRepository initialized collection=puntocero_legal.transactions
+2026-07-09 13:38:44,191 - repositories.enterprise_base_repository - INFO - [transactions] CREATE firm_id=6a4454e94cf5df136bac9408 id=6a4feab49f0dfd4e924bf00d request_id=d7d3f583-8c4a-4eed-901e-526150ff7c78
+INFO:     127.0.0.1:59379 - "POST /api/payment/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55328 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55329 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55330 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-07-09 13:42:21,811 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:21,812 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/admin/dashboard/general | method=GET | request_id=59365864-7c26-4ecc-8d80-9fa38b2eec1e | ip_address=127.0.0.1
+2026-07-09 13:42:21,812 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/admin/dashboard/general method=GET request_id=59365864-7c26-4ecc-8d80-9fa38b2eec1e
+2026-07-09 13:42:21,813 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=74ec17b4-3f18-48ce-ba46-f6dd809f03d9 | path=/api/admin/dashboard/general | method=GET | ip=127.0.0.1
+2026-07-09 13:42:21,813 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=74ec17b4-3f18-48ce-ba46-f6dd809f03d9 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:21,814 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=74ec17b4-3f18-48ce-ba46-f6dd809f03d9 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:21,815 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=74ec17b4-3f18-48ce-ba46-f6dd809f03d9 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55331 - "GET /api/admin/dashboard/general HTTP/1.1" 200 OK
+2026-07-09 13:42:21,908 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:21,909 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/admin/dashboard/comercial | method=GET | request_id=7cc9a756-da8e-4f7e-87df-0117d1bf49b9 | ip_address=127.0.0.1
+2026-07-09 13:42:21,909 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/admin/dashboard/comercial method=GET request_id=7cc9a756-da8e-4f7e-87df-0117d1bf49b9
+2026-07-09 13:42:21,909 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=bd856788-7034-4037-886e-f6b539914817 | path=/api/admin/dashboard/comercial | method=GET | ip=127.0.0.1
+2026-07-09 13:42:21,909 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=bd856788-7034-4037-886e-f6b539914817 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:21,909 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=bd856788-7034-4037-886e-f6b539914817 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:21,909 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=bd856788-7034-4037-886e-f6b539914817 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55332 - "GET /api/admin/dashboard/comercial HTTP/1.1" 200 OK
+2026-07-09 13:42:21,995 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:21,995 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/users/ | method=GET | request_id=3d58bd91-4723-4831-90d2-ff716e1f9381 | ip_address=127.0.0.1
+2026-07-09 13:42:21,995 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/users/ method=GET request_id=3d58bd91-4723-4831-90d2-ff716e1f9381
+2026-07-09 13:42:21,995 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=842f1a6e-2e53-4cc5-a455-055e6297a2b8 | path=/api/users/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:21,996 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=842f1a6e-2e53-4cc5-a455-055e6297a2b8 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:21,996 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=842f1a6e-2e53-4cc5-a455-055e6297a2b8 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:21,996 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=842f1a6e-2e53-4cc5-a455-055e6297a2b8 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55333 - "GET /api/users/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,071 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,071 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/firms/ | method=GET | request_id=6f764b4e-e07e-45a4-abf6-e2bdc647d3ff | ip_address=127.0.0.1
+2026-07-09 13:42:22,071 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/firms/ method=GET request_id=6f764b4e-e07e-45a4-abf6-e2bdc647d3ff
+2026-07-09 13:42:22,071 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=0b4232a5-0392-4f49-9ab6-ddce0a55b2c1 | path=/api/firms/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,071 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=0b4232a5-0392-4f49-9ab6-ddce0a55b2c1 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,071 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=0b4232a5-0392-4f49-9ab6-ddce0a55b2c1 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,071 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=0b4232a5-0392-4f49-9ab6-ddce0a55b2c1 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55334 - "GET /api/firms/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,123 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,123 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/cases/ | method=GET | request_id=637e5977-7b03-43ac-a070-5803bb4b5c69 | ip_address=127.0.0.1
+2026-07-09 13:42:22,123 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/cases/ method=GET request_id=637e5977-7b03-43ac-a070-5803bb4b5c69
+2026-07-09 13:42:22,123 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=97cd61c1-b29a-4364-9643-1f45ba9a4a5a | path=/api/cases/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,123 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=97cd61c1-b29a-4364-9643-1f45ba9a4a5a | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,123 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=97cd61c1-b29a-4364-9643-1f45ba9a4a5a | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,124 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=97cd61c1-b29a-4364-9643-1f45ba9a4a5a | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55335 - "GET /api/cases/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,178 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,178 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/leads/ | method=GET | request_id=a6ab7576-4931-489b-ab19-8ca6711fc061 | ip_address=127.0.0.1
+2026-07-09 13:42:22,178 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/leads/ method=GET request_id=a6ab7576-4931-489b-ab19-8ca6711fc061
+2026-07-09 13:42:22,178 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=5c872d77-06da-49ac-acda-886cd13aaeca | path=/api/leads/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,178 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=5c872d77-06da-49ac-acda-886cd13aaeca | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,178 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=5c872d77-06da-49ac-acda-886cd13aaeca | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,178 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=5c872d77-06da-49ac-acda-886cd13aaeca | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55336 - "GET /api/leads/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,230 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,230 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/clients/ | method=GET | request_id=151a6ef6-e2e4-4ed4-a026-57aba86f9f4c | ip_address=127.0.0.1
+2026-07-09 13:42:22,230 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/clients/ method=GET request_id=151a6ef6-e2e4-4ed4-a026-57aba86f9f4c
+2026-07-09 13:42:22,230 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=da1f5c76-71e7-4208-91ae-944f37ff49c5 | path=/api/clients/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,230 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=da1f5c76-71e7-4208-91ae-944f37ff49c5 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,230 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=da1f5c76-71e7-4208-91ae-944f37ff49c5 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,230 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=da1f5c76-71e7-4208-91ae-944f37ff49c5 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55337 - "GET /api/clients/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,286 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,286 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/dashboard/kpis/me | method=GET | request_id=9d7fd91c-9bce-413a-9636-af9f44315eaf | ip_address=127.0.0.1
+2026-07-09 13:42:22,286 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/dashboard/kpis/me method=GET request_id=9d7fd91c-9bce-413a-9636-af9f44315eaf
+2026-07-09 13:42:22,286 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=6ccd3f72-7c00-418c-aebe-f13f405a7354 | path=/api/dashboard/kpis/me | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,286 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=6ccd3f72-7c00-418c-aebe-f13f405a7354 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,286 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=6ccd3f72-7c00-418c-aebe-f13f405a7354 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,286 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=6ccd3f72-7c00-418c-aebe-f13f405a7354 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55338 - "GET /api/dashboard/kpis/me HTTP/1.1" 200 OK
+2026-07-09 13:42:22,358 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,358 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/firms/stats/summary | method=GET | request_id=479c33be-84a3-42ae-9bf9-ee4b494a71be | ip_address=127.0.0.1
+2026-07-09 13:42:22,358 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/firms/stats/summary method=GET request_id=479c33be-84a3-42ae-9bf9-ee4b494a71be
+2026-07-09 13:42:22,358 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=bfadbc2d-13ed-4652-9746-a62988a07a63 | path=/api/firms/stats/summary | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,358 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=bfadbc2d-13ed-4652-9746-a62988a07a63 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,358 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=bfadbc2d-13ed-4652-9746-a62988a07a63 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,358 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=bfadbc2d-13ed-4652-9746-a62988a07a63 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55339 - "GET /api/firms/stats/summary HTTP/1.1" 200 OK
+2026-07-09 13:42:22,418 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:42:22,418 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/firms/status/pending | method=GET | request_id=870df388-f3e0-4f03-bf6f-335d749c1722 | ip_address=127.0.0.1
+2026-07-09 13:42:22,419 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/firms/status/pending method=GET request_id=870df388-f3e0-4f03-bf6f-335d749c1722
+2026-07-09 13:42:22,419 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=8b4e1a50-6993-438d-8bd8-b1dde52a5f91 | path=/api/firms/status/pending | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,419 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=8b4e1a50-6993-438d-8bd8-b1dde52a5f91 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:42:22,419 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=8b4e1a50-6993-438d-8bd8-b1dde52a5f91 | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:42:22,419 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=8b4e1a50-6993-438d-8bd8-b1dde52a5f91 | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:55340 - "GET /api/firms/status/pending HTTP/1.1" 200 OK
+2026-07-09 13:42:22,472 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,472 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/dashboard/kpis/me | method=GET | request_id=f2d350f8-ce5d-4e32-87d1-595e798ede64 | ip_address=127.0.0.1
+2026-07-09 13:42:22,472 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/dashboard/kpis/me method=GET request_id=f2d350f8-ce5d-4e32-87d1-595e798ede64
+2026-07-09 13:42:22,472 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=fd80e2ae-d3a2-411e-bbbb-03b655ceceda | path=/api/dashboard/kpis/me | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,472 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=fd80e2ae-d3a2-411e-bbbb-03b655ceceda | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,472 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=fd80e2ae-d3a2-411e-bbbb-03b655ceceda | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,472 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=fd80e2ae-d3a2-411e-bbbb-03b655ceceda | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55341 - "GET /api/dashboard/kpis/me HTTP/1.1" 200 OK
+2026-07-09 13:42:22,540 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,540 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/cases/ | method=GET | request_id=e3214a42-7999-47bc-aee1-033ccbf85b8b | ip_address=127.0.0.1
+2026-07-09 13:42:22,540 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/cases/ method=GET request_id=e3214a42-7999-47bc-aee1-033ccbf85b8b
+2026-07-09 13:42:22,540 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=645693c1-1d38-44cd-b06d-6cefa0600821 | path=/api/cases/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,540 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=645693c1-1d38-44cd-b06d-6cefa0600821 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,541 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=645693c1-1d38-44cd-b06d-6cefa0600821 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,541 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=645693c1-1d38-44cd-b06d-6cefa0600821 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55342 - "GET /api/cases/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,595 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,595 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/leads/ | method=GET | request_id=673e6c04-b274-4e00-bc22-93273ae5db3a | ip_address=127.0.0.1
+2026-07-09 13:42:22,595 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/leads/ method=GET request_id=673e6c04-b274-4e00-bc22-93273ae5db3a
+2026-07-09 13:42:22,595 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=9cbbf68c-6b0c-434d-85c9-cab292043ab4 | path=/api/leads/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,595 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=9cbbf68c-6b0c-434d-85c9-cab292043ab4 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,595 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=9cbbf68c-6b0c-434d-85c9-cab292043ab4 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,595 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=9cbbf68c-6b0c-434d-85c9-cab292043ab4 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55343 - "GET /api/leads/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,646 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,646 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/clients/ | method=GET | request_id=b47bf1c8-dbc9-4fae-a6f8-b9fdab5047e5 | ip_address=127.0.0.1
+2026-07-09 13:42:22,646 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/clients/ method=GET request_id=b47bf1c8-dbc9-4fae-a6f8-b9fdab5047e5
+2026-07-09 13:42:22,646 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=83716686-3316-4af7-ab32-a077fe10d42d | path=/api/clients/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,646 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=83716686-3316-4af7-ab32-a077fe10d42d | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,646 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=83716686-3316-4af7-ab32-a077fe10d42d | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,646 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=83716686-3316-4af7-ab32-a077fe10d42d | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55344 - "GET /api/clients/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,704 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,704 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/appointments/ | method=GET | request_id=36c9d471-3520-42cb-a2ca-724d1b674e49 | ip_address=127.0.0.1
+2026-07-09 13:42:22,704 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/appointments/ method=GET request_id=36c9d471-3520-42cb-a2ca-724d1b674e49
+2026-07-09 13:42:22,704 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=87e0a0af-8a2e-46e8-9c06-a0c4be750813 | path=/api/appointments/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,705 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=87e0a0af-8a2e-46e8-9c06-a0c4be750813 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,705 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=87e0a0af-8a2e-46e8-9c06-a0c4be750813 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,705 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=87e0a0af-8a2e-46e8-9c06-a0c4be750813 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55345 - "GET /api/appointments/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,764 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,764 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/messages/ | method=GET | request_id=bddd67f7-823d-4e76-a67b-cd614f3bb76a | ip_address=127.0.0.1
+2026-07-09 13:42:22,764 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/messages/ method=GET request_id=bddd67f7-823d-4e76-a67b-cd614f3bb76a
+2026-07-09 13:42:22,764 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=e60aff61-aa8f-4b3e-8356-d2fa80f5b140 | path=/api/messages/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,765 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=e60aff61-aa8f-4b3e-8356-d2fa80f5b140 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,765 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=e60aff61-aa8f-4b3e-8356-d2fa80f5b140 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,765 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=e60aff61-aa8f-4b3e-8356-d2fa80f5b140 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55346 - "GET /api/messages/ HTTP/1.1" 200 OK
+2026-07-09 13:42:22,818 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,818 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/documents/ | method=GET | request_id=35ce505b-68e1-4f15-a50f-a84f7222357e | ip_address=127.0.0.1
+2026-07-09 13:42:22,818 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/documents/ method=GET request_id=35ce505b-68e1-4f15-a50f-a84f7222357e
+2026-07-09 13:42:22,818 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=e432ef69-7a10-47c4-aca6-62a14daf9ec4 | path=/api/documents/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,818 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=e432ef69-7a10-47c4-aca6-62a14daf9ec4 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,818 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=e432ef69-7a10-47c4-aca6-62a14daf9ec4 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,818 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=e432ef69-7a10-47c4-aca6-62a14daf9ec4 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55347 - "GET /api/documents/?case_id=x HTTP/1.1" 422 Unprocessable Entity
+2026-07-09 13:42:22,875 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,875 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/invoices/ | method=GET | request_id=8459b756-fd11-43ca-8c95-8d32c64884c3 | ip_address=127.0.0.1
+2026-07-09 13:42:22,875 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/invoices/ method=GET request_id=8459b756-fd11-43ca-8c95-8d32c64884c3
+2026-07-09 13:42:22,876 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=cc8c3641-de18-47b4-9e46-af528fad806e | path=/api/invoices/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,876 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=cc8c3641-de18-47b4-9e46-af528fad806e | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,876 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=cc8c3641-de18-47b4-9e46-af528fad806e | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,876 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=cc8c3641-de18-47b4-9e46-af528fad806e | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55348 - "GET /api/invoices/?case_id=x HTTP/1.1" 422 Unprocessable Entity
+2026-07-09 13:42:22,926 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:42:22,926 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/dashboard/alerts/me | method=GET | request_id=b0505700-c4ea-4f58-b4fa-39a1b573404d | ip_address=127.0.0.1
+2026-07-09 13:42:22,926 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/dashboard/alerts/me method=GET request_id=b0505700-c4ea-4f58-b4fa-39a1b573404d
+2026-07-09 13:42:22,926 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=0de0dc60-2675-4024-9aba-c6830ff05f19 | path=/api/dashboard/alerts/me | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,927 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=0de0dc60-2675-4024-9aba-c6830ff05f19 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:42:22,927 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=0de0dc60-2675-4024-9aba-c6830ff05f19 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:42:22,927 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=0de0dc60-2675-4024-9aba-c6830ff05f19 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:55349 - "GET /api/dashboard/alerts/me HTTP/1.1" 200 OK
+2026-07-09 13:42:22,987 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:42:22,987 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/auth/me | method=GET | request_id=1c8ebb11-af82-4e23-af11-6e8b29b20c2b | ip_address=127.0.0.1
+2026-07-09 13:42:22,987 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/auth/me method=GET request_id=1c8ebb11-af82-4e23-af11-6e8b29b20c2b
+2026-07-09 13:42:22,987 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=3a20189b-11df-4fe9-ada2-bf95cc88456c | path=/api/auth/me | method=GET | ip=127.0.0.1
+2026-07-09 13:42:22,987 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=3a20189b-11df-4fe9-ada2-bf95cc88456c | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:42:22,987 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=3a20189b-11df-4fe9-ada2-bf95cc88456c | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:42:22,987 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=3a20189b-11df-4fe9-ada2-bf95cc88456c | firm_id=6a4454e94cf5df136bac9408
+INFO:     127.0.0.1:55350 - "GET /api/auth/me HTTP/1.1" 200 OK
+2026-07-09 13:42:23,040 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:42:23,040 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/cases/ | method=GET | request_id=10a83a58-c6ee-4350-aa47-902740bac85b | ip_address=127.0.0.1
+2026-07-09 13:42:23,040 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/cases/ method=GET request_id=10a83a58-c6ee-4350-aa47-902740bac85b
+2026-07-09 13:42:23,041 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=3c605f85-bc64-4b22-983f-2b20512a685d | path=/api/cases/ | method=GET | ip=127.0.0.1
+2026-07-09 13:42:23,041 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=3c605f85-bc64-4b22-983f-2b20512a685d | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:42:23,041 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=3c605f85-bc64-4b22-983f-2b20512a685d | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:42:23,041 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=3c605f85-bc64-4b22-983f-2b20512a685d | firm_id=6a4454e94cf5df136bac9408
+INFO:     127.0.0.1:55351 - "GET /api/cases/ HTTP/1.1" 200 OK
+2026-07-09 13:42:23,096 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:42:23,096 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/portal/my-cases | method=GET | request_id=5737f491-c024-40fe-85e6-b4f735e82af3 | ip_address=127.0.0.1
+2026-07-09 13:42:23,096 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/portal/my-cases method=GET request_id=5737f491-c024-40fe-85e6-b4f735e82af3
+2026-07-09 13:42:23,096 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=d9c18ede-be9e-4777-8031-27b426a2df4b | path=/api/portal/my-cases | method=GET | ip=127.0.0.1
+2026-07-09 13:42:23,097 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=d9c18ede-be9e-4777-8031-27b426a2df4b | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:42:23,097 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=d9c18ede-be9e-4777-8031-27b426a2df4b | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:42:23,097 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=d9c18ede-be9e-4777-8031-27b426a2df4b | firm_id=6a4454e94cf5df136bac9408
+INFO:     127.0.0.1:55352 - "GET /api/portal/my-cases HTTP/1.1" 404 Not Found
+2026-07-09 13:42:23,152 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:42:23,152 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/payment/my-plan | method=GET | request_id=591c71f6-1139-436f-a69c-05f6225f9e37 | ip_address=127.0.0.1
+2026-07-09 13:42:23,152 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/payment/my-plan method=GET request_id=591c71f6-1139-436f-a69c-05f6225f9e37
+2026-07-09 13:42:23,152 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=1f43efa3-e9b9-4d9f-b4bb-e557b45cbdd1 | path=/api/payment/my-plan | method=GET | ip=127.0.0.1
+2026-07-09 13:42:23,152 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=1f43efa3-e9b9-4d9f-b4bb-e557b45cbdd1 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:42:23,152 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=1f43efa3-e9b9-4d9f-b4bb-e557b45cbdd1 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:42:23,152 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=1f43efa3-e9b9-4d9f-b4bb-e557b45cbdd1 | firm_id=6a4454e94cf5df136bac9408
+2026-07-09 13:42:23,939 - httpx - INFO - HTTP Request: GET https://api.exchangerate-api.com/v4/latest/COP "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55353 - "GET /api/payment/my-plan HTTP/1.1" 200 OK
+2026-07-09 13:42:24,000 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:42:24,000 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/payment/subscription-status | method=GET | request_id=3ea25279-dd2b-40b3-b71c-916a1b0b71b8 | ip_address=127.0.0.1
+2026-07-09 13:42:24,000 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/payment/subscription-status method=GET request_id=3ea25279-dd2b-40b3-b71c-916a1b0b71b8
+2026-07-09 13:42:24,001 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=42afbc6e-0d11-4abf-9160-04dec5dabfcb | path=/api/payment/subscription-status | method=GET | ip=127.0.0.1
+2026-07-09 13:42:24,001 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=42afbc6e-0d11-4abf-9160-04dec5dabfcb | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:42:24,001 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=42afbc6e-0d11-4abf-9160-04dec5dabfcb | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:42:24,001 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=42afbc6e-0d11-4abf-9160-04dec5dabfcb | firm_id=6a4454e94cf5df136bac9408
+INFO:     127.0.0.1:55355 - "GET /api/payment/subscription-status HTTP/1.1" 200 OK

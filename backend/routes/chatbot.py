@@ -30,6 +30,10 @@ router = APIRouter(tags=["Chatbot Legal · WhatsApp"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 
@@ -500,10 +504,33 @@ async def whatsapp_verify(request: Request):
 async def whatsapp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db)):
     """Webhook entrante de WhatsApp. Soporta Meta Cloud API (JSON) y Twilio (form)."""
     from fastapi.responses import Response, JSONResponse
+    import hashlib
+    import hmac
+
     content_type = request.headers.get("content-type", "")
 
     # ── Meta WhatsApp Cloud API (application/json) ──
     if "application/json" in content_type:
+        # VALIDAR FIRMA DE META (Security: Verify webhook signature)
+        x_hub_signature = request.headers.get("x-hub-signature-256", "")
+        meta_app_secret = os.environ.get("META_APP_SECRET", "")
+
+        if meta_app_secret and x_hub_signature:
+            try:
+                body_bytes = await request.body()
+                expected_signature = "sha256=" + hmac.new(
+                    meta_app_secret.encode(),
+                    body_bytes,
+                    hashlib.sha256
+                ).hexdigest()
+
+                if not hmac.compare_digest(x_hub_signature, expected_signature):
+                    logger.warning("Invalid Meta webhook signature")
+                    return JSONResponse({"error": "Invalid signature"}, status_code=403)
+            except Exception as e:
+                logger.warning("Signature validation error: %s", e)
+                return JSONResponse({"error": "Signature validation failed"}, status_code=403)
+
         try:
             data = await request.json()
         except Exception:

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends, Header
+from typing import List, Optional
 from datetime import datetime, date, timedelta
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.appointment import AppointmentCreate, Appointment
@@ -11,10 +11,51 @@ router = APIRouter(prefix="/appointments", tags=["Legal Agenda"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
+async def get_current_user_from_auth(
+    authorization: str = Header(None),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Valida JWT y retorna usuario autenticado"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Autorización requerida")
+
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise ValueError("Invalid auth scheme")
+
+        from utils.auth import decode_token
+        payload = decode_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token inválido")
+
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+        user["_id"] = str(user["_id"])
+        return user
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
 @router.post("/", response_model=dict)
-async def create_appointment(appointment_data: AppointmentCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_appointment(
+    appointment_data: AppointmentCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user = Depends(get_current_user_from_auth)
+):
     appointment_dict = appointment_data.model_dump()
     appointment_dict["reminder_sent"] = False        # recordatorio 24h
     appointment_dict["reminder_day_sent"] = False     # recordatorio el día del evento

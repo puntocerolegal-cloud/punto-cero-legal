@@ -148,7 +148,7 @@ export function FirmOSPreviewBlock() {
             El futuro de tu firma <span className="text-[#f97316]">comienza aquí.</span>
           </h2>
           <p className="text-white/60 max-w-3xl mx-auto text-lg leading-relaxed">
-            Prueba Punto Cero Legal durante <strong>7 días completamente gratis</strong> y descubre cómo una plataforma todo en uno puede optimizar la gestión de clientes, expedientes, documentos, facturación e inteligencia jurídica para tu firma.
+            Prueba Punto Cero Legal durante <strong>3 días completamente gratis</strong> y descubre cómo una plataforma todo en uno puede optimizar la gestión de clientes, expedientes, documentos, facturación e inteligencia jurídica para tu firma.
           </p>
           <p className="text-white/60 max-w-3xl mx-auto text-base mt-3">
             No se requiere compromiso y tendrás acompañamiento durante todo el proceso de evaluación.
@@ -213,7 +213,7 @@ export function FirmOSPreviewBlock() {
           >
             <div className="backdrop-blur-2xl bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/15 rounded-3xl p-8 sticky top-24">
               <h3 className="text-2xl font-bold text-white mb-2">Comienza tu prueba gratuita</h3>
-              <p className="text-white/60 text-sm mb-6">Activa tu acceso <strong>Trial de 7 días</strong> y conoce todas las funcionalidades de Punto Cero Legal. Un especialista configurará tu espacio y te acompañará durante el proceso.</p>
+              <p className="text-white/60 text-sm mb-6">Activa tu acceso <strong>Trial de 3 días</strong> y conoce todas las funcionalidades de Punto Cero Legal. Un especialista configurará tu espacio y te acompañará durante el proceso.</p>
 
               {/* Error Alert */}
               {error && (
@@ -342,7 +342,7 @@ export function FirmOSPreviewBlock() {
                       </>
                     ) : validateForm() ? (
                       <>
-                        Iniciar prueba gratuita de 7 días
+                        Iniciar prueba gratuita de 3 días
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </>
                     ) : (

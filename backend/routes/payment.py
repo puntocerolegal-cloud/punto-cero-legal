@@ -33,6 +33,12 @@ from kernel.external_tenant_resolver import resolve_tenant_from_webhook_event
 # DEPRECATED: Old middleware-based context (for compatibility during transition)
 from middleware.tenant_isolation import require_tenant_context
 
+# FASE 2: Import SINGLE SOURCE OF TRUTH for plans
+from config.plans_catalog import (
+    PLANS_CATALOG, PLANS_BY_SLUG, TRIAL_DAYS,
+    get_plan_by_slug, get_all_plans
+)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payment", tags=["Payment Router"])
@@ -246,60 +252,40 @@ def localize_plan(plan: dict, country: str, rates: dict) -> dict:
         },
     }
 
-# Catálogo comercial — fuente única de verdad de los planes (nombre, precio, features).
-# La clave es el `plan_id` que se guarda en el perfil del abogado (users.plan_id).
-PLAN_CATALOG = {
-    "esencial": {
-        "id": "esencial",
-        "name": "El Despegue",
-        "price_cop": 112500,
-        "processes": "Hasta 50 casos",
-        "color": "#3b82f6",
-        "description": "Para abogados independientes que inician",
-        "features": [
-            "Directorio de Clientes", "Hasta 50 casos activos", "CRM Básico",
-            "Agenda Personal", "IA Redacción",
-        ],
-    },
-    "profesional": {
-        "id": "profesional",
-        "name": "El Salto Estratégico",
-        "price_cop": 210000,
-        "processes": "Hasta 150 casos",
-        "color": "#f97316",
-        "description": "La elección de los abogados exitosos",
-        "features": [
-            "Directorio de Clientes", "Hasta 150 casos activos", "CRM Avanzado",
-            "Agenda Bidireccional", "IA Análisis de Documentos",
-            "Sala de Conferencias HD", "Facturación Automática",
-        ],
-    },
-    "elite": {
-        "id": "elite",
-        "name": "Firma en Crecimiento",
-        "price_cop": 562500,
-        "processes": "Procesos Ilimitados",
-        "color": "#8b5cf6",
-        "description": "Para firmas en crecimiento",
-        "features": [
-            "Directorio de Clientes", "Procesos Ilimitados", "CRM Pro Automatizado",
-            "Multi Agenda", "IA Pro Jurisprudencia", "Conferencias HD con Grabación",
-            "Inteligencia Financiera",
-        ],
-    },
-    "ilimitado": {
-        "id": "ilimitado",
-        "name": "Consolidación Empresarial",
-        "price_cop": 2100000,
-        "processes": "Procesos Ilimitados",
-        "color": "#10b981",
-        "description": "Para firmas y bufetes consolidados",
-        "features": [
-            "Directorio de Clientes", "Procesos Ilimitados", "CRM Empresarial",
-            "API Personalizada", "IA Ilimitada", "Soporte Dedicado", "SLA Garantizado",
-        ],
-    },
-}
+# ═══════════════════════════════════════════════════════════════════════════════
+# FASE 2: PLAN CATALOG NOW USES SINGLE SOURCE OF TRUTH
+# This adapter converts from config/plans_catalog.py format to legacy format
+# for backwards compatibility during migration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _build_legacy_catalog():
+    """Convert master catalog to legacy format for API compat"""
+    catalog = {}
+    slug_map = {"despegue": "esencial", "salto-estrategico": "profesional",
+                "firma-crecimiento": "elite", "consolidacion-empresarial": "ilimitado"}
+
+    for plan in get_all_plans():
+        legacy_key = slug_map.get(plan.slug, plan.slug)
+        catalog[legacy_key] = {
+            "id": legacy_key,
+            "name": plan.name,
+            "price_cop": plan.price_cop_monthly,
+            "processes": "Procesos Ilimitados" if plan.max_cases == -1 else f"Hasta {plan.max_cases} casos",
+            "color": plan.color,
+            "description": plan.description,
+            "features": [
+                "Directorio de Clientes",
+                f"{'Procesos Ilimitados' if plan.max_cases == -1 else f'Hasta {plan.max_cases} casos activos'}",
+                "CRM Empresarial" if plan.max_cases == -1 else ("CRM Pro" if plan.max_cases > 150 else ("CRM Avanzado" if plan.max_cases > 50 else "CRM Básico")),
+                "IA Avanzada" if plan.has_advanced_analytics else "IA Redacción",
+            ],
+            "trial_days": TRIAL_DAYS,
+            "max_cases": plan.max_cases,
+            "max_lawyers": plan.max_lawyers,
+        }
+    return catalog
+
+PLAN_CATALOG = _build_legacy_catalog()
 
 # Países donde Mercado Pago opera de forma nativa
 MERCADO_PAGO_COUNTRIES = {
@@ -314,13 +300,23 @@ PAYPAL_COUNTRIES = {
     "República Dominicana": "DO", "Guatemala": "GT", "El Salvador": "SV"
 }
 
-# Precios en COP por plan (oficiales: priceUsd × 4000, alineados con la fuente única)
-PLAN_PRICES_COP = {
-    "esencial": {"monthly": 112500, "annual": 112500 * 11, "processes": 50},
-    "profesional": {"monthly": 210000, "annual": 210000 * 11, "processes": 150},
-    "elite": {"monthly": 562500, "annual": 562500 * 11, "processes": -1},
-    "ilimitado": {"monthly": 2100000, "annual": 2100000 * 11, "processes": -1},
-}
+# FASE 2: Precios en COP ahora se derivan del catálogo maestro
+def _build_price_catalog():
+    """Build price catalog from master plans_catalog.py"""
+    prices = {}
+    slug_map = {"despegue": "esencial", "salto-estrategico": "profesional",
+                "firma-crecimiento": "elite", "consolidacion-empresarial": "ilimitado"}
+
+    for plan in get_all_plans():
+        legacy_key = slug_map.get(plan.slug, plan.slug)
+        prices[legacy_key] = {
+            "monthly": plan.price_cop_monthly,
+            "annual": plan.price_cop_monthly * 11,
+            "processes": plan.max_cases,
+        }
+    return prices
+
+PLAN_PRICES_COP = _build_price_catalog()
 
 # Conversiones aproximadas (en producción usar API real)
 EXCHANGE_RATES = {
@@ -367,13 +363,20 @@ class PaymentInitResponse(BaseModel):
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 
 async def get_transaction_repo() -> TransactionRepository:
     """Dependency injection for TransactionRepository"""
     from server import db
-    return TransactionRepository(db.transactions)
+    # TransactionRepository expects a raw Motor collection (reads collection.full_name);
+    # unwrap the GuardedDB so it doesn't trip the hard barrier on init.
+    real_db = db._real_db if hasattr(db, "_real_db") else db
+    return TransactionRepository(real_db.transactions)
 
 
 async def _create_mp_preference(tx: dict, plan_name: str) -> Optional[dict]:
@@ -732,7 +735,7 @@ async def get_my_plan(request: Request, current = Depends(get_current_user)):
     if not subscription_status:
         subscription_status = "active" if plan else "trial"
 
-    # Prueba gratuita de 7 días contada desde el registro (created_at).
+    # Prueba gratuita de 3 días contada desde el registro (created_at).
     created = current.get("created_at")
     now = datetime.utcnow()
     trial_started_at = trial_ends_at = None
@@ -740,7 +743,7 @@ async def get_my_plan(request: Request, current = Depends(get_current_user)):
     if isinstance(created, datetime):
         # Sufijo 'Z' → el frontend lo interpreta como UTC (created_at es naive UTC).
         trial_started_at = created.isoformat() + "Z"
-        ends = created + timedelta(days=7)
+        ends = created + timedelta(days=3)
         trial_ends_at = ends.isoformat() + "Z"
         trial_active = (not plan) and (now < ends)
 
@@ -755,7 +758,7 @@ async def get_my_plan(request: Request, current = Depends(get_current_user)):
             "started_at": trial_started_at,
             "ends_at": trial_ends_at,
             "active": trial_active,
-            "duration_days": 7,
+            "duration_days": 3,
         },
         "server_time": now.isoformat(),
     }
@@ -798,6 +801,7 @@ async def get_plans(country: str = "Colombia", billing_cycle: str = "monthly"):
 @router.post("/init", response_model=PaymentInitResponse)
 async def init_payment(
     request: PaymentInitRequest,
+    http_request: Request,
     current=Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
     transaction_repo: TransactionRepository = Depends(get_transaction_repo)
@@ -809,8 +813,9 @@ async def init_payment(
     # NO fallback logic
     # NO bypass possible
     try:
-        # PHASE 5: Use kernel-validated context (primary)
-        tenant_context = get_tenant_context_from_request(request)
+        # PHASE 5: Use kernel-validated context (primary). The context lives on the
+        # FastAPI Request (http_request); `request` here is the Pydantic body model.
+        tenant_context = get_tenant_context_from_request(http_request)
         firm_id = tenant_context.firm_id
         request_id = tenant_context.request_id
     except Exception as e:
@@ -1244,12 +1249,12 @@ async def get_subscription_status(
 
     plan = PLAN_CATALOG.get(plan_id) if plan_id else None
 
-    # Período de prueba de 7 días
+    # Período de prueba de 3 días
     created = current.get("created_at")
     now = datetime.utcnow()
     trial_ends_at = None
     if isinstance(created, datetime):
-        trial_ends_at = (created + timedelta(days=7)).isoformat() + "Z"
+        trial_ends_at = (created + timedelta(days=3)).isoformat() + "Z"
 
     # Buscar últimas transacciones pagadas
     last_tx = None

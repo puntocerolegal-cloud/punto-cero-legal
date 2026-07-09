@@ -1,0 +1,39 @@
+(node:14172) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+Compiled with warnings.
+
+[eslint] 
+src\modules\firm-os\hooks\useAutomation.js
+  Line 32:6:  React Hook useMemo has missing dependencies: 'departments' and 'offices'. Either include them or remove the dependency array      react-hooks/exhaustive-deps
+  Line 61:6:  React Hook useCallback has missing dependencies: 'departments' and 'offices'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 88:6:  React Hook useCallback has missing dependencies: 'departments' and 'offices'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+File sizes after gzip:
+
+  737.18 kB  build\static\js\main.64ef35bd.js
+  46.3 kB    build\static\js\52.4caabcbd.chunk.js
+  43.28 kB   build\static\js\239.6f1a4f28.chunk.js
+  24.02 kB   build\static\css\main.5a6abf56.css
+  10.46 kB   build\static\js\82.1f56ef37.chunk.js
+
+The bundle size is significantly larger than recommended.
+Consider reducing it with code splitting: https://goo.gl/9VhYWB
+You can also analyze the project dependencies: https://goo.gl/LeUzfb
+
+The project was built assuming it is hosted at /.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+You may serve it with a static server:
+
+  npm install -g serve
+  serve -s build
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+

@@ -55,19 +55,35 @@ class TenantKernelMiddlewareWrapper(BaseHTTPMiddleware):
     - Generic Exception → 500 (unknown problem)
     """
     
+    # Public endpoints reachable BEFORE authentication (no JWT yet). These are
+    # exempted at the integration layer WITHOUT modifying the kernel core.
+    # Prefix match, so it covers path params and trailing slashes.
+    PUBLIC_PATH_PREFIXES = (
+        "/api/firms/register",          # public firm registration + register-lead
+        "/api/firms/activate-account",  # account activation from email link
+        "/api/public/",                 # landing intake: case-intake, lawyer-application
+        "/api/payment/webhook",         # payment provider webhooks (MercadoPago/PayPal)
+    )
+
     def __init__(self, app):
         super().__init__(app)
         self.kernel = get_tenant_kernel()
-    
+
+    def _is_public_path(self, path: str) -> bool:
+        return any(
+            path == p or path.startswith(p)
+            for p in self.PUBLIC_PATH_PREFIXES
+        )
+
     async def dispatch(self, request: Request, call_next):
         """
         Main middleware entry point.
         Validates tenant before endpoint execution.
         """
-        
+
         try:
             # Check if this path needs kernel validation
-            if not self.kernel.should_validate(request):
+            if not self.kernel.should_validate(request) or self._is_public_path(request.url.path):
                 # PHASE 9: Exempt path - build minimal context
                 tenant_context = self.kernel.build_kernel_context_for_exempt_path(request)
                 if tenant_context:

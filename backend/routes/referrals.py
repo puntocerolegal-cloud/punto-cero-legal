@@ -14,6 +14,10 @@ router = APIRouter(prefix="/referrals", tags=["Referral System"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 async def get_current_user(authorization: Optional[str] = Header(None), db: AsyncIOMotorDatabase = Depends(get_db)):

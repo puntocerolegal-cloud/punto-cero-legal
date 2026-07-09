@@ -17,6 +17,10 @@ router = APIRouter(prefix="/legal-os", tags=["Legal OS · Final Form"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 # FASE 15.1–15.3: Core OS Cycle

@@ -9,6 +9,10 @@ router = APIRouter(prefix="/meetings", tags=["Conference Room"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)

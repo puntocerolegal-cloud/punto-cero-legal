@@ -1,0 +1,115 @@
+2026-07-09 13:45:01,376 - server - INFO - MongoDB client initialized
+2026-07-09 13:45:01,378 - security.guarded_db - INFO - [DB_BARRIER] GuardedDB initialized - direct access blocked
+2026-07-09 13:45:01,378 - server - INFO - MongoDB wrapped in GuardedDB hard barrier
+INFO:     Started server process [29324]
+INFO:     Waiting for application startup.
+2026-07-09 13:45:01,716 - utils.graceful_shutdown - INFO - [SHUTDOWN] Starting up application
+2026-07-09 13:45:01,716 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGTERM
+2026-07-09 13:45:01,716 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGINT
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-07-09 13:45:01,733 - pymongo.serverSelection - INFO - {"message": "Waiting for suitable server to become available", "selector": "Primary()", "operation": "ping", "topologyDescription": "<TopologyDescription id: 6a4fec2df176fd18684bc796, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None>]>", "clientId": {"$oid": "6a4fec2df176fd18684bc796"}, "remainingTimeMS": 5}
+INFO:     127.0.0.1:58247 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58253 - "POST /api/public/case-intake HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:58254 - "POST /api/auth/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:58255 - "POST /api/auth/register HTTP/1.1" 201 Created
+2026-07-09 13:45:22,635 - routes.firms - INFO - [REGISTER_FIRM_NEW_FLOW] firm_id=6a4fec42f176fd18684bc79b | email=fo1783622721@t.com | status=PENDING_APPROVAL | requiere_aprobación_manual=true
+INFO:     127.0.0.1:58257 - "POST /api/firms/register HTTP/1.1" 201 Created
+2026-07-09 13:45:22,741 - httpx - INFO - HTTP Request: POST https://graph.facebook.com/v21.0/dev/messages "HTTP/1.1 401 Unauthorized"
+2026-07-09 13:45:22,743 - utils.notifier - WARNING - Meta WhatsApp error 401: {"error":{"message":"Invalid OAuth access token - Cannot parse access token","type":"OAuthException","code":190,"fbtrace_id":"Afd-PDdqL0fe6Gfaza_nQ9A"}}
+INFO:     127.0.0.1:58258 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-07-09 13:45:22,914 - utils.notifier - INFO - [EMAIL_TRACE:4ba1bb552e87] QA_PHASE1 | SMTP_HOST=smtp.gmail.com | SMTP_PORT=587 | SMTP_USER=*** | SMTP_FROM=dev@example.com | to_email=puntocerolegal@gmail.com | subject=Nuevo usuario registrado
+2026-07-09 13:45:22,929 - utils.notifier - INFO - [EMAIL_TRACE:4ba1bb552e87] QA_PHASE2 | Intentando conectar a SMTP smtp.gmail.com:587
+2026-07-09 13:45:22,962 - httpx - INFO - HTTP Request: POST https://graph.facebook.com/v21.0/dev/messages "HTTP/1.1 401 Unauthorized"
+2026-07-09 13:45:22,963 - utils.notifier - WARNING - Meta WhatsApp error 401: {"error":{"message":"Invalid OAuth access token - Cannot parse access token","type":"OAuthException","code":190,"fbtrace_id":"AK8bbFNELzF519AOHHoNIfq"}}
+2026-07-09 13:45:22,963 - utils.notifier - INFO - [EMAIL_TRACE:f266c6c76fea] QA_PHASE1 | SMTP_HOST=smtp.gmail.com | SMTP_PORT=587 | SMTP_USER=*** | SMTP_FROM=dev@example.com | to_email=puntocerolegal@gmail.com | subject=Nuevo usuario registrado
+2026-07-09 13:45:22,979 - utils.notifier - INFO - [EMAIL_TRACE:f266c6c76fea] QA_PHASE2 | Intentando conectar a SMTP smtp.gmail.com:587
+2026-07-09 13:45:23,100 - utils.notifier - INFO - [EMAIL_TRACE:4ba1bb552e87] QA_PHASE2 | Conectado al servidor SMTP exitosamente
+2026-07-09 13:45:23,127 - utils.notifier - INFO - [EMAIL_TRACE:f266c6c76fea] QA_PHASE2 | Conectado al servidor SMTP exitosamente
+INFO:     127.0.0.1:58262 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-07-09 13:45:23,330 - utils.notifier - INFO - [EMAIL_TRACE:4ba1bb552e87] QA_PHASE2 | TLS inicializado
+2026-07-09 13:45:23,330 - utils.notifier - INFO - [EMAIL_TRACE:4ba1bb552e87] QA_PHASE2 | Intentando login con usuario: ***
+2026-07-09 13:45:23,331 - utils.notifier - INFO - [EMAIL_TRACE:f266c6c76fea] QA_PHASE2 | TLS inicializado
+2026-07-09 13:45:23,331 - utils.notifier - INFO - [EMAIL_TRACE:f266c6c76fea] QA_PHASE2 | Intentando login con usuario: ***
+INFO:     127.0.0.1:58263 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-07-09 13:45:23,561 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | token_version=1
+2026-07-09 13:45:23,561 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | user_email=None | user_role=admin_general | path=/api/admin/dashboard/general | method=GET | request_id=967c7302-fab1-4ef0-8e78-9975dfb33953 | ip_address=127.0.0.1
+2026-07-09 13:45:23,561 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e84cf5df136bac9405 user_id=6a4454e84cf5df136bac9405 path=/api/admin/dashboard/general method=GET request_id=967c7302-fab1-4ef0-8e78-9975dfb33953
+2026-07-09 13:45:23,563 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=95401712-856e-45a8-b770-67c60aa70bed | path=/api/admin/dashboard/general | method=GET | ip=127.0.0.1
+2026-07-09 13:45:23,563 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=95401712-856e-45a8-b770-67c60aa70bed | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405
+2026-07-09 13:45:23,563 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=95401712-856e-45a8-b770-67c60aa70bed | firm_id=6a4454e84cf5df136bac9405 | user_id=6a4454e84cf5df136bac9405 | validation_source=JWT
+2026-07-09 13:45:23,563 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=95401712-856e-45a8-b770-67c60aa70bed | firm_id=6a4454e84cf5df136bac9405
+INFO:     127.0.0.1:58264 - "GET /api/admin/dashboard/general HTTP/1.1" 200 OK
+2026-07-09 13:45:23,663 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:45:23,663 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/dashboard/kpis/me | method=GET | request_id=f44ebc6c-a0b7-4699-89da-2e4b7717b23f | ip_address=127.0.0.1
+2026-07-09 13:45:23,663 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/dashboard/kpis/me method=GET request_id=f44ebc6c-a0b7-4699-89da-2e4b7717b23f
+2026-07-09 13:45:23,663 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=c20441e3-2e95-4515-aed0-86ee2aaddfc4 | path=/api/dashboard/kpis/me | method=GET | ip=127.0.0.1
+2026-07-09 13:45:23,663 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=c20441e3-2e95-4515-aed0-86ee2aaddfc4 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:45:23,663 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=c20441e3-2e95-4515-aed0-86ee2aaddfc4 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:45:23,663 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=c20441e3-2e95-4515-aed0-86ee2aaddfc4 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:58265 - "GET /api/dashboard/kpis/me HTTP/1.1" 200 OK
+2026-07-09 13:45:23,720 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] QA_FAILURE | Tipo de excepción: SMTPAuthenticationError
+2026-07-09 13:45:23,721 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] QA_FAILURE | Fase donde falló: Login
+2026-07-09 13:45:23,721 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] QA_FAILURE | Mensaje completo: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ada2fe7eead31-744d6a90d0csm4052603137.4 - gsmtp')
+2026-07-09 13:45:23,721 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] QA_FAILURE | Repr: SMTPAuthenticationError(535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ada2fe7eead31-744d6a90d0csm4052603137.4 - gsmtp')
+2026-07-09 13:45:23,721 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] QA_FAILURE | SMTP Code: 535
+2026-07-09 13:45:23,721 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] QA_FAILURE | SMTP Error: b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ada2fe7eead31-744d6a90d0csm4052603137.4 - gsmtp'
+2026-07-09 13:45:23,721 - utils.notifier - ERROR - [EMAIL_TRACE:f266c6c76fea] FAILURE_SUMMARY | Estado: FAILURE | Fase: Login | Tipo: SMTPAuthenticationError | Destinatario: puntocerolegal@gmail.com
+2026-07-09 13:45:23,726 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:45:23,726 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/auth/me | method=GET | request_id=0183cf9b-d641-4481-ac02-354ae886bc39 | ip_address=127.0.0.1
+2026-07-09 13:45:23,726 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/auth/me method=GET request_id=0183cf9b-d641-4481-ac02-354ae886bc39
+2026-07-09 13:45:23,727 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=770e99c2-cff1-4636-9929-358b156ec623 | path=/api/auth/me | method=GET | ip=127.0.0.1
+2026-07-09 13:45:23,727 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=770e99c2-cff1-4636-9929-358b156ec623 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:45:23,727 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=770e99c2-cff1-4636-9929-358b156ec623 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:45:23,727 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=770e99c2-cff1-4636-9929-358b156ec623 | firm_id=6a4454e94cf5df136bac9408
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] QA_FAILURE | Tipo de excepción: SMTPAuthenticationError
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] QA_FAILURE | Fase donde falló: Login
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] QA_FAILURE | Mensaje completo: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-5bf6f849a44sm3901795e0c.9 - gsmtp')
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] QA_FAILURE | Repr: SMTPAuthenticationError(535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-5bf6f849a44sm3901795e0c.9 - gsmtp')
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] QA_FAILURE | SMTP Code: 535
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] QA_FAILURE | SMTP Error: b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-5bf6f849a44sm3901795e0c.9 - gsmtp'
+2026-07-09 13:45:23,728 - utils.notifier - ERROR - [EMAIL_TRACE:4ba1bb552e87] FAILURE_SUMMARY | Estado: FAILURE | Fase: Login | Tipo: SMTPAuthenticationError | Destinatario: puntocerolegal@gmail.com
+INFO:     127.0.0.1:58266 - "GET /api/auth/me HTTP/1.1" 200 OK
+2026-07-09 13:45:23,783 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:45:23,783 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/leads/ | method=GET | request_id=a7d68043-126f-4bac-b682-2a23620b28ef | ip_address=127.0.0.1
+2026-07-09 13:45:23,783 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/leads/ method=GET request_id=a7d68043-126f-4bac-b682-2a23620b28ef
+2026-07-09 13:45:23,783 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=dec7640e-122d-4df4-a0d8-6010052f4077 | path=/api/leads/ | method=GET | ip=127.0.0.1
+2026-07-09 13:45:23,783 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=dec7640e-122d-4df4-a0d8-6010052f4077 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:45:23,784 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=dec7640e-122d-4df4-a0d8-6010052f4077 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:45:23,784 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=dec7640e-122d-4df4-a0d8-6010052f4077 | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:58267 - "GET /api/leads/ HTTP/1.1" 200 OK
+2026-07-09 13:45:23,868 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:45:23,868 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/cases/ | method=POST | request_id=39da29e2-66d0-4cd7-b82e-09432f3d7490 | ip_address=127.0.0.1
+2026-07-09 13:45:23,868 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/cases/ method=POST request_id=39da29e2-66d0-4cd7-b82e-09432f3d7490
+2026-07-09 13:45:23,868 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=1a19c134-78b2-4b90-8956-6fd1ee2b8963 | path=/api/cases/ | method=POST | ip=127.0.0.1
+2026-07-09 13:45:23,868 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=1a19c134-78b2-4b90-8956-6fd1ee2b8963 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:45:23,868 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=1a19c134-78b2-4b90-8956-6fd1ee2b8963 | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:45:23,868 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=1a19c134-78b2-4b90-8956-6fd1ee2b8963 | firm_id=6a4454e94cf5df136bac9407
+2026-07-09 13:45:23,870 - security.security_engine - INFO - [SECURITY] Authenticated access allowed: user=6a4454e94cf5df136bac9407 resource_type=case action=create
+INFO:     127.0.0.1:58268 - "POST /api/cases/ HTTP/1.1" 201 Created
+2026-07-09 13:45:23,954 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-09 13:45:23,954 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/cases/ | method=GET | request_id=4788aef4-dceb-46fe-ad89-bb320ca292a4 | ip_address=127.0.0.1
+2026-07-09 13:45:23,954 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9407 user_id=6a4454e94cf5df136bac9407 path=/api/cases/ method=GET request_id=4788aef4-dceb-46fe-ad89-bb320ca292a4
+2026-07-09 13:45:23,954 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=125527b1-1914-4caa-9345-8a225a014f7d | path=/api/cases/ | method=GET | ip=127.0.0.1
+2026-07-09 13:45:23,954 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=125527b1-1914-4caa-9345-8a225a014f7d | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407
+2026-07-09 13:45:23,955 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=125527b1-1914-4caa-9345-8a225a014f7d | firm_id=6a4454e94cf5df136bac9407 | user_id=6a4454e94cf5df136bac9407 | validation_source=JWT
+2026-07-09 13:45:23,955 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=125527b1-1914-4caa-9345-8a225a014f7d | firm_id=6a4454e94cf5df136bac9407
+INFO:     127.0.0.1:58269 - "GET /api/cases/ HTTP/1.1" 200 OK
+2026-07-09 13:45:24,046 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:45:24,046 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/payment/plans | method=GET | request_id=4e1225a5-aafb-448a-a498-cf1d1f46eefe | ip_address=127.0.0.1
+2026-07-09 13:45:24,046 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/payment/plans method=GET request_id=4e1225a5-aafb-448a-a498-cf1d1f46eefe
+2026-07-09 13:45:24,047 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=f4571359-95f4-4bb0-8bc3-1f43cd4e824b | path=/api/payment/plans | method=GET | ip=127.0.0.1
+2026-07-09 13:45:24,047 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=f4571359-95f4-4bb0-8bc3-1f43cd4e824b | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:45:24,047 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=f4571359-95f4-4bb0-8bc3-1f43cd4e824b | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:45:24,047 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=f4571359-95f4-4bb0-8bc3-1f43cd4e824b | firm_id=6a4454e94cf5df136bac9408
+INFO:     127.0.0.1:58270 - "GET /api/payment/plans HTTP/1.1" 200 OK
+2026-07-09 13:45:24,118 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | token_version=1
+2026-07-09 13:45:24,118 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | user_email=None | user_role=client | path=/api/payment/init | method=POST | request_id=b5d4e22a-3730-4e37-bede-ed0eafdef906 | ip_address=127.0.0.1
+2026-07-09 13:45:24,118 - middleware.tenant_isolation - INFO - [TENANT] firm_id=6a4454e94cf5df136bac9408 user_id=6a4454e94cf5df136bac9408 path=/api/payment/init method=POST request_id=b5d4e22a-3730-4e37-bede-ed0eafdef906
+2026-07-09 13:45:24,119 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=261d0766-9029-4615-81f4-1911561f4400 | path=/api/payment/init | method=POST | ip=127.0.0.1
+2026-07-09 13:45:24,119 - kernel.tenant_kernel - INFO - [TENANT_RESOLVED] from JWT. request_id=261d0766-9029-4615-81f4-1911561f4400 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408
+2026-07-09 13:45:24,119 - kernel.tenant_kernel - INFO - [TENANT_VALIDATION_OK] Kernel validation complete. request_id=261d0766-9029-4615-81f4-1911561f4400 | firm_id=6a4454e94cf5df136bac9408 | user_id=6a4454e94cf5df136bac9408 | validation_source=JWT
+2026-07-09 13:45:24,119 - kernel.tenant_kernel_middleware - INFO - [TENANT_KERNEL_MIDDLEWARE] Kernel validation passed. request_id=261d0766-9029-4615-81f4-1911561f4400 | firm_id=6a4454e94cf5df136bac9408
+2026-07-09 13:45:24,121 - repositories.transaction.transaction_repository - INFO - [transactions] TransactionRepository initialized collection=puntocero_legal.transactions
+2026-07-09 13:45:24,124 - repositories.enterprise_base_repository - INFO - [transactions] CREATE firm_id=6a4454e94cf5df136bac9408 id=6a4fec44f176fd18684bc7a2 request_id=261d0766-9029-4615-81f4-1911561f4400
+INFO:     127.0.0.1:58271 - "POST /api/payment/init HTTP/1.1" 200 OK

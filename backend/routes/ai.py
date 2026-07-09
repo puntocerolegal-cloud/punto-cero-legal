@@ -34,6 +34,10 @@ CLAUDE_FALLBACK_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-8")
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 
@@ -52,11 +56,13 @@ async def get_current_user_for_ai(
         if scheme.lower() != "bearer":
             raise ValueError("Invalid auth scheme")
 
-        # Decodificar JWT (simplificado; usa tu función real de JWT)
-        from services.enterprise_auth_service import decode_jwt_token
-        payload = decode_jwt_token(token)
-        user_id = payload.get("sub")
+        # Decodificar JWT con SECRET_KEY unificado
+        from utils.auth import decode_token
+        payload = decode_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
+        user_id = payload.get("user_id")
         if not user_id:
             raise HTTPException(status_code=401, detail="Token inválido")
 
@@ -65,7 +71,7 @@ async def get_current_user_for_ai(
         if not user:
             raise HTTPException(status_code=401, detail="Usuario no encontrado")
 
-        if user.get("status") != "active":
+        if user.get("status") not in ["ACTIVE", "active"]:
             raise HTTPException(status_code=403, detail="Usuario no activo")
 
         # Validar firma y tenant

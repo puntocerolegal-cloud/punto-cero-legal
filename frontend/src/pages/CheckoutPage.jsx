@@ -370,7 +370,7 @@ export const CheckoutPage = () => {
             )}
 
             <button onClick={() => navigate('/dashboard')} className="w-full mt-3 text-xs text-white/40 hover:text-white/60 underline">
-              Continuar con mi prueba gratis (7 días)
+              Continuar con mi prueba gratis (3 días)
             </button>
           </motion.div>
         </div>

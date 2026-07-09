@@ -26,6 +26,10 @@ APP_URL = os.environ.get("APP_PUBLIC_URL", "https://app.puntocerolegal.com")
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 

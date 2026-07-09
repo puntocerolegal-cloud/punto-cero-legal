@@ -544,7 +544,7 @@ export const DashboardHome = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">
-                      {trialLeft?.expired ? 'Tu prueba gratuita finalizó' : 'Estás en tu prueba gratuita de 7 días'}
+                      {trialLeft?.expired ? 'Tu prueba gratuita finalizó' : 'Estás en tu prueba gratuita de 3 días'}
                     </h3>
                     <p className="text-sm text-white/60 mt-1 max-w-xl">
                       {trialLeft?.expired

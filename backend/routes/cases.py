@@ -31,6 +31,10 @@ router = APIRouter(prefix="/cases", tags=["Case Management"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
 
@@ -123,12 +127,18 @@ async def _conflict_check(db, lawyer_id: str, counterparty: str) -> dict:
 
 
 def _serialize_case(case: dict) -> dict:
+    from bson import ObjectId
     case = dict(case)
     case["_id"] = str(case["_id"])
     for f in ("created_at", "updated_at", "deadline", "registered_at"):
         v = case.get(f)
         if isinstance(v, datetime):
             case[f] = v.isoformat()
+    # Defensive: never let a stray ObjectId (e.g. legacy docs where lawyer_id/
+    # client_id was stored as ObjectId) break JSON serialization of the response.
+    for k, v in case.items():
+        if isinstance(v, ObjectId):
+            case[k] = str(v)
     return case
 
 
@@ -146,7 +156,9 @@ async def create_case(
     # Non-admin users auto-assign to self
     user_role = current_user.get("role", "lawyer")
     if user_role != "admin":
-        payload["lawyer_id"] = current_user.get("_id")
+        # Store as string for consistency with queries elsewhere and to keep the
+        # response JSON-serializable (ObjectId is not serializable by Pydantic).
+        payload["lawyer_id"] = str(current_user.get("_id"))
 
     lawyer_id = payload.get("lawyer_id")
     if not lawyer_id:

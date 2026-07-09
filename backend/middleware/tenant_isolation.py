@@ -67,14 +67,25 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
         "/api/auth/refresh",
     }
 
+    # Public endpoints reachable before authentication (prefix match).
+    PUBLIC_PATH_PREFIXES = (
+        "/api/firms/register",
+        "/api/firms/activate-account",
+        "/api/public/",
+        "/api/payment/webhook",
+    )
+
     async def dispatch(self, request: Request, call_next):
         """
         Intercept request, extract tenant context, validate isolation.
         Attach tenant context to request state for downstream handlers.
         """
-        
-        # Skip exempt paths
-        if request.url.path in self.EXEMPT_PATHS:
+
+        # Skip exempt paths (exact match) and public pre-auth paths (prefix match)
+        path = request.url.path
+        if path in self.EXEMPT_PATHS or any(
+            path == p or path.startswith(p) for p in self.PUBLIC_PATH_PREFIXES
+        ):
             return await call_next(request)
 
         try:

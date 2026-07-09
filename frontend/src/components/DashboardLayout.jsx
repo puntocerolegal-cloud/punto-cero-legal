@@ -59,23 +59,25 @@ export const DashboardLayout = ({ children }) => {
   // Si ya estamos dentro de otro layout (FirmOSLayout), no volver a aplicar
   // sidebar/header/margen: sólo renderizar el contenido para no duplicar el
   // offset lateral. En Lawyer OS isNested es false (comportamiento intacto).
+  //
+  // IMPORTANTE (rules-of-hooks): TODOS los hooks se invocan antes de cualquier
+  // return temprano para respetar el orden estable de hooks de React.
   const isNested = React.useContext(NestedLayoutContext);
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Contexto global de expediente (cliente/expediente activo).
+  const { active, clear } = useCaseContext();
+  // Fuente ÚNICA de verdad (frontend): plan y estado desde SubscriptionContext.
+  const { access } = useSubscription();
+
+  // Early return DESPUÉS de invocar todos los hooks (sin duplicar layout anidado).
   if (isNested) {
     return <>{children}</>;
   }
 
-  const navigate = useNavigate();
-  const { logout, user } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const apellido = lastName(user?.full_name || "");
   const titulo = titleFor(user?.country || "Colombia");
-
-  // Contexto global de expediente (cliente/expediente activo).
-  const { active, clear } = useCaseContext();
-
-  // Fuente ÚNICA de verdad (frontend): plan y estado desde SubscriptionContext.
-  const { access } = useSubscription();
   const planActual = access?.plan?.name || '—';
   const estadoActual = access?.status || 'ACTIVO';
 
@@ -103,7 +105,7 @@ export const DashboardLayout = ({ children }) => {
             <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Oficina Virtual</div>
           </div>
         </div>
-        <nav className="flex-1 p-3 overflow-y-auto">
+        <nav className="flex-1 p-4 overflow-y-auto">
           {menuItems.map((item) => (
             <NavLink key={item.path} to={item.path} end={item.path === '/dashboard'} onClick={() => setSidebarOpen(false)}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm transition-all ${isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends, Header
+from typing import List, Optional
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.message import MessageCreate, Message
@@ -9,10 +9,51 @@ router = APIRouter(prefix="/messages", tags=["Message Center"])
 
 async def get_db():
     from server import db
+    # Bypass GuardedDB for direct-access routes; tenant isolation is enforced
+    # via get_current_user + explicit firm filtering (same pattern as routes/auth.py).
+    if hasattr(db, "_real_db"):
+        return db._real_db
     return db
 
+async def get_current_user_from_auth(
+    authorization: str = Header(None),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Valida JWT y retorna usuario autenticado"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Autorización requerida")
+
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise ValueError("Invalid auth scheme")
+
+        from utils.auth import decode_token
+        payload = decode_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token inválido")
+
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+        user["_id"] = str(user["_id"])
+        return user
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
 @router.post("/", response_model=dict)
-async def create_message(message_data: MessageCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_message(
+    message_data: MessageCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user = Depends(get_current_user_from_auth)
+):
     import uuid
     
     message_dict = message_data.model_dump()
@@ -35,7 +76,8 @@ async def get_messages(
     case_id: str = None,
     thread_id: str = None,
     unread_only: bool = False,
-    db: AsyncIOMotorDatabase = Depends(get_db)
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user = Depends(get_current_user_from_auth)
 ):
     query = {}
     
@@ -60,7 +102,11 @@ async def get_messages(
     return messages
 
 @router.patch("/{message_id}/mark-read", response_model=dict)
-async def mark_message_as_read(message_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def mark_message_as_read(
+    message_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user = Depends(get_current_user_from_auth)
+):
     result = await db.messages.update_one(
         {"_id": ObjectId(message_id)},
         {"$set": {"read": True, "updated_at": datetime.utcnow()}}

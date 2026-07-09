@@ -89,6 +89,13 @@ class InMemoryDB:
         self._collections[name] = coll
         return coll
 
+    def __getitem__(self, name):
+        if name in self._collections:
+            return self._collections[name]
+        coll = InMemoryCollection()
+        self._collections[name] = coll
+        return coll
+
 
 def create_fallback_db():
     fallback_db = InMemoryDB()
@@ -119,8 +126,13 @@ def create_fallback_db():
 # MongoDB connection with graceful fallback
 try:
     mongo_url = os.environ.get('MONGO_URL')
+    environment = os.environ.get('ENVIRONMENT', 'development')
+
     if not mongo_url:
-        logger.warning("MONGO_URL not set, using local fallback")
+        if environment == 'production':
+            logger.critical("MONGO_URL not set in production. Failing fast.")
+            raise RuntimeError("MongoDB URL is required in production environment")
+        logger.warning("MONGO_URL not set, using local fallback for development")
         mongo_url = "mongodb://localhost:27017"
 
     client = AsyncIOMotorClient(
@@ -138,11 +150,15 @@ try:
     logger.info("MongoDB wrapped in GuardedDB hard barrier")
 
 except Exception as e:
-    logger.error(f"MongoDB initialization failed: {e}")
+    environment = os.environ.get('ENVIRONMENT', 'development')
+    if environment == 'production':
+        logger.critical(f"MongoDB initialization failed in production: {e}. Cannot continue.")
+        raise
+    logger.error(f"MongoDB initialization failed in development: {e}")
     client = None
     db = create_fallback_db()
     FALLBACK_DB = True
-    logger.warning("Usando modo degradado: fallback en memoria activo")
+    logger.warning("Development mode: Using fallback in-memory database. Data will NOT persist.")
 
 # CRITICAL FIX (S5.3-Finding#9): Graceful shutdown management
 from utils.graceful_shutdown import get_shutdown_manager, graceful_shutdown_context
@@ -579,15 +595,7 @@ def get_cors_origins():
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "https://punto-cero-legal.vercel.app",
-        "https://puntocerolegal.com",
-        "https://puntocero-legal-api.onrender.com",
-    ],
+    allow_origins=get_cors_origins(),
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     max_age=86400,

@@ -80,7 +80,7 @@ export const RegisterPage = () => {
 
         <div className="backdrop-blur-xl bg-white/5 rounded-3xl p-8 border border-white/20 shadow-2xl">
           <h1 className="text-3xl font-bold text-white mb-2">Únete a la red más grande de LATAM</h1>
-          <p className="text-white/60 mb-6">Comienza tu prueba gratuita de 7 días</p>
+          <p className="text-white/60 mb-6">Comienza tu prueba gratuita de 3 días</p>
 
           {planFromUrl && (
             <div className="mb-4 p-3 rounded-xl bg-[#f97316]/10 border border-[#f97316]/30 flex items-center gap-2 text-[#f97316]">
