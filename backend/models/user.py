@@ -59,7 +59,7 @@ class UserBase(BaseModel):
     permissions: Optional[list] = Field(default_factory=list, description="Permisos específicos del usuario")
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=8, description="Mínimo 8 caracteres")
 
 class User(UserBase):
     id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
