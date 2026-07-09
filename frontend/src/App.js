@@ -78,7 +78,7 @@ function App() {
             <Route path="/terms" element={<TermsConditions />} />
             <Route path="/subscription-agreement" element={<SubscriptionAgreement />} />
 
-            <Route path="/portal" element={<PortalPage />} />
+            <Route path="/portal" element={<ProtectedRoute require={['client', 'lawyer']}><PortalPage /></ProtectedRoute>} />
             <Route path="/portal/:code" element={<PortalPage />} />
             {/* Centro de Control unificado — AdminModule (Punto Cero System OS) es el
                 ÚNICO panel principal de /admin. El AdminPanel heredado NO se elimina:
