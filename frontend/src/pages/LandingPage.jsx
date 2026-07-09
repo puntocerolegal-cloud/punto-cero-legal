@@ -151,6 +151,10 @@ export const LandingPage = () => {
 
       navigate('/admin');
 
+    } else if (['firm_owner', 'firm_admin', 'firm_lawyer'].includes(user?.role)) {
+
+      navigate('/firm-os');
+
     } else if (user?.is_verified === false || user?.status === 'PENDING_VERIFICATION') {
 
       navigate('/verificacion-pendiente');
@@ -170,6 +174,8 @@ export const LandingPage = () => {
     if (!isAuthenticated) return 'Iniciar Sesión';
 
     if (['admin', 'admin_general', 'socio_comercial'].includes(user?.role)) return 'Centro de Gestión';
+
+    if (['firm_owner', 'firm_admin', 'firm_lawyer'].includes(user?.role)) return 'Centro de Firma';
 
     return 'Mi Oficina Jurídica';
 
@@ -1434,11 +1440,11 @@ export const LandingPage = () => {
 
             </h2>
 
-            <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
+              <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
 
-              Comienza con 7 días gratis. Sin tarjeta de crédito. Cancela cuando quieras.
+                Comienza con 3 días gratis. Sin tarjeta de crédito. Cancela cuando quieras.
 
-            </p>
+              </p>
 
 
 
@@ -1520,6 +1526,8 @@ export const LandingPage = () => {
 
                 id: 'esencial',
 
+                slug: 'despegue',
+
                 name: 'El Despegue',
 
                 priceMonthly: PLANS.find(p => p.slug === 'despegue').priceUsd * 4000,
@@ -1539,6 +1547,8 @@ export const LandingPage = () => {
               {
 
                 id: 'profesional',
+
+                slug: 'salto-estrategico',
 
                 name: 'El Salto Estratégico',
 
@@ -1562,6 +1572,8 @@ export const LandingPage = () => {
 
                 id: 'elite',
 
+                slug: 'firma-crecimiento',
+
                 name: 'Firma en Crecimiento',
 
                 priceMonthly: PLANS.find(p => p.slug === 'firma-crecimiento').priceUsd * 4000,
@@ -1581,6 +1593,8 @@ export const LandingPage = () => {
               {
 
                 id: 'ilimitado',
+
+                slug: 'consolidacion-empresarial',
 
                 name: 'Consolidación Empresarial',
 
@@ -1768,7 +1782,7 @@ export const LandingPage = () => {
 
           <div className="text-center mt-10 text-white/50 text-sm flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6">
 
-            <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> 7 días gratis</div>
+            <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> 3 días gratis</div>
 
             <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[#10b981]" /> Sin permanencia</div>
 
