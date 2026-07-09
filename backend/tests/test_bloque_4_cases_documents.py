@@ -2,12 +2,12 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException, status
-from backend.services.enterprise_case_service import CaseService
-from backend.services.enterprise_document_service import DocumentService
-from backend.repositories.case_repository import CaseRepository
-from backend.repositories.document_repository import DocumentRepository
-from backend.repositories.document_access_log_repository import DocumentAccessLogRepository
-from backend.utils.enterprise_exceptions import ValidationException
+from services.enterprise_case_service import CaseService
+from services.enterprise_document_service import DocumentService
+from repositories.case_repository import CaseRepository
+from repositories.document_repository import DocumentRepository
+from repositories.document_access_log_repository import DocumentAccessLogRepository
+from utils.enterprise_exceptions import ValidationException
 
 
 @pytest.fixture

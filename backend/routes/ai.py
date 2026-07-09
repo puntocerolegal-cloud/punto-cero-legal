@@ -1,17 +1,29 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
+from fastapi import Header
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import os
 import uuid
 import httpx
 from bson import ObjectId
 import logging
+import time
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["AI Legal Assistant"])
+
+# BLOQUEADOR 3: Rate Limiter Enterprise
+limiter = Limiter(key_func=get_remote_address)
+RATE_LIMITS = {
+    "per_minute": int(os.environ.get("AI_RATE_LIMIT_MINUTE", 20)),
+    "per_hour": int(os.environ.get("AI_RATE_LIMIT_HOUR", 200)),
+    "per_day": int(os.environ.get("AI_RATE_LIMIT_DAY", 1000)),
+}
 
 # IA base gratuita para TODOS los planes: Google Gemini Flash via API REST
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
@@ -23,6 +35,68 @@ CLAUDE_FALLBACK_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-8")
 async def get_db():
     from server import db
     return db
+
+
+# BLOQUEADOR 1: Autenticación Obligatoria
+async def get_current_user_for_ai(
+    authorization: str = Header(None),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    """Valida JWT, TenantContext, y que el abogado esté activo."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Autorización requerida")
+
+    try:
+        # Espera formato: "Bearer {token}"
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise ValueError("Invalid auth scheme")
+
+        # Decodificar JWT (simplificado; usa tu función real de JWT)
+        from services.enterprise_auth_service import decode_jwt_token
+        payload = decode_jwt_token(token)
+        user_id = payload.get("sub")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token inválido")
+
+        # BLOQUEADOR 1: Validar que el abogado exista y esté activo
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+        if user.get("status") != "active":
+            raise HTTPException(status_code=403, detail="Usuario no activo")
+
+        # Validar firma y tenant
+        firm_id = user.get("firm_id")
+        tenant_id = user.get("tenant_id")
+
+        if not firm_id or not tenant_id:
+            raise HTTPException(status_code=403, detail="Contexto de firma/tenant no válido")
+
+        # Validar que el tenant exista
+        tenant = await db.organizations.find_one({"_id": ObjectId(tenant_id)})
+        if not tenant:
+            raise HTTPException(status_code=403, detail="Tenant no válido")
+
+        # Validar que el usuario tenga permiso para usar IA
+        if "ai_access" not in user.get("permissions", []):
+            raise HTTPException(status_code=403, detail="Sin permisos para acceder a IA")
+
+        return {
+            "user_id": user_id,
+            "firm_id": firm_id,
+            "tenant_id": tenant_id,
+            "email": user.get("email"),
+            "name": user.get("name"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Auth validation failed")
+        raise HTTPException(status_code=401, detail="Autenticación inválida")
 
 
 def _current_period() -> str:
@@ -200,15 +274,39 @@ async def _generate_reply(api_key: Optional[str], system_message: str, history: 
 
 
 @router.get("/usage/{lawyer_id}", response_model=dict)
-async def get_ai_usage(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Consumo de consultas del mes actual (sin límites: solo informativo / banner)."""
+async def get_ai_usage(
+    lawyer_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user_for_ai),
+):
+    """Consumo de consultas del mes actual (solo para el usuario autenticado)."""
+    # BLOQUEADOR 2: Validar que solo puedas ver tu propio usage
+    if current_user["user_id"] != lawyer_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver este uso")
+
     used = await _get_usage(lawyer_id, db)
-    return {"used": used, "period": _current_period(), "model": GEMINI_MODEL, "free": True}
+    return {
+        "used": used,
+        "period": _current_period(),
+        "model": GEMINI_MODEL,
+        "limit_per_day": RATE_LIMITS["per_day"],
+        "free": True
+    }
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
+@limiter.limit(f"{RATE_LIMITS['per_minute']}/minute")
+async def chat_with_ai(
+    request: ChatRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user_for_ai)
+):
+    """Chat con IA. Requiere JWT válido, validación de tenant y ownership de sesión."""
     try:
+        user_id = current_user["user_id"]
+        tenant_id = current_user["tenant_id"]
+        firm_id = current_user["firm_id"]
+
         api_key = os.environ.get("GEMINI_API_KEY")
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
         # Si no hay Gemini pero sí Anthropic → se usará Claude automáticamente (vía
@@ -221,6 +319,32 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
             })
 
         session_id = request.session_id or str(uuid.uuid4())
+
+        # BLOQUEADOR 2: Validar ownership de sesión
+        if request.session_id:
+            try:
+                session_doc = await db.ai_sessions.find_one({
+                    "session_id": session_id,
+                    "owner_user_id": user_id,
+                    "tenant_id": tenant_id,
+                })
+                if not session_doc:
+                    logger.warning(f"Acceso no autorizado a sesión {session_id} por usuario {user_id}")
+                    # Registrar intento en SOC
+                    await db.soc_events.insert_one({
+                        "timestamp": datetime.utcnow(),
+                        "event_type": "unauthorized_session_access",
+                        "user_id": user_id,
+                        "session_id": session_id,
+                        "tenant_id": tenant_id,
+                        "severity": "high"
+                    })
+                    raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta sesión")
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.exception("Session ownership validation failed")
+                raise HTTPException(status_code=403, detail="Validación de sesión fallida")
 
         # País: del request o del perfil del abogado en la BD (tolerante a fallos).
         country = request.country
@@ -249,7 +373,11 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
         # Si MongoDB falla, se continúa SIN memoria (nunca 500 por memoria).
         history = []
         try:
-            session = await db.ai_sessions.find_one({"session_id": session_id})
+            session = await db.ai_sessions.find_one({
+                "session_id": session_id,
+                "owner_user_id": user_id,
+                "tenant_id": tenant_id,
+            })
             history = session.get("messages", []) if session else []
         except Exception as e:  # noqa: BLE001
             logger.warning("ai_sessions lectura falló; continúo sin memoria: %s", e)
@@ -257,33 +385,93 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
         # Generación (Gemini primario → Claude respaldo). Aquí sí puede fallar la IA.
         response_text, _provider = await _generate_reply(api_key, system_message, history, request.message)
 
-        # Persiste el turno (tolerante: un fallo de Mongo NO rompe la respuesta).
+        # BLOQUEADOR 5: Persiste el turno de forma ATÓMICA (never lose messages)
+        # Usar findOneAndUpdate para evitar race conditions
         try:
             new_messages = history + [
                 {"role": "user", "text": request.message},
                 {"role": "model", "text": response_text},
             ]
-            await db.ai_sessions.update_one(
+            # BLOQUEADOR 2: Guardar con ownership fields
+            await db.ai_sessions.find_one_and_update(
                 {"session_id": session_id},
-                {"$set": {"messages": new_messages[-40:], "updated_at": datetime.utcnow()}},
+                {"$set": {
+                    "owner_user_id": user_id,
+                    "firm_id": firm_id,
+                    "tenant_id": tenant_id,
+                    "messages": new_messages[-40:],
+                    "updated_at": datetime.utcnow(),
+                    "message_count": len(new_messages),
+                    "last_provider": _provider,
+                }},
                 upsert=True,
+                return_document=True,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("ai_sessions escritura falló; respondo sin persistir memoria: %s", e)
 
-        # Conteo mensual (tolerante a fallos de Mongo).
+        # BLOQUEADOR 3: Conteo mensual con validación de rate limit
+        # (tolerante a fallos de Mongo pero registra abusos)
         usage_info = None
-        if request.lawyer_id:
-            try:
-                await db.ai_usage.update_one(
-                    {"lawyer_id": request.lawyer_id, "period": _current_period()},
-                    {"$inc": {"count": 1}, "$set": {"updated_at": datetime.utcnow()}},
-                    upsert=True,
-                )
-                used = await _get_usage(request.lawyer_id, db)
-                usage_info = {"used": used, "period": _current_period(), "free": True}
-            except Exception as e:  # noqa: BLE001
-                logger.warning("ai_usage falló (ignorado): %s", e)
+        try:
+            # BLOQUEADOR 2: Usar user_id en lugar de lawyer_id para validar tenant
+            period = _current_period()
+
+            # Obtener uso actual
+            usage_doc = await db.ai_usage.find_one({
+                "user_id": user_id,
+                "tenant_id": tenant_id,
+                "period": period,
+            })
+            current_count = (usage_doc or {}).get("count", 0) + 1
+
+            # Verificar límites
+            if current_count > RATE_LIMITS["per_day"]:
+                logger.warning(f"Rate limit excedido para {user_id}: {current_count}/{RATE_LIMITS['per_day']}")
+                await db.rate_limit_logs.insert_one({
+                    "timestamp": datetime.utcnow(),
+                    "user_id": user_id,
+                    "tenant_id": tenant_id,
+                    "count": current_count,
+                    "limit": RATE_LIMITS["per_day"],
+                    "period": period,
+                    "severity": "high"
+                })
+
+            # Incrementar conteo (atomic)
+            await db.ai_usage.find_one_and_update(
+                {
+                    "user_id": user_id,
+                    "tenant_id": tenant_id,
+                    "period": period,
+                },
+                {"$inc": {"count": 1}, "$set": {"updated_at": datetime.utcnow()}},
+                upsert=True,
+            )
+
+            usage_info = {
+                "used": current_count,
+                "period": period,
+                "limit_per_day": RATE_LIMITS["per_day"],
+                "free": True
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ai_usage falló (ignorado): %s", e)
+
+        # Registrar éxito en logs
+        try:
+            await db.ai_conversation_logs.insert_one({
+                "timestamp": datetime.utcnow(),
+                "user_id": user_id,
+                "tenant_id": tenant_id,
+                "firm_id": firm_id,
+                "session_id": session_id,
+                "provider": _provider,
+                "message_length": len(request.message),
+                "response_length": len(response_text),
+            })
+        except Exception:
+            pass  # No afecta la respuesta
 
         return ChatResponse(response=response_text, session_id=session_id, usage=usage_info)
 

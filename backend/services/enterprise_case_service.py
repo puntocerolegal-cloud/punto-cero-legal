@@ -1,8 +1,8 @@
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from fastapi import HTTPException, status
-from backend.repositories.case_repository import CaseRepository
-from backend.utils.enterprise_exceptions import ValidationException, BusinessLogicException
+from repositories.case_repository import CaseRepository
+from utils.enterprise_exceptions import ValidationException, BusinessLogicException
 
 
 class CaseService:
@@ -137,15 +137,8 @@ class CaseService:
         case = await self.case_repo.find_by_id(firm_id, case_id, request_id)
         if not case:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-        
-        updates = {
-            "status": "closed",
-            "closed_date": datetime.utcnow(),
-            "updated_by": closed_by,
-            "updated_at": datetime.utcnow()
-        }
-        
-        updated_case = await self.case_repo.update(firm_id, case_id, updates, request_id)
+
+        updated_case = await self.case_repo.close_case(firm_id, case_id, request_id)
         
         if self.audit_service:
             await self.audit_service.log_action(

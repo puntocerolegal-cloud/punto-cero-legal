@@ -1,0 +1,60 @@
+{
+  "regresion": {
+    "health(exempt)": 200,
+    "admin_login": 200,
+    "lawyerA_login": "ok",
+    "lawyerB_login": "ok",
+    "A_create_client": 500,
+    "A_create_case": 500
+  },
+  "tenant_isolation": {
+    "B_lista_clientes_de_A(status)": 500,
+    "B_ve_datos_de_A": "no",
+    "spoof_XFirmID_firms(status)": 500
+  },
+  "blockers": {
+    "IA_chat": "500 ",
+    "planes_comerciales": "500 None",
+    "meetings_create(status)": 500,
+    "firmowner_firm_id": null
+  },
+  "perf": {
+    "health_ms": [
+      24,
+      200
+    ],
+    "login_ms": [
+      207,
+      200
+    ],
+    "create_client_ms": [
+      5,
+      500
+    ],
+    "admin_dashboard_ms": [
+      21,
+      500
+    ],
+    "health_x30_concurrente": "30/30 ok en 73ms",
+    "health_x60_concurrente": "60/60 ok en 120ms",
+    "login_x20_concurrente": "20/20 ok en 4042ms",
+    "login_x40_concurrente": "40/40 ok en 8082ms"
+  },
+  "seguridad": {
+    "lawyer->admin_pending": 500,
+    "notoken->clients": 500,
+    "admin_dashboard_general": 500
+  },
+  "external": {
+    "GEMINI_API_KEY": "PLACEHOLDER(tu-api-key-de-goog)",
+    "ANTHROPIC_API_KEY": "PLACEHOLDER(sk-ant-api03-xxxxx)",
+    "SMTP_HOST": "configurada",
+    "SMTP_USER": "configurada",
+    "MERCADOPAGO_ACCESS_TOKEN": "AUSENTE",
+    "MP_ACCESS_TOKEN": "PLACEHOLDER()",
+    "WHATSAPP_TOKEN": "AUSENTE",
+    "META_WHATSAPP_TOKEN": "AUSENTE",
+    "GOOGLE_DRIVE": "AUSENTE",
+    "STRIPE_SECRET_KEY": "AUSENTE"
+  }
+}

@@ -114,18 +114,26 @@ export function ExpedientesPage() {
             Gestión de expedientes por cliente • {statistics.totalCases} casos
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        {/* Deshabilitado: la creación de expedientes aún no tiene implementación
+            real (backend/modal). Se re-habilitará cuando exista. */}
+        <button
+          type="button"
+          disabled
+          title="Función en desarrollo"
+          className="flex items-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-white/40 cursor-not-allowed"
+        >
           <Plus className="w-4 h-4" />
           Nuevo Expediente
+          <span className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-white/40">Próximamente</span>
         </button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard label={summaryCard.total.label} value={summaryCard.total.value} status="normal" />
-        <KPICard label={summaryCard.active.label} value={summaryCard.active.value} status="normal" />
-        <KPICard label={summaryCard.closed.label} value={summaryCard.closed.value} status="normal" />
-        <KPICard label={summaryCard.cases.label} value={summaryCard.cases.value} status="normal" />
+        <KPICard icon={FileText} label={summaryCard.total.label} value={summaryCard.total.value} status="normal" />
+        <KPICard icon={FolderKanban} label={summaryCard.active.label} value={summaryCard.active.value} status="normal" />
+        <KPICard icon={Filter} label={summaryCard.closed.label} value={summaryCard.closed.value} status="normal" />
+        <KPICard icon={Users} label={summaryCard.cases.label} value={summaryCard.cases.value} status="normal" />
       </div>
 
       {/* Search and Filter */}

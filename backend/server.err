@@ -1,0 +1,125 @@
+2026-07-07 12:06:49,336 - server - INFO - MongoDB client initialized
+2026-07-07 12:06:49,340 - security.guarded_db - INFO - [DB_BARRIER] GuardedDB initialized - direct access blocked
+2026-07-07 12:06:49,340 - server - INFO - MongoDB wrapped in GuardedDB hard barrier
+INFO:     Started server process [25932]
+INFO:     Waiting for application startup.
+2026-07-07 12:06:49,719 - utils.graceful_shutdown - INFO - [SHUTDOWN] Starting up application
+2026-07-07 12:06:49,720 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGTERM
+2026-07-07 12:06:49,720 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGINT
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-07-07 12:07:06,550 - pymongo.serverSelection - INFO - {"message": "Waiting for suitable server to become available", "selector": "Primary()", "operation": "find", "topologyDescription": "<TopologyDescription id: 6a4d32296edbcc2fe8678f03, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None>]>", "clientId": {"$oid": "6a4d32296edbcc2fe8678f03"}, "remainingTimeMS": 5}
+2026-07-07 12:07:08,901 - middleware.tenant_isolation - INFO - [BLOCK 1][JWT_RESOLVED] firm_id=None | user_id=6a4454e94cf5df136bac9407 | token_version=1
+2026-07-07 12:07:08,903 - middleware.tenant_isolation - INFO - [BLOCK 1][TENANT_CONTEXT_CREATED] firm_id=None | user_id=6a4454e94cf5df136bac9407 | user_email=None | user_role=lawyer | path=/api/ai/chat | method=POST | request_id=7c8cb594-9798-4d2b-be86-e7b96ea07b83 | ip_address=127.0.0.1
+2026-07-07 12:07:08,904 - middleware.tenant_isolation - INFO - [TENANT] firm_id=None user_id=6a4454e94cf5df136bac9407 path=/api/ai/chat method=POST request_id=7c8cb594-9798-4d2b-be86-e7b96ea07b83
+2026-07-07 12:07:08,904 - kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=f9d6328d-7746-41c2-b347-8b52ccce1de8 | path=/api/ai/chat | method=POST | ip=127.0.0.1
+2026-07-07 12:07:08,905 - kernel.tenant_kernel - WARNING - [TENANT_KERNEL] Missing required JWT claims. request_id=f9d6328d-7746-41c2-b347-8b52ccce1de8 | has_firm_id=False | has_user_id=True
+2026-07-07 12:07:08,905 - kernel.tenant_kernel_middleware - CRITICAL - [TENANT_KERNEL_MIDDLEWARE] 500 Kernel Error (CRITICAL). path=/api/ai/chat | error=Missing required JWT claims
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 190, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 119, in dispatch
+    |     raise e
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 110, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    |     raise app_exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 135, in dispatch
+    |     raise HTTPException(
+    | fastapi.exceptions.HTTPException: 500: Tenant validation system failure
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 119, in dispatch
+    raise e
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 110, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 135, in dispatch
+    raise HTTPException(
+fastapi.exceptions.HTTPException: 500: Tenant validation system failure

@@ -19,9 +19,16 @@ logger = logging.getLogger(__name__)
 # Hashing context for passwords
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT configuration (load from env or use defaults)
+# JWT Runtime Fix: Unify JWT_SECRET and SECRET_KEY into one source of truth.
+# Priority: JWT_SECRET > SECRET_KEY. No hardcoded fallback.
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+_JWT_SECRET = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY")
+if not _JWT_SECRET:
+    raise RuntimeError(
+        "FATAL: Neither JWT_SECRET nor SECRET_KEY is set in environment. "
+        "JWT signing/validation cannot proceed."
+    )
+JWT_SECRET = _JWT_SECRET
 JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 JWT_REFRESH_EXPIRATION_DAYS = int(os.getenv("JWT_REFRESH_EXPIRATION_DAYS", "7"))
 

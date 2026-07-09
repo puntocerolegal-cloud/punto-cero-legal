@@ -1,0 +1,2003 @@
+{
+  "run": "yo40y",
+  "created": {
+    "clients_users": 18,
+    "lawyers_users": 18,
+    "firm_users": 18,
+    "visitors": 18,
+    "logins_ok": 54,
+    "pending_login_block": 0
+  },
+  "bycat": {
+    "visitante": {
+      "ok": 36,
+      "fail": 0
+    },
+    "registro": {
+      "ok": 54,
+      "fail": 0
+    },
+    "login": {
+      "ok": 54,
+      "fail": 0
+    },
+    "admin": {
+      "ok": 26,
+      "fail": 0
+    },
+    "analytics": {
+      "ok": 7,
+      "fail": 0
+    },
+    "planes": {
+      "ok": 0,
+      "fail": 8
+    },
+    "lawyer": {
+      "ok": 15,
+      "fail": 2
+    },
+    "ia": {
+      "ok": 2,
+      "fail": 1
+    },
+    "chatbot": {
+      "ok": 1,
+      "fail": 0
+    },
+    "seguridad": {
+      "ok": 0,
+      "fail": 5
+    },
+    "rendimiento": {
+      "ok": 5,
+      "fail": 0
+    }
+  },
+  "detail": [
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "case-intake",
+      "m": "POST",
+      "p": "/public/case-intake",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "visitante",
+      "name": "lawyer-application",
+      "m": "POST",
+      "p": "/public/lawyer-application",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-client",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-lawyer",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "registro",
+      "name": "register-firm",
+      "m": "POST",
+      "p": "/auth/register",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-cliente",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-abogado",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "login",
+      "name": "login-firma",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "admin-login",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "admin-me",
+      "m": "GET",
+      "p": "/admin/me",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "dashboard-general",
+      "m": "GET",
+      "p": "/admin/dashboard/general",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "dashboard-comercial",
+      "m": "GET",
+      "p": "/admin/dashboard/comercial",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "pending-users",
+      "m": "GET",
+      "p": "/admin/access-audit/pending",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "pending-firms",
+      "m": "GET",
+      "p": "/firms/status/pending",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "firms-list",
+      "m": "GET",
+      "p": "/firms/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "firms-summary",
+      "m": "GET",
+      "p": "/firms/stats/summary",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "header-stats",
+      "m": "GET",
+      "p": "/admin-ops/header/stats",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "operations-stats",
+      "m": "GET",
+      "p": "/admin-ops/operations/stats",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "sales-stats",
+      "m": "GET",
+      "p": "/admin-ops/sales/stats",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "sales-candidates",
+      "m": "GET",
+      "p": "/admin-ops/sales/candidates",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "talent",
+      "m": "GET",
+      "p": "/admin-ops/talent",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "billing",
+      "m": "GET",
+      "p": "/admin-ops/billing",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "notifications",
+      "m": "GET",
+      "p": "/admin-ops/notifications",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "accounting-kpis",
+      "m": "GET",
+      "p": "/admin-ops/accounting/kpis",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "geography-stats",
+      "m": "GET",
+      "p": "/admin-ops/geography/stats",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "users-list",
+      "m": "GET",
+      "p": "/users/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "subscriptions",
+      "m": "GET",
+      "p": "/subscriptions",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "subs-dashboard",
+      "m": "GET",
+      "p": "/subscriptions/dashboard",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "approve-user",
+      "m": "POST",
+      "p": "/admin/access-audit/6a4990a03d5b46d7d9be7323/approve",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "approve-user",
+      "m": "POST",
+      "p": "/admin/access-audit/6a4990a03d5b46d7d9be731f/approve",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "reject-user",
+      "m": "POST",
+      "p": "/admin/access-audit/6a49909d3d5b46d7d9be7318/reject",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "approve-user",
+      "m": "POST",
+      "p": "/admin/access-audit/6a49909d3d5b46d7d9be7314/approve",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "approve-user",
+      "m": "POST",
+      "p": "/admin/access-audit/6a49909a3d5b46d7d9be730d/approve",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "admin",
+      "name": "reject-user",
+      "m": "POST",
+      "p": "/admin/access-audit/6a49909a3d5b46d7d9be7309/reject",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-dashboard",
+      "m": "GET",
+      "p": "/analytics/dashboard",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-funnel",
+      "m": "GET",
+      "p": "/analytics/funnel",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-growth",
+      "m": "GET",
+      "p": "/analytics/growth",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-insights",
+      "m": "GET",
+      "p": "/analytics/insights",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-kpis",
+      "m": "GET",
+      "p": "/analytics/kpis",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-revenue",
+      "m": "GET",
+      "p": "/analytics/revenue",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "analytics",
+      "name": "analytics-verticals",
+      "m": "GET",
+      "p": "/analytics/verticals",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "planes",
+      "name": "sub-El Despegu-monthly",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-El Despegu-annual",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-El Salto E-monthly",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-El Salto E-annual",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-Firma en C-monthly",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-Firma en C-annual",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-Consolidac-monthly",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "planes",
+      "name": "sub-Consolidac-annual",
+      "m": "POST",
+      "p": "/subscriptions/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Input should be 'essential', 'professional' or 'enterprise'\"}"
+    },
+    {
+      "cat": "lawyer",
+      "name": "me",
+      "m": "GET",
+      "p": "/auth/me",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "kpis",
+      "m": "GET",
+      "p": "/dashboard/kpis/6a49906a3d5b46d7d9be7268",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "crm-report",
+      "m": "GET",
+      "p": "/dashboard/crm-report/6a49906a3d5b46d7d9be7268",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "notifications",
+      "m": "GET",
+      "p": "/dashboard/notifications/6a49906a3d5b46d7d9be7268",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "create-client",
+      "m": "POST",
+      "p": "/clients/",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "list-clients",
+      "m": "GET",
+      "p": "/clients/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "create-case",
+      "m": "POST",
+      "p": "/cases/",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "list-cases",
+      "m": "GET",
+      "p": "/cases/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "create-invoice",
+      "m": "POST",
+      "p": "/invoices/",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "list-invoices",
+      "m": "GET",
+      "p": "/invoices/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Field required\"}"
+    },
+    {
+      "cat": "lawyer",
+      "name": "create-document",
+      "m": "POST",
+      "p": "/documents/",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "list-documents",
+      "m": "GET",
+      "p": "/documents/",
+      "status": 422,
+      "ok": false,
+      "extra": "{\"detail\": \"Field required\"}"
+    },
+    {
+      "cat": "lawyer",
+      "name": "storage",
+      "m": "GET",
+      "p": "/documents/storage/6a49906a3d5b46d7d9be7268",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "create-appointment",
+      "m": "POST",
+      "p": "/appointments/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "list-appointments",
+      "m": "GET",
+      "p": "/appointments/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "create-lead",
+      "m": "POST",
+      "p": "/leads/",
+      "status": 201,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "lawyer",
+      "name": "list-leads",
+      "m": "GET",
+      "p": "/leads/",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "ia",
+      "name": "ai-chat",
+      "m": "POST",
+      "p": "/ai/chat",
+      "status": 503,
+      "ok": false,
+      "extra": "{\"success\": false, \"error\": \"El asistente IA no est\\u00e1 disponible temporalmente (Gemini sin clave/ca\\u00eddo y respaldo Claude no disponible).\"}"
+    },
+    {
+      "cat": "ia",
+      "name": "ai-templates",
+      "m": "GET",
+      "p": "/ai/templates",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "ia",
+      "name": "ai-usage",
+      "m": "GET",
+      "p": "/ai/usage/6a49906a3d5b46d7d9be7268",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "chatbot",
+      "name": "chatbot-simulate",
+      "m": "POST",
+      "p": "/chatbot/simulate",
+      "status": 200,
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "cat": "seguridad",
+      "name": "lawyer->admin-pending",
+      "m": "GET",
+      "p": "/admin/access-audit/pending",
+      "status": 403,
+      "ok": false,
+      "extra": "{\"detail\": \"Acceso denegado: se requiere rol administrativo\"}"
+    },
+    {
+      "cat": "seguridad",
+      "name": "lawyer->firms-list",
+      "m": "GET",
+      "p": "/firms/",
+      "status": 403,
+      "ok": false,
+      "extra": "{\"detail\": \"Solo administradores pueden listar firmas\"}"
+    },
+    {
+      "cat": "seguridad",
+      "name": "lawyer->analytics",
+      "m": "GET",
+      "p": "/analytics/kpis",
+      "status": 400,
+      "ok": false,
+      "extra": "{\"detail\": \"Falta la cabecera X-Tenant-ID\"}"
+    },
+    {
+      "cat": "seguridad",
+      "name": "notoken->admin-me",
+      "m": "GET",
+      "p": "/admin/me",
+      "status": 401,
+      "ok": false,
+      "extra": "{\"detail\": \"Unauthorized\"}"
+    },
+    {
+      "cat": "seguridad",
+      "name": "notoken->clients",
+      "m": "GET",
+      "p": "/clients/",
+      "status": 401,
+      "ok": false,
+      "extra": "{\"detail\": \"No autenticado\"}"
+    },
+    {
+      "cat": "rendimiento",
+      "name": "health x10 concurrentes",
+      "m": "GET",
+      "p": "/health",
+      "status": "10/10 ok",
+      "ok": true,
+      "extra": "total=0.02s avg=0.008s max=0.011s"
+    },
+    {
+      "cat": "rendimiento",
+      "name": "health x25 concurrentes",
+      "m": "GET",
+      "p": "/health",
+      "status": "25/25 ok",
+      "ok": true,
+      "extra": "total=0.06s avg=0.013s max=0.033s"
+    },
+    {
+      "cat": "rendimiento",
+      "name": "health x50 concurrentes",
+      "m": "GET",
+      "p": "/health",
+      "status": "50/50 ok",
+      "ok": true,
+      "extra": "total=0.07s avg=0.015s max=0.027s"
+    },
+    {
+      "cat": "rendimiento",
+      "name": "login x10 concurrentes",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": "10/10 ok",
+      "ok": true,
+      "extra": "total=2.01s"
+    },
+    {
+      "cat": "rendimiento",
+      "name": "login x20 concurrentes",
+      "m": "POST",
+      "p": "/auth/login",
+      "status": "20/20 ok",
+      "ok": true,
+      "extra": "total=4.02s"
+    }
+  ]
+}

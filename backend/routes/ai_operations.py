@@ -25,12 +25,14 @@ async def score_lead(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Score a lead for conversion probability"""
+    from fastapi import HTTPException, status
+
     if not ObjectId.is_valid(lead_id):
-        return {"success": False, "message": "Lead no válido"}
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Lead no válido")
+
     lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
     if not lead:
-        return {"success": False, "message": "Lead no encontrado"}
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead no encontrado")
     
     score = await LeadScoringEngine.score_lead(db, lead)
     

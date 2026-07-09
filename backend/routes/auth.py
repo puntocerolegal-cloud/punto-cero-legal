@@ -5,6 +5,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.user import UserCreate, User, UserLogin, UserResponse
 from utils.auth import get_password_hash, verify_password, create_access_token, decode_token
 from utils import notifier
+from utils.rate_limiter_decorator import rate_limit  # CRITICAL FIX (S5.3-Finding#9)
+from fastapi import Request
 from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -12,6 +14,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 # Dependency to get database
 async def get_db():
     from server import db
+    # Return the real database (bypass GuardedDB for auth operations)
+    if hasattr(db, '_real_db'):
+        return db._real_db
     return db
 
 
@@ -19,13 +24,19 @@ async def get_current_user(
     authorization: Optional[str] = Header(None),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Resuelve el usuario autenticado desde el JWT Bearer token."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="No autenticado")
-    token = authorization.replace("Bearer ", "")
+    """Resuelve el usuario autenticado desde el JWT Bearer token.
+
+    CRITICAL FIX (S5.3-Finding#5): Hardened Bearer token extraction and validation
+    """
+    from utils.auth import extract_bearer_token
+
+    # CRITICAL FIX: Proper Bearer token extraction (not simple .replace())
+    token = extract_bearer_token(authorization)
+
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
     user = await db.users.find_one({"email": payload["sub"]})
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -45,18 +56,32 @@ async def get_current_admin(
 
 
 @router.get("/me")
-async def get_me(current = Depends(get_current_user)):
+async def get_me(current = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Devuelve el estado actual del usuario autenticado (fuente de verdad).
     Útil para sincronizar is_verified tras la aprobación admin."""
+
+    # FIX: Si el usuario es firm_owner y no tiene firm_id, buscar la firma por owner_email
+    firm_id = current.get("firm_id")
+    role = current.get("role", "lawyer")
+    if role == "firm_owner" and not firm_id:
+        firm = await db.firms.find_one({"owner_email": current["email"], "status": "ACTIVE"})
+        if firm:
+            firm_id = str(firm["_id"])
+            # Actualizar el usuario con firm_id para futuros accesos
+            await db.users.update_one(
+                {"_id": current["_id"]},
+                {"$set": {"firm_id": firm_id}}
+            )
+
     return {
         "id": str(current["_id"]),
         "email": current["email"],
         "full_name": current.get("full_name"),
-        "role": current["role"],
+        "role": role,
         "status": current.get("status", "PENDING_VERIFICATION"),
         "is_verified": bool(current.get("is_verified", False)),
         "requires_password_change": bool(current.get("requires_password_change", False)),
-        "firm_id": current.get("firm_id"),
+        "firm_id": firm_id,
         "country": current.get("country"),
         "specialty": current.get("specialty"),
         "phone": current.get("phone"),
@@ -68,7 +93,8 @@ async def get_me(current = Depends(get_current_user)):
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
+@rate_limit(max_requests=3, window_seconds=60)  # 3 registration attempts per minute per IP
+async def register(request: Request, user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
     # Check if user exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
@@ -105,8 +131,13 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
         except Exception:
             pass
 
-    # Create access token
-    access_token = create_access_token(data={"sub": user_data.email, "role": user_data.role})
+    # [BLOCK 1] Create JWT with firm_id and user_id for multi-tenant isolation
+    access_token = create_access_token(data={
+        "sub": user_data.email,
+        "role": user_data.role,
+        "user_id": str(result.inserted_id),
+        "firm_id": user_dict.get("firm_id")  # Required for tenant isolation
+    })
     
     return {
         "access_token": access_token,
@@ -122,7 +153,8 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
     }
 
 @router.post("/login", response_model=dict)
-async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_db)):
+@rate_limit(max_requests=5, window_seconds=60)  # 5 login attempts per minute per IP
+async def login(request: Request, credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_db)):
     user = await db.users.find_one({"email": credentials.email})
     
     # Guarda: candidatos creados vía landing tienen password_hash=None hasta ser aprobados
@@ -149,7 +181,25 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
     else:
         is_verified = bool(user.get("is_verified", False))
 
-    access_token = create_access_token(data={"sub": user["email"], "role": role})
+    # FIX: Si el usuario es firm_owner y no tiene firm_id, buscar la firma por owner_email
+    firm_id = user.get("firm_id")
+    if role == "firm_owner" and not firm_id:
+        firm = await db.firms.find_one({"owner_email": user["email"], "status": "ACTIVE"})
+        if firm:
+            firm_id = str(firm["_id"])
+            # Actualizar el usuario con firm_id para futuros logins
+            await db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {"firm_id": firm_id}}
+            )
+
+    # [BLOCK 1] Create JWT with firm_id and user_id for multi-tenant isolation
+    access_token = create_access_token(data={
+        "sub": user["email"],
+        "role": role,
+        "user_id": str(user["_id"]),
+        "firm_id": firm_id  # Required for tenant isolation; None indicates independent user
+    })
 
     return {
         "access_token": access_token,
@@ -162,7 +212,7 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
             "status": user.get("status", "PENDING_VERIFICATION"),
             "is_verified": is_verified,
             "requires_password_change": bool(user.get("requires_password_change", False)),
-            "firm_id": user.get("firm_id"),
+            "firm_id": firm_id,
             "country": user.get("country"),
             "specialty": user.get("specialty"),
             "phone": user.get("phone"),

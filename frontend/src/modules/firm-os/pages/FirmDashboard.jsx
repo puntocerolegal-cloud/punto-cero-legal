@@ -133,7 +133,7 @@ export function FirmDashboard() {
           </div>
           <div>
             <CapacityBar used={vm.capacityBar.used} total={vm.capacityBar.total} label={vm.capacityBar.label} color={vm.capacityBar.color} />
-            <button className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <button onClick={() => navigate('/firm-os/settings')} className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
               Actualizar Plan
             </button>
           </div>
@@ -146,7 +146,7 @@ export function FirmDashboard() {
             <KPICard key={metric.key} icon={[Users, CheckCircle2, Calendar, TrendingUp, Clock][vm.teamSection.metrics.indexOf(metric)]} label={metric.label} value={metric.value} color={metric.color} />
           ))}
         </div>
-        <button className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
+        <button onClick={() => navigate('/firm-os/team')} className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
           Administrar Equipo
         </button>
       </SectionCard>

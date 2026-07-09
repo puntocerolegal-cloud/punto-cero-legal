@@ -4,13 +4,15 @@ Endpoints públicos de captación — Punto Cero Legal
 - Formulario abogado (Únase a nuestra red) → users (role=lawyer / PENDING_VERIFICATION)
 Ambos disparan notificación al panel admin.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from utils.case_number_generator import generate_case_number, next_consultation_number
 from utils import notifier
+from utils.rate_limiter_decorator import rate_limit  # CRITICAL FIX (S5.3-Finding#9)
+from utils.xss_protection import sanitize_case_description  # CRITICAL FIX S5.3-Finding#6
 
 router = APIRouter(prefix="/public", tags=["Public Intake"])
 
@@ -36,7 +38,8 @@ PRIORITY_LABELS = {"urgente": "alta", "alta": "alta", "media": "media", "baja": 
 
 
 @router.post("/case-intake")
-async def case_intake(payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(get_db)):
+@rate_limit(max_requests=5, window_seconds=60)  # 5 intakes per minute per IP
+async def case_intake(request: Request, payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(get_db)):
     """Captura una solicitud de consulta jurídica desde la landing.
     Crea el caso en estado sin_asignar/PENDING_ASSIGNMENT listo para Routing Inteligente.
     """
@@ -51,10 +54,10 @@ async def case_intake(payload: ClientIntake, db: AsyncIOMotorDatabase = Depends(
     norm_phone = chatbot.normalize_phone(payload.phone, payload.country)
 
     case_doc = {
-        "case_number": consultation_number,          # CON-2026-001
+        "case_number": sanitize_case_description(consultation_number),  # CRITICAL FIX S5.3-Finding#6
         "consultation_number": consultation_number,
-        "title": f"Consulta {payload.legal_area} · {payload.name}",
-        "description": payload.description,
+        "title": sanitize_case_description(f"Consulta {payload.legal_area} · {payload.name}"),  # CRITICAL FIX S5.3-Finding#6
+        "description": sanitize_case_description(payload.description),  # CRITICAL FIX S5.3-Finding#6
         "legal_area": payload.legal_area,
         "priority": priority_engine,
         "priority_label": priority_label,
@@ -124,7 +127,8 @@ def _with_dr(name: str) -> str:
 
 
 @router.post("/lawyer-application")
-async def lawyer_application(payload: LawyerApplication, db: AsyncIOMotorDatabase = Depends(get_db)):
+@rate_limit(max_requests=10, window_seconds=60)  # 10 applications per minute per IP
+async def lawyer_application(request: Request, payload: LawyerApplication, db: AsyncIOMotorDatabase = Depends(get_db)):
     """Captura una solicitud de incorporación de abogado.
     Crea registro en users con role=lawyer, status=PENDING_VERIFICATION, is_verified=False.
     Aparece en Sala de Ventas del Centro de Gestión.

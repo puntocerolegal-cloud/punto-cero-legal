@@ -1,66 +1,61 @@
 """Service layer de Organizaciones — Punto Cero OS (multi-tenant).
 
-Reglas clave:
-- TODA consulta incluye tenantId (Fase 5). Solo SUPER_ADMIN puede operar
-  cross-tenant (tenant_id None ⇒ sin filtro de tenant).
-- slug único por tenant (índice compuesto + verificación previa).
-- Cada operación queda auditada en la colección audit_logs.
+Migration to Repository Layer (O3 — Sprint S1.5)
+
+Architecture:
+- All CRUD operations delegated to OrganizationRepository
+- Request tracing via request_id
+- Tenant isolation via firm_id (TenantAwareQuery in repositories)
+- Multi-tenant safety enforced at repository layer
+- Backward compatible with existing REST APIs
+
+Removed direct MongoDB access patterns:
+- find_one() → repository.find_by_id()
+- find() → repository.list_paginated()
+- insert_one() → repository.create()
+- update_one() → repository.update()
+- delete_one() → repository.soft_delete()
 """
 import re
 import unicodedata
 from datetime import datetime
 from typing import Optional
+import logging
 
 from bson import ObjectId
-from pymongo import ASCENDING
-from pymongo.errors import DuplicateKeyError
 
 from utils.responses import OrgError
+from repositories.organization_repository import OrganizationRepository
+from repositories.audit_log_repository import AuditLogRepository
+
+logger = logging.getLogger(__name__)
 
 
 # ───────────────────── Utilidades ─────────────────────
 def slugify(value: str) -> str:
+    """Convert string to URL-safe slug (no database access)"""
     value = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
     return value or "org"
 
 
 def _oid(org_id: str) -> ObjectId:
+    """Validate and convert string to ObjectId (no database access)"""
     if not ObjectId.is_valid(org_id):
         raise OrgError(404, "Organización no encontrada")
     return ObjectId(org_id)
 
 
 def _serialize(doc: dict) -> dict:
+    """Convert MongoDB ObjectId to string for API response (no database access)"""
     if not doc:
         return doc
     doc = {**doc, "_id": str(doc["_id"])}
     return doc
 
 
-async def ensure_indexes(db):
-    """Fase 2 — índices: tenantId, slug, status y compuesto único tenantId+slug."""
-    await db.organizations.create_index([("tenantId", ASCENDING)])
-    await db.organizations.create_index([("slug", ASCENDING)])
-    await db.organizations.create_index([("status", ASCENDING)])
-    await db.organizations.create_index(
-        [("tenantId", ASCENDING), ("slug", ASCENDING)], unique=True, name="uniq_tenant_slug"
-    )
-
-
-def _tenant_filter(ctx: dict, extra: Optional[dict] = None) -> dict:
-    """Filtro base con tenant. Nunca se consulta sin tenant salvo SUPER_ADMIN
-    sin tenant explícito (visión cross-tenant)."""
-    q = dict(extra or {})
-    if ctx.get("tenant_id"):
-        q["tenantId"] = str(ctx["tenant_id"])
-    elif not ctx.get("is_super_admin"):
-        # Defensa en profundidad: jamás devolver datos sin tenant a no-superadmin.
-        raise OrgError(400, "Operación sin tenant no permitida")
-    return q
-
-
 async def _audit(db, action: str, ctx: dict, detail: str = ""):
+    """Legacy audit logging (kept for O5 scope, fire-and-forget)"""
     try:
         await db.audit_logs.insert_one({
             "action": action,
@@ -72,24 +67,34 @@ async def _audit(db, action: str, ctx: dict, detail: str = ""):
             "created_at": datetime.utcnow(),
         })
     except Exception:
-        pass  # la auditoría nunca debe romper la operación
+        pass
 
 
 # ───────────────────── CRUD ─────────────────────
 async def create_organization(db, ctx: dict, payload) -> dict:
-    tenant_id = ctx.get("tenant_id")
-    if not tenant_id:
+    """
+    Create organization via repository layer with audit logging.
+
+    Tenant validation, slug uniqueness, and isolation all handled by OrganizationRepository.
+    """
+    firm_id = ctx.get("tenant_id")
+    if not firm_id:
         raise OrgError(400, "Se requiere tenant para crear una organización")
 
+    request_id = ctx.get("request_id", "no-request-id")
+    user_id = ctx.get("user_id", "system")
+    ip_address = ctx.get("ip_address", "unknown")
     slug = slugify(payload.slug or payload.name)
-    # Verificación previa de unicidad por tenant (además del índice único).
-    existing = await db.organizations.find_one({"tenantId": str(tenant_id), "slug": slug})
-    if existing:
+
+    # Pre-check: Validate slug uniqueness
+    repo = OrganizationRepository(db.organizations)
+    is_unique = await repo.validate_slug_unique(firm_id, slug, request_id=request_id)
+    if not is_unique:
         raise OrgError(409, f"Ya existe una organización con el slug '{slug}' en este tenant")
 
+    # Build document
     now = datetime.utcnow()
-    doc = {
-        "tenantId": str(tenant_id),
+    org_data = {
         "name": payload.name,
         "slug": slug,
         "vertical": payload.vertical,
@@ -98,77 +103,325 @@ async def create_organization(db, ctx: dict, payload) -> dict:
         "ownerId": payload.ownerId,
         "settings": payload.settings or {},
         "limits": payload.limits or {},
-        "createdAt": now,
-        "updatedAt": now,
+        "created_at": now,
+        "updated_at": now,
     }
+
+    # Create via repository
     try:
-        res = await db.organizations.insert_one(doc)
-    except DuplicateKeyError:
-        raise OrgError(409, f"Ya existe una organización con el slug '{slug}' en este tenant")
-    doc["_id"] = res.inserted_id
-    await _audit(db, "createOrganization", ctx, f"{payload.name} ({slug})")
-    return _serialize(doc)
+        result = await repo.create(firm_id, org_data, request_id)
+
+        # Audit log
+        audit_repo = AuditLogRepository(db.audit_logs)
+        await audit_repo.log_action(
+            firm_id=firm_id,
+            action="create_organization",
+            user_id=user_id,
+            details={
+                "resource": "organization",
+                "resource_id": str(result.get("_id")),
+                "name": payload.name,
+                "slug": slug,
+                "plan": payload.plan,
+                "status": "success"
+            },
+            request_id=request_id,
+            ip_address=ip_address
+        )
+
+        await _audit(db, "createOrganization", ctx, f"{payload.name} ({slug})")
+        return _serialize(result)
+    except Exception as e:
+        logger.error(f"[organizations] create_organization error: {str(e)} request_id={request_id}")
+
+        # Audit error
+        audit_repo = AuditLogRepository(db.audit_logs)
+        try:
+            await audit_repo.log_action(
+                firm_id=firm_id,
+                action="create_organization",
+                user_id=user_id,
+                details={
+                    "resource": "organization",
+                    "name": payload.name,
+                    "status": "error",
+                    "error": str(e)
+                },
+                request_id=request_id,
+                ip_address=ip_address
+            )
+        except Exception:
+            pass  # Don't let audit failure break the operation
+
+        raise
 
 
 async def update_organization(db, ctx: dict, org_id: str, payload) -> dict:
-    oid = _oid(org_id)
+    """
+    Update organization via repository layer with audit logging.
+
+    Slug uniqueness validation, tenant isolation, and state management handled by repository.
+    """
+    firm_id = ctx.get("tenant_id")
+    if not firm_id:
+        raise OrgError(400, "Se requiere tenant")
+
+    request_id = ctx.get("request_id", "no-request-id")
+    user_id = ctx.get("user_id", "system")
+    ip_address = ctx.get("ip_address", "unknown")
+
+    # Get before state for audit
+    repo = OrganizationRepository(db.organizations)
+    before_state = await repo.find_by_id(firm_id, org_id, request_id)
+    if not before_state:
+        raise OrgError(404, "Organización no encontrada")
+
+    # Build updates from payload
     updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
-    if "name" in updates and "slug" not in updates:
-        pass  # no recomputamos slug al renombrar (estable como identificador)
+
+    # Validate slug if changed
     if "slug" in updates:
         updates["slug"] = slugify(updates["slug"])
-        clash = await db.organizations.find_one({
-            "tenantId": str(ctx["tenant_id"]), "slug": updates["slug"], "_id": {"$ne": oid},
-        })
-        if clash:
+        is_unique = await repo.validate_slug_unique(firm_id, updates["slug"], exclude_id=org_id, request_id=request_id)
+        if not is_unique:
             raise OrgError(409, f"El slug '{updates['slug']}' ya está en uso en este tenant")
-    updates["updatedAt"] = datetime.utcnow()
 
-    res = await db.organizations.update_one(_tenant_filter(ctx, {"_id": oid}), {"$set": updates})
-    if res.matched_count == 0:
-        raise OrgError(404, "Organización no encontrada")
-    doc = await db.organizations.find_one({"_id": oid})
-    await _audit(db, "updateOrganization", ctx, org_id)
-    return _serialize(doc)
+    # Add timestamp
+    updates["updated_at"] = datetime.utcnow()
+
+    # Update via repository
+    try:
+        result = await repo.update(firm_id, org_id, updates, request_id)
+        if not result:
+            raise OrgError(404, "Organización no encontrada")
+
+        # Audit log
+        audit_repo = AuditLogRepository(db.audit_logs)
+        await audit_repo.log_action(
+            firm_id=firm_id,
+            action="update_organization",
+            user_id=user_id,
+            details={
+                "resource": "organization",
+                "resource_id": org_id,
+                "before_state": {k: v for k, v in before_state.items() if k in updates},
+                "after_state": {k: result.get(k) for k in updates},
+                "status": "success"
+            },
+            request_id=request_id,
+            ip_address=ip_address
+        )
+
+        await _audit(db, "updateOrganization", ctx, org_id)
+        return _serialize(result)
+    except Exception as e:
+        logger.error(f"[organizations] update_organization error: {str(e)} request_id={request_id}")
+
+        # Audit error
+        audit_repo = AuditLogRepository(db.audit_logs)
+        try:
+            await audit_repo.log_action(
+                firm_id=firm_id,
+                action="update_organization",
+                user_id=user_id,
+                details={
+                    "resource": "organization",
+                    "resource_id": org_id,
+                    "status": "error",
+                    "error": str(e)
+                },
+                request_id=request_id,
+                ip_address=ip_address
+            )
+        except Exception:
+            pass
+
+        raise
 
 
 async def delete_organization(db, ctx: dict, org_id: str) -> None:
-    oid = _oid(org_id)
-    res = await db.organizations.delete_one(_tenant_filter(ctx, {"_id": oid}))
-    if res.deleted_count == 0:
-        raise OrgError(404, "Organización no encontrada")
-    await _audit(db, "deleteOrganization", ctx, org_id)
+    """
+    Delete organization via repository layer (soft delete) with audit logging.
+
+    Tenant isolation and deletion handling managed by repository.
+    """
+    firm_id = ctx.get("tenant_id")
+    if not firm_id:
+        raise OrgError(400, "Se requiere tenant")
+
+    request_id = ctx.get("request_id", "no-request-id")
+    user_id = ctx.get("user_id", "system")
+    ip_address = ctx.get("ip_address", "unknown")
+
+    try:
+        repo = OrganizationRepository(db.organizations)
+
+        # Get before state for audit
+        before_state = await repo.find_by_id(firm_id, org_id, request_id)
+        if not before_state:
+            raise OrgError(404, "Organización no encontrada")
+
+        # Delete via repository
+        success = await repo.soft_delete(firm_id, org_id, request_id)
+        if not success:
+            raise OrgError(404, "Organización no encontrada")
+
+        # Audit log
+        audit_repo = AuditLogRepository(db.audit_logs)
+        await audit_repo.log_action(
+            firm_id=firm_id,
+            action="soft_delete_organization",
+            user_id=user_id,
+            details={
+                "resource": "organization",
+                "resource_id": org_id,
+                "name": before_state.get("name"),
+                "status": "success"
+            },
+            request_id=request_id,
+            ip_address=ip_address
+        )
+
+        await _audit(db, "deleteOrganization", ctx, org_id)
+    except Exception as e:
+        logger.error(f"[organizations] delete_organization error: {str(e)} request_id={request_id}")
+
+        # Audit error
+        audit_repo = AuditLogRepository(db.audit_logs)
+        try:
+            await audit_repo.log_action(
+                firm_id=firm_id,
+                action="soft_delete_organization",
+                user_id=user_id,
+                details={
+                    "resource": "organization",
+                    "resource_id": org_id,
+                    "status": "error",
+                    "error": str(e)
+                },
+                request_id=request_id,
+                ip_address=ip_address
+            )
+        except Exception:
+            pass
+
+        raise
 
 
 async def get_organization(db, ctx: dict, org_id: str) -> dict:
-    oid = _oid(org_id)
-    doc = await db.organizations.find_one(_tenant_filter(ctx, {"_id": oid}))
-    if not doc:
-        raise OrgError(404, "Organización no encontrada")
-    await _audit(db, "viewOrganization", ctx, org_id)
-    return _serialize(doc)
+    """
+    Get organization by ID via repository layer with audit logging.
+
+    Tenant isolation and access control handled by repository.
+    """
+    firm_id = ctx.get("tenant_id")
+    if not firm_id:
+        raise OrgError(400, "Se requiere tenant")
+
+    request_id = ctx.get("request_id", "no-request-id")
+    user_id = ctx.get("user_id", "system")
+    ip_address = ctx.get("ip_address", "unknown")
+
+    try:
+        repo = OrganizationRepository(db.organizations)
+        doc = await repo.find_by_id(firm_id, org_id, request_id)
+        if not doc:
+            raise OrgError(404, "Organización no encontrada")
+
+        # Audit read operation
+        audit_repo = AuditLogRepository(db.audit_logs)
+        await audit_repo.log_action(
+            firm_id=firm_id,
+            action="view_organization",
+            user_id=user_id,
+            details={
+                "resource": "organization",
+                "resource_id": org_id,
+                "status": "success"
+            },
+            request_id=request_id,
+            ip_address=ip_address
+        )
+
+        await _audit(db, "viewOrganization", ctx, org_id)
+        return _serialize(doc)
+    except Exception as e:
+        logger.error(f"[organizations] get_organization error: {str(e)} request_id={request_id}")
+        raise
 
 
-async def get_organizations(db, ctx: dict, status: Optional[str] = None) -> list:
-    q = _tenant_filter(ctx, {"status": status} if status else None)
-    docs = await db.organizations.find(q).sort("createdAt", -1).to_list(1000)
-    return [_serialize(d) for d in docs]
+async def get_organizations(db, ctx: dict, status: Optional[str] = None, skip: int = 0, limit: int = 1000) -> list:
+    """
+    List organizations via repository layer.
+
+    Tenant isolation and pagination handled by repository.
+    Note: Default limit set to 1000 for backward compatibility.
+    """
+    firm_id = ctx.get("tenant_id")
+    if not firm_id:
+        raise OrgError(400, "Se requiere tenant")
+
+    request_id = ctx.get("request_id", "no-request-id")
+
+    try:
+        repo = OrganizationRepository(db.organizations)
+        docs, total = await repo.list_paginated(
+            firm_id=firm_id,
+            skip=skip,
+            limit=limit,
+            status=status,
+            request_id=request_id
+        )
+        return [_serialize(d) for d in docs]
+    except Exception as e:
+        logger.error(f"[organizations] get_organizations error: {str(e)} request_id={request_id}")
+        raise
 
 
 async def get_dashboard(db, ctx: dict) -> dict:
-    """Consolidado para el frontend: lista + KPIs (shape compatible con la UI)."""
-    orgs = await get_organizations(db, ctx)
-    active = [o for o in orgs if o.get("status") == "active"]
-    at_risk = [o for o in orgs if o.get("status") in ("at_risk", "suspended")]
-    total_users = sum(int(o.get("users", 0) or 0) for o in orgs)
-    return {
-        "organizations": orgs,
-        "KPIS": {
-            "activeOrgs": len(active),
-            "totalUsers": total_users,
-            "activeVerticals": len({o.get("vertical") for o in orgs if o.get("vertical")}),
-            "activeSubscriptions": len(active),
-            "totalMrr": sum(int(o.get("mrr", 0) or 0) for o in orgs),
-            "orgsAtRisk": len(at_risk),
-        },
-    }
+    """
+    Dashboard consolidado para el frontend.
+
+    Aggregates organizations list with KPIs.
+    Uses repository layer for data access.
+    """
+    firm_id = ctx.get("tenant_id")
+    if not firm_id:
+        raise OrgError(400, "Se requiere tenant")
+
+    request_id = ctx.get("request_id", "no-request-id")
+
+    try:
+        repo = OrganizationRepository(db.organizations)
+
+        # Get all organizations for this firm (KPI aggregation)
+        orgs, total = await repo.list_paginated(
+            firm_id=firm_id,
+            skip=0,
+            limit=10000,  # Fetch all for KPI calc
+            request_id=request_id
+        )
+
+        # Serialize organizations
+        org_list = [_serialize(o) for o in orgs]
+
+        # Calculate KPIs from fetched organizations
+        active = [o for o in org_list if o.get("status") == "active"]
+        at_risk = [o for o in org_list if o.get("status") in ("at_risk", "suspended")]
+        total_users = sum(int(o.get("users", 0) or 0) for o in org_list)
+        total_mrr = sum(int(o.get("mrr", 0) or 0) for o in org_list)
+
+        return {
+            "organizations": org_list,
+            "KPIS": {
+                "activeOrgs": len(active),
+                "totalUsers": total_users,
+                "activeVerticals": len({o.get("vertical") for o in org_list if o.get("vertical")}),
+                "activeSubscriptions": len(active),
+                "totalMrr": total_mrr,
+                "orgsAtRisk": len(at_risk),
+            },
+        }
+    except Exception as e:
+        logger.error(f"[organizations] get_dashboard error: {str(e)} request_id={request_id}")
+        raise

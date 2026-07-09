@@ -41,7 +41,7 @@ async def list_invoices(
     db=Depends(get_db),
 ):
     try:
-        data = await svc.get_invoices(db, ctx, status=status, source=source)
+        data = await svc.get_invoices(db, ctx, status=status, source=source, request_id=ctx.request_id)
         return ok(data=data, message="Facturas obtenidas")
     except OrgError as e:
         return _handle(e)
@@ -50,7 +50,7 @@ async def list_invoices(
 @router.get("/dashboard")
 async def billing_dashboard(ctx=Depends(get_tenant_context), db=Depends(get_db)):
     try:
-        data = await svc.get_dashboard(db, ctx)
+        data = await svc.get_dashboard(db, ctx, request_id=ctx.request_id)
         return ok(data=data, message="Dashboard de facturación")
     except OrgError as e:
         return _handle(e)
@@ -59,7 +59,7 @@ async def billing_dashboard(ctx=Depends(get_tenant_context), db=Depends(get_db))
 @router.get("/{invoice_id}")
 async def get_invoice(invoice_id: str, ctx=Depends(get_tenant_context), db=Depends(get_db)):
     try:
-        data = await svc.get_invoice(db, ctx, invoice_id)
+        data = await svc.get_invoice(db, ctx, invoice_id, request_id=ctx.request_id)
         return ok(data=data, message="Factura obtenida")
     except OrgError as e:
         return _handle(e)
@@ -68,7 +68,7 @@ async def get_invoice(invoice_id: str, ctx=Depends(get_tenant_context), db=Depen
 @router.post("/", status_code=201)
 async def create_invoice(payload: InvoiceCreate, ctx=Depends(require_write), db=Depends(get_db)):
     try:
-        data = await svc.create_invoice(db, ctx, payload)
+        data = await svc.create_invoice(db, ctx, payload, request_id=ctx.request_id)
         return JSONResponse(status_code=201, content=ok(data=data, message="Factura creada"))
     except OrgError as e:
         return _handle(e)
@@ -77,7 +77,7 @@ async def create_invoice(payload: InvoiceCreate, ctx=Depends(require_write), db=
 @router.put("/{invoice_id}")
 async def update_invoice(invoice_id: str, payload: InvoiceUpdate, ctx=Depends(require_write), db=Depends(get_db)):
     try:
-        data = await svc.update_invoice(db, ctx, invoice_id, payload)
+        data = await svc.update_invoice(db, ctx, invoice_id, payload, request_id=ctx.request_id)
         return ok(data=data, message="Factura actualizada")
     except OrgError as e:
         return _handle(e)
@@ -86,7 +86,7 @@ async def update_invoice(invoice_id: str, payload: InvoiceUpdate, ctx=Depends(re
 @router.delete("/{invoice_id}")
 async def delete_invoice(invoice_id: str, ctx=Depends(require_write), db=Depends(get_db)):
     try:
-        await svc.delete_invoice(db, ctx, invoice_id)
+        await svc.delete_invoice(db, ctx, invoice_id, request_id=ctx.request_id)
         return ok(data=None, message="Factura eliminada")
     except OrgError as e:
         return _handle(e)
@@ -101,7 +101,7 @@ async def pay_invoice(
     db=Depends(get_db),
 ):
     try:
-        data = await svc.pay_invoice(db, ctx, invoice_id, payment_method=paymentMethod, paid_date=paidDate)
+        data = await svc.pay_invoice(db, ctx, invoice_id, payment_method=paymentMethod, paid_date=paidDate, request_id=ctx.request_id)
         return ok(data=data, message="Factura pagada")
     except OrgError as e:
         return _handle(e)

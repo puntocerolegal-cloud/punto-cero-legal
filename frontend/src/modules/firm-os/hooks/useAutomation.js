@@ -5,7 +5,14 @@ import { AUTOMATION_RULES } from '../automation/rules/defaultRules';
 
 const STORAGE_KEY = 'firm-os/automation';
 
+// Stable references to prevent infinite render loops from default empty arrays
+const EMPTY_ARRAY = [];
+
 export function useAutomation(lawyers = [], cases = [], clients = [], departments = [], offices = []) {
+  // Stabilize input arrays to prevent useMemo from recomputing on every render
+  // when default [] parameters create new references each call
+  const stableDepartments = departments.length > 0 ? departments : EMPTY_ARRAY;
+  const stableOffices = offices.length > 0 ? offices : EMPTY_ARRAY;
   const [history, setHistory] = useState(() => {
     try {
       if (typeof localStorage !== 'undefined') {
@@ -22,7 +29,7 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
 
   const automationVM = useMemo(() => {
     return buildAutomationViewModel(lawyers, cases, clients, departments, offices);
-  }, [lawyers, cases, clients, departments, offices]);
+  }, [lawyers, cases, clients, stableDepartments, stableOffices]);
 
   const runRule = useCallback((ruleId) => {
     const rule = AUTOMATION_RULES.find(r => r.id === ruleId);
@@ -51,7 +58,7 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
     }
 
     return result;
-  }, [engine, lawyers, cases, clients, departments, offices]);
+  }, [engine, lawyers, cases, clients, stableDepartments, stableOffices]);
 
   const runAutomation = useCallback(() => {
     const context = {
@@ -78,7 +85,7 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
     }
 
     return results;
-  }, [engine, lawyers, cases, clients, departments, offices]);
+  }, [engine, lawyers, cases, clients, stableDepartments, stableOffices]);
 
   const clearHistory = useCallback(() => {
     setHistory([]);

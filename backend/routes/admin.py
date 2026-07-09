@@ -12,20 +12,21 @@ async def get_db():
     return db
 
 async def get_current_admin(authorization: Optional[str] = Header(None), db: AsyncIOMotorDatabase = Depends(get_db)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    token = authorization.replace("Bearer ", "")
+    """CRITICAL FIX (S5.3-Finding#5): Hardened Bearer token extraction"""
+    from utils.auth import extract_bearer_token
+
+    token = extract_bearer_token(authorization)
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
-    
+
     user = await db.users.find_one({"email": payload["sub"]})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     if user["role"] not in ["admin", "admin_general", "socio_comercial"]:
         raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol administrativo")
-    
+
     user["_id"] = str(user["_id"])
     return user
 

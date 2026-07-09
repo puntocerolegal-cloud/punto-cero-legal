@@ -8,11 +8,12 @@ import os
 import logging
 from pathlib import Path
 
-# Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master, commissions, timeline, firm_management, sales_analytics, ai_operations, financial, ai_autopilot, autonomous, global_network, legal_os, firms, firm_config, rbac, team, users, firm_os, billing_admin
-
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# JWT Runtime Fix: load_dotenv() MUST happen before any module that reads JWT_SECRET/SECRET_KEY
+# Import routes (these may import utils.auth which reads env vars at module load time)
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master, commissions, timeline, firm_management, sales_analytics, ai_operations, financial, ai_autopilot, autonomous, global_network, legal_os, firms, firm_config, rbac, team, users, firm_os, billing_admin
 
 # Configure logging FIRST (before any logger usage)
 logging.basicConfig(
@@ -128,8 +129,14 @@ try:
         connectTimeoutMS=5000,
         retryWrites=False  # Disable retries to fail fast in dev
     )
-    db = client[os.environ.get('DB_NAME', 'puntocero_legal')]
+    real_db = client[os.environ.get('DB_NAME', 'puntocero_legal')]
     logger.info("MongoDB client initialized")
+
+    # S2.5 Hardening: Wrap in GuardedDB to block direct access
+    from security.guarded_db import create_guarded_db
+    db = create_guarded_db(real_db)
+    logger.info("MongoDB wrapped in GuardedDB hard barrier")
+
 except Exception as e:
     logger.error(f"MongoDB initialization failed: {e}")
     client = None
@@ -137,8 +144,47 @@ except Exception as e:
     FALLBACK_DB = True
     logger.warning("Usando modo degradado: fallback en memoria activo")
 
+# CRITICAL FIX (S5.3-Finding#9): Graceful shutdown management
+from utils.graceful_shutdown import get_shutdown_manager, graceful_shutdown_context
+
 # Create the main app without a prefix
-app = FastAPI(title="Punto Cero Legal API", version="1.0.0")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle with graceful shutdown."""
+    async with graceful_shutdown_context():
+        yield
+
+app = FastAPI(title="Punto Cero Legal API", version="1.0.0", lifespan=lifespan)
+
+# CRITICAL FIX (S5.3-Finding#9): Enterprise rate limiting on public endpoints
+# Prevents brute-force attacks on intake, login, and token endpoints
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request, exc):
+    """Handle rate limit exceeded with proper HTTP 429 response."""
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."}
+    )
+
+# PHASE 5: TenantKernel middleware (primary - FIRST execution)
+# PHASE 9: Legacy TenantIsolationMiddleware (fallback/compatibility)
+# PHASE 10: Security Enforcer (global authorization enforcement)
+# All must be registered BEFORE startup events
+from kernel.tenant_kernel_middleware import TenantKernelMiddlewareWrapper
+from middleware.tenant_isolation import TenantIsolationMiddleware
+from middleware.security_enforcer import SecurityEnforcerMiddleware
+app.add_middleware(SecurityEnforcerMiddleware)
+app.add_middleware(TenantKernelMiddlewareWrapper)
+app.add_middleware(TenantIsolationMiddleware)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -214,6 +260,35 @@ api_router.include_router(rbac.router)            # FASE 16 — Firm OS RBAC (ro
 api_router.include_router(team.router)            # FASE 16 — Firm OS Team (gestión de equipo)
 api_router.include_router(firm_os.router)         # FASE 16 — Firm OS Enterprise (dashboard, settings, onboarding, directorio)
 api_router.include_router(users.router)           # Users — Listar usuarios para admin
+
+# [BLOCK 1] Wire enterprise infrastructure during startup
+@app.on_event("startup")
+async def startup_bootstrap_enterprise():
+    """
+    Initialize enterprise infrastructure: middleware, services, repositories, indexes.
+    This is CRITICAL for multi-tenant isolation.
+    MUST execute before any request is processed.
+    """
+    from bootstrap_enterprise import bootstrap_enterprise
+
+    if db is None:
+        logger.critical("[BLOCK 1] Cannot bootstrap enterprise: database not connected. "
+                       "Multi-tenant isolation UNAVAILABLE.")
+        raise RuntimeError("Database not available for enterprise bootstrap")
+
+    try:
+        logger.info("[BLOCK 1] Starting enterprise infrastructure bootstrap...")
+        result = await bootstrap_enterprise(app, db)
+        logger.info("[BLOCK 1] Enterprise bootstrap completed successfully")
+        logger.info(f"[BLOCK 1] Services registered: {list(result.get('services', {}).keys())}")
+        logger.info(f"[BLOCK 1] Middleware registered: {result.get('middleware', [])}")
+        logger.info("[BLOCK 1] ✓ TenantIsolationMiddleware ACTIVE - Multi-tenant isolation ENABLED")
+    except Exception as e:
+        logger.critical(f"[BLOCK 1] CRITICAL: Enterprise bootstrap failed: {e}", exc_info=True)
+        logger.critical("[BLOCK 1] ✗ TenantIsolationMiddleware NOT registered - "
+                       "Multi-tenant isolation DISABLED")
+        logger.critical("[BLOCK 1] Application will NOT be operational for multi-tenant access")
+        raise  # Fail fast - don't hide critical infrastructure errors
 
 # Inicializar cron jobs
 @app.on_event("startup")
@@ -302,6 +377,45 @@ async def init_db_indexes():
             await db.chargebacks.create_index([("payment_id", 1)])
             await db.chargebacks.create_index([("created_at", 1)])
 
+            # CRITICAL FIX (S5.3-Finding#4): Missing indexes for query-heavy operations
+            # These indexes prevent full collection scans on frequent queries
+
+            # Timeline events - Case/Lead/Agent queries
+            await db.timeline_events.create_index([("case_id", 1), ("created_at", -1)])
+            await db.timeline_events.create_index([("lead_id", 1), ("created_at", -1)])
+            await db.timeline_events.create_index([("agent_id", 1), ("created_at", -1)])
+
+            # Chat sessions - Case queries
+            await db.chat_sessions.create_index([("case_id", 1), ("status", 1)])
+            await db.chat_sessions.create_index([("session_id", 1)], unique=True)
+
+            # Messages - Case queries
+            await db.messages.create_index([("case_id", 1), ("created_at", -1)])
+
+            # Invoices - Case and status queries
+            await db.invoices.create_index([("case_id", 1), ("status", 1)])
+            await db.invoices.create_index([("organization_id", 1), ("status", 1)])
+
+            # Users - Role and status queries
+            await db.users.create_index([("role", 1), ("status", 1)])
+            await db.users.create_index([("firm_id", 1), ("role", 1)])
+
+            # Documents - Case owner queries
+            await db.documents.create_index([("case_id", 1)])
+            await db.documents.create_index([("firm_id", 1), ("case_id", 1), ("name", 1)], unique=True)
+            await db.documents.create_index([("owner_id", 1), ("created_at", -1)])
+
+            # Accounting movements - Type and date queries
+            await db.accounting_movements.create_index([("type", 1), ("date", -1)])
+
+            # Cases - Common filter queries
+            await db.cases.create_index([("lawyer_id", 1), ("created_at", -1)])
+            await db.cases.create_index([("status", 1), ("created_at", -1)])
+
+            # Appointments - Scheduled and reminder queries
+            await db.appointments.create_index([("lawyer_id", 1), ("start_time", 1)])
+            await db.appointments.create_index([("status", 1), ("reminder_sent", 1)])
+
             logger.info("DB indexes created successfully")
         except Exception as e:
             logger.warning(f"Error creating indexes (may already exist): {e}")
@@ -310,6 +424,32 @@ async def init_db_indexes():
         await asyncio.wait_for(create_indexes(), timeout=30.0)
     except asyncio.TimeoutError:
         logger.error("DB index creation timed out after 30s, continuing anyway")
+
+
+# S2.5 Hardening: Initialize async audit pipeline on startup
+@app.on_event("startup")
+async def init_async_audit_pipeline():
+    """Start background async audit logging pipeline."""
+    try:
+        from security.async_audit_pipeline import initialize_audit_pipeline
+        pipeline = initialize_audit_pipeline(db=db)
+        await pipeline.start()
+        logger.info("Async audit pipeline started")
+    except Exception as e:
+        logger.error(f"Failed to start async audit pipeline: {e}")
+
+
+# S2.5 Hardening: Shutdown async audit pipeline gracefully
+@app.on_event("shutdown")
+async def shutdown_async_audit_pipeline():
+    """Stop async audit pipeline and flush remaining events."""
+    try:
+        from security.async_audit_pipeline import get_audit_pipeline
+        pipeline = get_audit_pipeline()
+        await pipeline.stop()
+        logger.info("Async audit pipeline stopped gracefully")
+    except Exception as e:
+        logger.error(f"Error shutting down audit pipeline: {e}")
 
 
 # Inicialización de cuentas maestras y de prueba al arranque

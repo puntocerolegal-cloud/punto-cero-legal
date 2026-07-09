@@ -11,17 +11,20 @@ Crear un caso dispara automáticamente (interconexión central):
   • Notificaciones                  → aviso in-app al abogado
 El CRM y el dashboard agregan estos datos en tiempo real.
 """
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from typing import List, Optional
 from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 import uuid
+import os
 
 from routes.auth import get_current_user
 from utils.case_number_generator import next_case_number
 from utils import notifier
-from security.tenant_scope import validate_org_ownership
+from security.security_engine import authorize
+from security.secure_repository import get_secure_repository
+from utils.xss_protection import sanitize_case_description, sanitize_case_number  # CRITICAL FIX S5.3-Finding#6
 
 router = APIRouter(prefix="/cases", tags=["Case Management"])
 
@@ -137,6 +140,14 @@ async def create_case(
 ):
     """Crea un caso (manual por el abogado o derivado del admin) e interconecta
     todos los módulos. Acepta campos flexibles del formulario de intake."""
+    # SECURITY ENGINE: Global authorization check
+    await authorize(current_user, "case", "create", db=db)
+
+    # Non-admin users auto-assign to self
+    user_role = current_user.get("role", "lawyer")
+    if user_role != "admin":
+        payload["lawyer_id"] = current_user.get("_id")
+
     lawyer_id = payload.get("lawyer_id")
     if not lawyer_id:
         raise HTTPException(400, "lawyer_id es obligatorio")
@@ -167,19 +178,19 @@ async def create_case(
             deadline = None
 
     case_doc = {
-        "case_number": case_number,
+        "case_number": sanitize_case_number(case_number),  # CRITICAL FIX S5.3-Finding#6
         "organization_id": current_user.get("organization_id"),
         "lawyer_id": lawyer_id,
         "client_id": client_id,
-        "client_name": payload.get("client_name"),
+        "client_name": sanitize_case_description(payload.get("client_name") or ""),  # CRITICAL FIX S5.3-Finding#6
         "client_document": payload.get("client_document") or payload.get("client_id_document"),
         "client_phone": payload.get("client_phone"),
         "client_email": payload.get("client_email"),
-        "title": payload.get("title") or f"{payload.get('legal_area','Consulta')} · {payload.get('client_name','Cliente')}",
+        "title": sanitize_case_description(payload.get("title") or f"{payload.get('legal_area','Consulta')} · {payload.get('client_name','Cliente')}"),  # CRITICAL FIX S5.3-Finding#6
         "legal_area": payload.get("legal_area") or payload.get("materia") or "Otro",
         "materia": payload.get("materia") or payload.get("legal_area") or "Otro",
-        "description": payload.get("description") or payload.get("summary") or "",
-        "summary": payload.get("summary") or payload.get("description") or "",
+        "description": sanitize_case_description(payload.get("description") or payload.get("summary") or ""),  # CRITICAL FIX S5.3-Finding#6
+        "summary": sanitize_case_description(payload.get("summary") or payload.get("description") or ""),  # CRITICAL FIX S5.3-Finding#6
         "key_dates": payload.get("key_dates") or [],
         "assigned_to": payload.get("assigned_to"),
         "counterparty_name": payload.get("counterparty_name"),
@@ -294,10 +305,16 @@ async def get_case(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db)
 ):
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-    validate_org_ownership(case, current_user, "organization_id")
+    # SECURITY ENGINE: Unified authorization + safe fetch
+    secure_repo = get_secure_repository(db)
+    case = await secure_repo.find_one(
+        collection_name="cases",
+        query={"_id": case_id},
+        user=current_user,
+        resource_type="case",
+        action="read",
+        db=db,
+    )
     out = _serialize_case(case)
 
     activities = await db.case_activities.find({"case_id": case_id}).sort("created_at", -1).to_list(200)
@@ -315,11 +332,10 @@ async def get_case(
 
 
 @router.get("/{case_id}/timeline", response_model=dict)
-async def case_timeline(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def case_timeline(case_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Línea de tiempo visual del caso: cada etapa/hito en orden cronológico."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(404, "Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     acts = await db.case_activities.find({"case_id": case_id}).sort("created_at", 1).to_list(500)
     timeline = []
     for a in acts:
@@ -341,11 +357,10 @@ async def case_timeline(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)
 
 
 @router.post("/{case_id}/timeline-entry", response_model=dict)
-async def add_timeline_entry(case_id: str, payload: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def add_timeline_entry(case_id: str, payload: dict, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Agrega manualmente una etapa a la línea de tiempo del caso."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(404, "Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     now = datetime.utcnow()
     await db.case_activities.insert_one({
         "case_id": case_id, "user_id": case.get("lawyer_id"),
@@ -360,11 +375,10 @@ async def add_timeline_entry(case_id: str, payload: dict, db: AsyncIOMotorDataba
 
 
 @router.post("/{case_id}/send-timeline", response_model=dict)
-async def send_timeline(case_id: str, payload: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def send_timeline(case_id: str, payload: dict, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Envía la línea de tiempo del caso al cliente por WhatsApp o correo."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(404, "Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     acts = await db.case_activities.find({"case_id": case_id}).sort("created_at", 1).to_list(500)
     lines = []
     for a in acts:
@@ -393,12 +407,11 @@ async def send_timeline(case_id: str, payload: dict, db: AsyncIOMotorDatabase = 
 
 # ───────────── Formulario formal cliente-abogado ─────────────
 @router.post("/{case_id}/request-client-form", response_model=dict)
-async def request_client_form(case_id: str, payload: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def request_client_form(case_id: str, payload: dict, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Genera un formulario para que el cliente complete datos, pruebas y documentos.
     Devuelve el enlace + lo envía por correo/WhatsApp."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(404, "Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     token = uuid.uuid4().hex
     await db.cases.update_one({"_id": case["_id"]},
                               {"$set": {"client_form_token": token, "updated_at": datetime.utcnow()}})
@@ -483,7 +496,18 @@ async def submit_client_form(token: str, payload: dict, db: AsyncIOMotorDatabase
 
 
 @router.patch("/{case_id}", response_model=dict)
-async def update_case(case_id: str, updates: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def update_case(case_id: str, updates: dict, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
+    # SECURITY ENGINE: Unified authorization before modification
+    secure_repo = get_secure_repository(db)
+    matched = await secure_repo.update_one(
+        collection_name="cases",
+        query={"_id": case_id},
+        update={"$set": {}},  # Dummy update to check authorization
+        user=current_user,
+        resource_type="case",
+        db=db,
+    )
+
     allowed = {"title", "legal_area", "materia", "description", "summary", "estado", "status",
                "priority", "priority_label", "deadline", "court", "assigned_to", "counterparty_name",
                "key_dates"}
@@ -555,11 +579,10 @@ async def auto_return_expired(db) -> int:
 
 
 @router.post("/{case_id}/accept", response_model=dict)
-async def accept_case(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def accept_case(case_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """El abogado ACEPTA el caso asignado: queda definitivo en sus casos activos."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(404, "Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     if not case.get("lawyer_id"):
         raise HTTPException(400, "El caso no está asignado a ningún abogado")
     now = datetime.utcnow()
@@ -587,11 +610,10 @@ async def accept_case(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
 
 
 @router.post("/{case_id}/decline", response_model=dict)
-async def decline_case(case_id: str, payload: dict = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def decline_case(case_id: str, payload: dict = None, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """El abogado DECLINA el caso: se libera y vuelve al admin para reasignación."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(404, "Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     reason = ((payload or {}).get("reason") or "").strip() or "Sin motivo especificado"
     prev_lawyer = case.get("lawyer_id")
     now = datetime.utcnow()
@@ -621,11 +643,10 @@ async def decline_case(case_id: str, payload: dict = None, db: AsyncIOMotorDatab
 
 
 @router.post("/{case_id}/start-meeting", response_model=dict)
-async def start_meeting_from_case(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def start_meeting_from_case(case_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Gestión de Casos → Sala de Conferencias: crea reunión Jitsi al instante."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+    # Ownership & org validation (with ObjectId safety)
+    case = await get_secure_case(case_id, current_user, db)
     room_id = f"PCL-{case.get('case_number','room')}-{uuid.uuid4().hex[:6]}"
     now = datetime.utcnow()
     meeting_data = {
@@ -647,14 +668,55 @@ async def start_meeting_from_case(case_id: str, db: AsyncIOMotorDatabase = Depen
 
 
 @router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_case(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    pending_invoices = await db.invoices.find_one({"case_id": case_id, "status": {"$ne": "paid"}})
-    if pending_invoices:
-        raise HTTPException(status_code=400, detail="No se puede eliminar un caso con facturas pendientes")
-    result = await db.cases.delete_one({"_id": ObjectId(case_id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Case not found")
-    await db.case_activities.delete_many({"case_id": case_id})
-    await db.meetings.delete_many({"case_id": case_id})
-    await db.appointments.delete_many({"case_id": case_id})
+async def delete_case(case_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Delete case with atomic cascade delete using MongoDB transaction.
+
+    CRITICAL FIX (S5.3-Finding#1): Use transaction to guarantee atomicity.
+    Prevents orphaned data and race conditions.
+    """
+    case_oid = ObjectId(case_id)
+
+    # SECURITY ENGINE: Unified authorization before deletion
+    secure_repo = get_secure_repository(db)
+    deleted = await secure_repo.delete_one(
+        collection_name="cases",
+        query={"_id": case_id},
+        user=current_user,
+        resource_type="case",
+        db=db,
+    )
+
+    # Use MongoDB transaction for atomicity (all-or-nothing)
+    async with await db.client.start_session() as session:
+        async with session.start_transaction():
+            # Step 1: Verify case exists
+            case = await db.cases.find_one({"_id": case_oid}, session=session)
+            if not case:
+                raise HTTPException(status_code=404, detail="Case not found")
+
+            # Step 2: Check no pending invoices (inside transaction)
+            pending_invoices = await db.invoices.find_one(
+                {"case_id": case_id, "status": {"$ne": "paid"}},
+                session=session
+            )
+            if pending_invoices:
+                raise HTTPException(status_code=400, detail="No se puede eliminar un caso con facturas pendientes")
+
+            # Step 3: Cascade delete ALL related documents (atomic)
+            await db.case_activities.delete_many({"case_id": case_id}, session=session)
+            await db.meetings.delete_many({"case_id": case_id}, session=session)
+            await db.appointments.delete_many({"case_id": case_id}, session=session)
+            await db.documents.delete_many({"case_id": case_id}, session=session)
+            await db.messages.delete_many({"case_id": case_id}, session=session)
+
+            # Step 4: Soft-delete case (preserve audit trail)
+            result = await db.cases.update_one(
+                {"_id": case_oid},
+                {"$set": {"deleted_at": datetime.utcnow(), "status": "deleted"}},
+                session=session
+            )
+
+            if result.modified_count == 0:
+                raise HTTPException(status_code=500, detail="Failed to delete case")
+
     return None

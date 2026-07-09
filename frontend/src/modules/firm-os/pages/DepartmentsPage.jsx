@@ -144,9 +144,17 @@ export function DepartmentsPage() {
         <div className="flex items-center gap-3">
           <PreferenceButton preferencesPanel={<p className="text-xs text-white/60">Preferencias de departamentos disponibles</p>} />
           <ExportButton exportViewModel={exportVM} />
-          <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+          {/* Deshabilitado: la creación de departamentos aún no tiene
+              implementación real (backend/modal). Se re-habilitará cuando exista. */}
+          <button
+            type="button"
+            disabled
+            title="Función en desarrollo"
+            className="flex items-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-white/40 cursor-not-allowed"
+          >
             <Plus className="h-4 w-4" />
             Nuevo Departamento
+            <span className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-white/40">Próximamente</span>
           </button>
         </div>
       </div>
@@ -199,10 +207,6 @@ export function DepartmentsPage() {
           <Briefcase className="h-12 w-12 text-white/20 mx-auto mb-4" />
           <p className="text-white/60 font-semibold">Sin información disponible</p>
           <p className="text-white/40 text-sm mt-2">Los datos de departamentos se sincronizarán cuando estén disponibles</p>
-          <button className="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-            <Plus className="h-4 w-4" />
-            Crear departamento
-          </button>
         </div>
       )}
 

@@ -15,19 +15,21 @@ async def get_current_user(
     authorization: Optional[str] = Header(None),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Obtener usuario actual desde el token"""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="No autenticado")
-    
-    token = authorization.replace("Bearer ", "")
+    """Obtener usuario actual desde el token.
+
+    CRITICAL FIX (S5.3-Finding#5): Hardened Bearer token extraction
+    """
+    from utils.auth import extract_bearer_token
+
+    token = extract_bearer_token(authorization)
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token inválido")
-    
+
     user = await db.users.find_one({"email": payload["sub"]})
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
+
     user["_id"] = str(user["_id"])
     return user
 

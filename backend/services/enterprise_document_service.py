@@ -1,9 +1,9 @@
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from fastapi import HTTPException, status
-from backend.repositories.document_repository import DocumentRepository
-from backend.repositories.document_access_log_repository import DocumentAccessLogRepository
-from backend.utils.enterprise_exceptions import ValidationException
+from repositories.document_repository import DocumentRepository
+from repositories.document_access_log_repository import DocumentAccessLogRepository
+from utils.enterprise_exceptions import ValidationException
 
 
 class DocumentService:

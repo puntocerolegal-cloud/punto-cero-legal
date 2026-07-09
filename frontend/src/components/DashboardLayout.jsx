@@ -11,6 +11,11 @@ import { NotificationBell } from './layout/NotificationBell';
 import { HeaderAlerts } from './layout/HeaderAlerts';
 import { SupportButton } from './layout/SupportButton';
 
+// Contexto para evitar el doble layout cuando DashboardLayout queda anidado
+// dentro de otro layout (p. ej. FirmOSLayout, que ya aporta sidebar + margen).
+// Valor por defecto false → en Lawyer OS el comportamiento NO cambia.
+export const NestedLayoutContext = React.createContext(false);
+
 // Color por estado oficial (DEMO/TRIAL/ACTIVO/PENDIENTE_PAGO/VENCIDO/CANCELADO).
 const STATE_COLOR = {
   DEMO: '#06b6d4', TRIAL: '#f59e0b', ACTIVO: '#10b981',
@@ -51,6 +56,14 @@ const lastName = (fullName) => {
 };
 
 export const DashboardLayout = ({ children }) => {
+  // Si ya estamos dentro de otro layout (FirmOSLayout), no volver a aplicar
+  // sidebar/header/margen: sólo renderizar el contenido para no duplicar el
+  // offset lateral. En Lawyer OS isNested es false (comportamiento intacto).
+  const isNested = React.useContext(NestedLayoutContext);
+  if (isNested) {
+    return <>{children}</>;
+  }
+
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);

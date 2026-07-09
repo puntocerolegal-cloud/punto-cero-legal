@@ -44,6 +44,8 @@ async def list_organizations(
     db=Depends(get_db),
 ):
     try:
+        # Propagate request_id for tracing
+        ctx["request_id"] = getattr(ctx, "request_id", "no-request-id")
         data = await svc.get_organizations(db, ctx, status=status)
         return ok(data=data, message="Organizaciones obtenidas")
     except OrgError as e:
@@ -53,6 +55,8 @@ async def list_organizations(
 @router.get("/dashboard")
 async def organizations_dashboard(ctx=Depends(get_tenant_context), db=Depends(get_db)):
     try:
+        # Propagate request_id for tracing
+        ctx["request_id"] = getattr(ctx, "request_id", "no-request-id")
         data = await svc.get_dashboard(db, ctx)
         return ok(data=data, message="Dashboard de organizaciones")
     except OrgError as e:
@@ -62,6 +66,8 @@ async def organizations_dashboard(ctx=Depends(get_tenant_context), db=Depends(ge
 @router.get("/{org_id}")
 async def get_organization(org_id: str, ctx=Depends(get_tenant_context), db=Depends(get_db)):
     try:
+        # Propagate request_id for tracing
+        ctx["request_id"] = getattr(ctx, "request_id", "no-request-id")
         data = await svc.get_organization(db, ctx, org_id)
         return ok(data=data, message="Organización obtenida")
     except OrgError as e:
@@ -75,6 +81,8 @@ async def create_organization(
     db=Depends(get_db),
 ):
     try:
+        # Propagate request_id for tracing
+        ctx["request_id"] = getattr(ctx, "request_id", "no-request-id")
         data = await svc.create_organization(db, ctx, payload)
         return JSONResponse(status_code=201, content=ok(data=data, message="Organización creada"))
     except OrgError as e:
@@ -89,6 +97,8 @@ async def update_organization(
     db=Depends(get_db),
 ):
     try:
+        # Propagate request_id for tracing
+        ctx["request_id"] = getattr(ctx, "request_id", "no-request-id")
         data = await svc.update_organization(db, ctx, org_id, payload)
         return ok(data=data, message="Organización actualizada")
     except OrgError as e:
@@ -102,6 +112,8 @@ async def delete_organization(
     db=Depends(get_db),
 ):
     try:
+        # Propagate request_id for tracing
+        ctx["request_id"] = getattr(ctx, "request_id", "no-request-id")
         await svc.delete_organization(db, ctx, org_id)
         return ok(data=None, message="Organización eliminada")
     except OrgError as e:

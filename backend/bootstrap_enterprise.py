@@ -19,6 +19,8 @@ from repositories.case_repository import CaseRepository
 from repositories.document_repository import DocumentRepository
 from repositories.document_access_log_repository import DocumentAccessLogRepository
 from middleware.tenant_isolation import TenantIsolationMiddleware
+# PHASE 5: Import TenantKernel middleware (primary enforcement)
+from kernel.tenant_kernel_middleware import TenantKernelMiddlewareWrapper
 from routes import (
     enterprise_auth_routes,
     enterprise_firm_routes,
@@ -117,17 +119,11 @@ async def bootstrap_enterprise(app: FastAPI, db: AsyncIOMotorDatabase):
             logger.warning(f"[ENTERPRISE] Index creation warning: {str(e)}")
         
         # ====================================================================
-        # 3. ADD MIDDLEWARE
+        # 3. MIDDLEWARE (REGISTERED IN server.py BEFORE STARTUP)
         # ====================================================================
-        
-        logger.info("[ENTERPRISE] Adding middleware...")
-        
-        # Tenant isolation middleware (must be added EARLY)
-        # Middleware added in reverse order (last added = first executed in request)
-        app.add_middleware(TenantIsolationMiddleware)
-        
-        logger.info("[ENTERPRISE] Middleware registered")
-        
+
+        logger.info("[ENTERPRISE] ✓ Middleware already registered in server.py (TenantKernel + TenantIsolation)")
+
         # ====================================================================
         # 4. ATTACH SERVICES TO APP STATE (dependency injection)
         # ====================================================================

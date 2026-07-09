@@ -1,13 +1,14 @@
 from typing import Dict, List, Any, Optional
 from motor.motor_asyncio import AsyncIOMotorCollection
 from datetime import datetime, timedelta
-from backend.middleware.tenant_isolation import TenantAwareQuery
-from backend.repositories.enterprise_base_repository import BaseRepository
+from middleware.tenant_isolation import TenantAwareQuery
+from models.enterprise_cases import DocumentAccessLog
+from repositories.enterprise_base_repository import BaseRepository
 
 
 class DocumentAccessLogRepository(BaseRepository):
     def __init__(self, collection: AsyncIOMotorCollection):
-        super().__init__(collection)
+        super().__init__(collection, DocumentAccessLog)
 
     async def log_access(self, firm_id: str, log_data: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         log_data["firm_id"] = firm_id

@@ -1,0 +1,838 @@
+2026-07-07 11:23:05,640 - server - INFO - MongoDB client initialized
+2026-07-07 11:23:05,642 - backend.security.guarded_db - INFO - [DB_BARRIER] GuardedDB initialized - direct access blocked
+2026-07-07 11:23:05,642 - server - INFO - MongoDB wrapped in GuardedDB hard barrier
+INFO:     Started server process [17216]
+INFO:     Waiting for application startup.
+2026-07-07 11:23:06,096 - utils.graceful_shutdown - INFO - [SHUTDOWN] Starting up application
+2026-07-07 11:23:06,096 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGTERM
+2026-07-07 11:23:06,096 - utils.graceful_shutdown - WARNING - [SHUTDOWN] Signal handling not available for SIGINT
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-07-07 11:23:46,897 - pymongo.serverSelection - INFO - {"message": "Waiting for suitable server to become available", "selector": "Primary()", "operation": "ping", "topologyDescription": "<TopologyDescription id: 6a4d27e914c031ea6fd05e44, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None>]>", "clientId": {"$oid": "6a4d27e914c031ea6fd05e44"}, "remainingTimeMS": 5}
+INFO:     127.0.0.1:63332 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64057 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-07 11:38:42,474 - backend.security.guarded_db - CRITICAL - [DB_BARRIER] UNAUTHORIZED DB ACCESS ATTEMPT: collection=users operation=find_one caller=None timestamp=2026-07-07T16:38:42.474190
+2026-07-07 11:38:42,477 - backend.kernel.tenant_kernel_middleware - CRITICAL - [TENANT_KERNEL_MIDDLEWARE] 500 Unexpected error. path=/api/auth/login | error=Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 159, in call_next
+    message = await recv_stream.receive()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\streams\memory.py", line 132, in receive
+    raise EndOfStream from None
+anyio.EndOfStream
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 94, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\security_enforcer.py", line 63, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 65, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 756, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 776, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 297, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 77, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 72, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 278, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\utils\rate_limiter_decorator.py", line 94, in wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\routes\auth.py", line 155, in login
+    user = await db.users.find_one({"email": credentials.email})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 75, in find_one
+    self._check_guard("find_one")
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 63, in _check_guard
+    raise AssertionError(
+AssertionError: Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+INFO:     127.0.0.1:64065 - "POST /api/auth/login HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 190, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    |     raise app_exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    |     raise HTTPException(
+    | fastapi.exceptions.HTTPException: 500: Internal server error
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    raise HTTPException(
+fastapi.exceptions.HTTPException: 500: Internal server error
+2026-07-07 11:39:09,719 - backend.security.guarded_db - CRITICAL - [DB_BARRIER] UNAUTHORIZED DB ACCESS ATTEMPT: collection=users operation=find_one caller=None timestamp=2026-07-07T16:39:09.719120
+2026-07-07 11:39:09,719 - backend.kernel.tenant_kernel_middleware - CRITICAL - [TENANT_KERNEL_MIDDLEWARE] 500 Unexpected error. path=/api/auth/login | error=Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 159, in call_next
+    message = await recv_stream.receive()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\streams\memory.py", line 132, in receive
+    raise EndOfStream from None
+anyio.EndOfStream
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 94, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\security_enforcer.py", line 63, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 65, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 756, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 776, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 297, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 77, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 72, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 278, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\utils\rate_limiter_decorator.py", line 94, in wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\routes\auth.py", line 155, in login
+    user = await db.users.find_one({"email": credentials.email})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 75, in find_one
+    self._check_guard("find_one")
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 63, in _check_guard
+    raise AssertionError(
+AssertionError: Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+INFO:     127.0.0.1:54654 - "POST /api/auth/login HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 190, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    |     raise app_exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    |     raise HTTPException(
+    | fastapi.exceptions.HTTPException: 500: Internal server error
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    raise HTTPException(
+fastapi.exceptions.HTTPException: 500: Internal server error
+2026-07-07 11:39:20,287 - backend.security.guarded_db - CRITICAL - [DB_BARRIER] UNAUTHORIZED DB ACCESS ATTEMPT: collection=users operation=find_one caller=None timestamp=2026-07-07T16:39:20.287279
+2026-07-07 11:39:20,287 - backend.kernel.tenant_kernel_middleware - CRITICAL - [TENANT_KERNEL_MIDDLEWARE] 500 Unexpected error. path=/api/auth/register | error=Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 159, in call_next
+    message = await recv_stream.receive()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\streams\memory.py", line 132, in receive
+    raise EndOfStream from None
+anyio.EndOfStream
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 94, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\security_enforcer.py", line 63, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 65, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 756, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 776, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 297, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 77, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 72, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 278, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\utils\rate_limiter_decorator.py", line 94, in wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\routes\auth.py", line 96, in register
+    existing_user = await db.users.find_one({"email": user_data.email})
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 75, in find_one
+    self._check_guard("find_one")
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 63, in _check_guard
+    raise AssertionError(
+AssertionError: Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+INFO:     127.0.0.1:61223 - "POST /api/auth/register HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 190, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    |     raise app_exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    |     raise HTTPException(
+    | fastapi.exceptions.HTTPException: 500: Internal server error
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    raise HTTPException(
+fastapi.exceptions.HTTPException: 500: Internal server error
+2026-07-07 11:39:49,610 - backend.kernel.tenant_kernel - INFO - [TENANT_KERNEL_START] request_id=1910e96c-1735-4ac4-b394-ac7fd194aaa5 | path=/api/ | method=GET | ip=127.0.0.1
+2026-07-07 11:39:49,610 - backend.kernel.tenant_kernel - WARNING - [TENANT_KERNEL] Missing JWT token. request_id=1910e96c-1735-4ac4-b394-ac7fd194aaa5 | path=/api/
+2026-07-07 11:39:49,610 - backend.kernel.tenant_kernel_middleware - WARNING - [TENANT_KERNEL_MIDDLEWARE] 401 Invalid JWT. request_id=unknown | path=/api/ | error=Missing or invalid JWT token
+INFO:     127.0.0.1:60092 - "GET /api/ HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 190, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    |     raise app_exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 110, in dispatch
+    |     raise HTTPException(
+    | fastapi.exceptions.HTTPException: 401: Invalid or missing authentication token
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 110, in dispatch
+    raise HTTPException(
+fastapi.exceptions.HTTPException: 401: Invalid or missing authentication token
+2026-07-07 11:40:39,342 - backend.security.guarded_db - CRITICAL - [DB_BARRIER] UNAUTHORIZED DB ACCESS ATTEMPT: collection=users operation=find_one caller=None timestamp=2026-07-07T16:40:39.342558
+2026-07-07 11:40:39,343 - backend.kernel.tenant_kernel_middleware - CRITICAL - [TENANT_KERNEL_MIDDLEWARE] 500 Unexpected error. path=/api/auth/login | error=Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 159, in call_next
+    message = await recv_stream.receive()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\streams\memory.py", line 132, in receive
+    raise EndOfStream from None
+anyio.EndOfStream
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 94, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\security_enforcer.py", line 63, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 65, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 756, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 776, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 297, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 77, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\routing.py", line 72, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 278, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\utils\rate_limiter_decorator.py", line 94, in wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\routes\auth.py", line 155, in login
+    user = await db.users.find_one({"email": credentials.email})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 75, in find_one
+    self._check_guard("find_one")
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\security\guarded_db.py", line 63, in _check_guard
+    raise AssertionError(
+AssertionError: Direct access to collection 'users' is forbidden. Must use SecureRepository.find_one()
+INFO:     127.0.0.1:49239 - "POST /api/auth/login HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 190, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    |     raise app_exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    |     with collapse_excgroups():
+    |   File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    |     raise HTTPException(
+    | fastapi.exceptions.HTTPException: 500: Internal server error
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 69, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\applications.py", line 123, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\middleware\tenant_isolation.py", line 78, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 189, in __call__
+    with collapse_excgroups():
+  File "C:\Users\darwi\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in collapse_excgroups
+    raise exc
+  File "C:\Users\darwi\Documents\punto-cero-legal\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\darwi\Documents\punto-cero-legal\backend\kernel\tenant_kernel_middleware.py", line 147, in dispatch
+    raise HTTPException(
+fastapi.exceptions.HTTPException: 500: Internal server error
+INFO:     127.0.0.1:49247 - "GET /api/health HTTP/1.1" 200 OK

@@ -17,9 +17,10 @@ async def get_db():
     return db
 
 async def get_current_user(authorization: Optional[str] = Header(None), db: AsyncIOMotorDatabase = Depends(get_db)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    token = authorization.replace("Bearer ", "")
+    """CRITICAL FIX (S5.3-Finding#5): Hardened Bearer token extraction"""
+    from utils.auth import extract_bearer_token
+
+    token = extract_bearer_token(authorization)
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")

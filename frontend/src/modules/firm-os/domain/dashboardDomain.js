@@ -132,8 +132,8 @@ export function composeTeamData(lawyers = []) {
   return {
     metrics,
     distribution: {
-      byDepartment,
-      byOffice,
+      byDepartment: Object.entries(byDepartment).map(([name, count]) => ({ name, count })),
+      byOffice: Object.entries(byOffice).map(([name, count]) => ({ name, count })),
     },
     list: lawyers,
   };

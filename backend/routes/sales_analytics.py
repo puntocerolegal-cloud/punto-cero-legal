@@ -17,8 +17,9 @@ async def get_global_metrics(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Global sales metrics (admin only)"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     # Count agents
     agents = await db.users.count_documents({"role": "socio_comercial"})
@@ -81,8 +82,9 @@ async def get_top_agents(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Top agents by commissions"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     agents = await db.users.find({"role": "socio_comercial"}).to_list(None)
     
@@ -131,8 +133,9 @@ async def get_top_countries(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Top countries by leads and sales"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     leads = await db.leads.find({}).to_list(None)
     
@@ -182,8 +185,9 @@ async def get_sales_funnel(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Sales funnel analytics"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     leads = await db.leads.find({}).to_list(None)
     
@@ -217,8 +221,9 @@ async def get_country_performance(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Country-level performance metrics"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     query = {}
     if country:
@@ -255,8 +260,9 @@ async def get_commission_summary(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Commission summary by status"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     commissions = await db.commissions.find({}).to_list(None)
     
@@ -293,8 +299,9 @@ async def get_sales_alerts(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     """Intelligent sales alerts"""
+    from fastapi import HTTPException, status
     if current_user.get("role") not in ["admin", "admin_general"]:
-        return {"success": False, "message": "No autorizado"}
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     
     alerts = []
     

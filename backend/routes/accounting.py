@@ -20,9 +20,11 @@ async def get_db():
 
 
 async def get_admin(authorization: Optional[str] = Header(None), db: AsyncIOMotorDatabase = Depends(get_db)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "No autenticado")
-    payload = decode_token(authorization.replace("Bearer ", ""))
+    """CRITICAL FIX (S5.3-Finding#5): Hardened Bearer token extraction"""
+    from utils.auth import extract_bearer_token
+
+    token = extract_bearer_token(authorization)
+    payload = decode_token(token)
     if not payload:
         raise HTTPException(401, "Token inválido")
     user = await db.users.find_one({"email": payload["sub"]})

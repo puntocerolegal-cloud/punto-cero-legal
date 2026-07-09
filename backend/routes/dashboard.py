@@ -3,6 +3,7 @@ from typing import List
 from datetime import datetime, date, timedelta
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
+from routes.auth import get_current_user
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard & KPIs"])
 
@@ -11,7 +12,7 @@ async def get_db():
     return db
 
 @router.get("/kpis/{lawyer_id}", response_model=dict)
-async def get_lawyer_kpis(lawyer_id: str, days: int = 30, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_lawyer_kpis(lawyer_id: str, days: int = 30, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """
     DASHBOARD PRINCIPAL: Métricas en Tiempo Real
     Agrega datos de todos los módulos para generar KPIs
@@ -82,7 +83,7 @@ async def get_lawyer_kpis(lawyer_id: str, days: int = 30, db: AsyncIOMotorDataba
     }
 
 @router.get("/alerts/{lawyer_id}", response_model=List[dict])
-async def get_dashboard_alerts(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_dashboard_alerts(lawyer_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """
     Alertas del Dashboard: Vencimientos, llamadas pendientes, nuevos leads
     """
@@ -161,7 +162,7 @@ async def get_dashboard_alerts(lawyer_id: str, db: AsyncIOMotorDatabase = Depend
 
 
 @router.get("/crm-report/{lawyer_id}", response_model=dict)
-async def crm_report(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def crm_report(lawyer_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """CRM CENTRAL: el cerebro de la oficina. Reportes agregados de todos los
     módulos + gráficas + recomendaciones inteligentes basadas en los datos."""
     cases = await db.cases.find({"lawyer_id": lawyer_id}).to_list(5000)
@@ -241,7 +242,7 @@ async def crm_report(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db))
 
 
 @router.get("/notifications/{lawyer_id}", response_model=dict)
-async def lawyer_notifications(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def lawyer_notifications(lawyer_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     """Campana del dashboard: notificaciones dirigidas al abogado."""
     docs = await db.notifications.find(
         {"$or": [{"target": lawyer_id}, {"user_id": lawyer_id}]}
@@ -262,13 +263,13 @@ async def lawyer_notifications(lawyer_id: str, db: AsyncIOMotorDatabase = Depend
 
 
 @router.post("/notifications/{notification_id}/read", response_model=dict)
-async def mark_notification_read(notification_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     await db.notifications.update_one({"_id": ObjectId(notification_id)}, {"$set": {"read": True}})
     return {"ok": True}
 
 
 @router.post("/notifications/{lawyer_id}/read-all", response_model=dict)
-async def mark_all_read(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def mark_all_read(lawyer_id: str, current_user: dict = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
     await db.notifications.update_many(
         {"$or": [{"target": lawyer_id}, {"user_id": lawyer_id}], "read": {"$ne": True}},
         {"$set": {"read": True}},

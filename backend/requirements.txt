@@ -4,6 +4,7 @@
 fastapi==0.110.1
 uvicorn[standard]==0.29.0
 python-multipart==0.0.9        # formularios/uploads (intake, comprobantes, webhook)
+slowapi==0.1.9                 # Rate limiting (CRITICAL FIX S5.3-Finding#9)
 
 # ── Base de datos (MongoDB) ──
 motor==3.4.0                   # driver async (incluye bson)
@@ -11,6 +12,7 @@ pymongo==4.7.2
 
 # ── Validación / modelos ──
 pydantic[email]==2.7.4         # EmailStr requiere email-validator (incluido)
+bleach==6.1.0                  # HTML sanitization (CRITICAL FIX S5.3-Finding#6)
 
 # ── Configuración ──
 python-dotenv==1.0.1

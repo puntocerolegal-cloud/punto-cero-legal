@@ -20,6 +20,19 @@ import logging
 import os
 import httpx
 
+from repositories.transaction import TransactionRepository
+from repositories.webhook_event_repository import WebhookEventRepository
+from repositories.audit_log_repository import AuditLogRepository
+from repositories.user_repository import UserRepository
+from repositories.refund_repository import RefundRepository, ChargebackRepository
+from repositories.notification_repository import NotificationRepository
+from dependencies import get_webhook_repo, get_audit_repo, get_transaction_repo, get_user_repo, get_refund_repo, get_chargeback_repo, get_notification_repo
+# PHASE 4: Kernel-based tenant context (new)
+from kernel.tenant_kernel_middleware import get_tenant_context_from_request
+from kernel.external_tenant_resolver import resolve_tenant_from_webhook_event
+# DEPRECATED: Old middleware-based context (for compatibility during transition)
+from middleware.tenant_isolation import require_tenant_context
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payment", tags=["Payment Router"])
@@ -357,6 +370,12 @@ async def get_db():
     return db
 
 
+async def get_transaction_repo() -> TransactionRepository:
+    """Dependency injection for TransactionRepository"""
+    from server import db
+    return TransactionRepository(db.transactions)
+
+
 async def _create_mp_preference(tx: dict, plan_name: str) -> Optional[dict]:
     """Crea una preferencia REAL en Mercado Pago y devuelve {url, preference_id}.
     Reemplaza el checkout_url simulado. Sin MP_ACCESS_TOKEN devuelve None.
@@ -434,6 +453,59 @@ async def _apply_payment_success(db, transaction: dict) -> bool:
         )
     except Exception:
         pass
+
+    # Confirmación al cliente: recibo de pago
+    try:
+        customer_email = transaction.get("user_email")
+        if customer_email:
+            customer_name = transaction.get("user_name", "Cliente")
+            amount = transaction.get("amount_local", "N/A")
+            currency = transaction.get("currency", "USD")
+            plan = transaction.get("plan_id", "Plan")
+
+            subject = f"Confirmación de pago - Punto Cero Legal"
+            body = f"""
+            <h2>¡Pago confirmado!</h2>
+            <p>Hola {customer_name},</p>
+            <p>Tu pago ha sido procesado correctamente.</p>
+            <table border="1" cellpadding="10">
+                <tr><td><strong>Plan:</strong></td><td>{plan}</td></tr>
+                <tr><td><strong>Monto:</strong></td><td>{amount} {currency}</td></tr>
+                <tr><td><strong>Referencia:</strong></td><td>{payment_id}</td></tr>
+                <tr><td><strong>Fecha:</strong></td><td>{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</td></tr>
+            </table>
+            <p>Gracias por usar Punto Cero Legal.</p>
+            """
+
+            notifier.send_email(customer_email, subject, body)
+    except Exception:
+        pass  # No bloquea el flujo si el email falla
+
+    # Registrar evento de pago en SOC (auditoría de seguridad)
+    try:
+        user_email = transaction.get("user_email", "unknown")
+        user_doc = await db.users.find_one({"email": user_email})
+        user_id = str(user_doc["_id"]) if user_doc else None
+        firm_id = user_doc.get("firm_id") if user_doc else None
+        tenant_id = user_doc.get("tenant_id") if user_doc else None
+
+        await db.soc_events.insert_one({
+            "timestamp": datetime.utcnow(),
+            "event_type": "payment_approved",
+            "user_id": user_id,
+            "user_email": user_email,
+            "payment_id": payment_id,
+            "plan_id": transaction.get("plan_id"),
+            "amount": transaction.get("amount_local"),
+            "currency": transaction.get("currency"),
+            "country": transaction.get("country"),
+            "firm_id": firm_id,
+            "tenant_id": tenant_id,
+            "billing_cycle": transaction.get("billing_cycle"),
+            "severity": "info"
+        })
+    except Exception:
+        pass  # No bloquea si SOC logging falla
 
     # Crear/actualizar usuario (activación de suscripción — lógica intacta)
     user = await db.users.find_one({"email": transaction["user_email"]})
@@ -724,8 +796,35 @@ async def get_plans(country: str = "Colombia", billing_cycle: str = "monthly"):
     }
 
 @router.post("/init", response_model=PaymentInitResponse)
-async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def init_payment(
+    request: PaymentInitRequest,
+    current=Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    transaction_repo: TransactionRepository = Depends(get_transaction_repo)
+):
     """Inicializa un pago según país y plan. Router inteligente."""
+    # PHASE 6: Tenant context from TenantKernel (immutable, kernel-validated)
+    # TenantKernel GUARANTEES this context is valid before any endpoint code executes
+    # NO manual tenant resolution allowed
+    # NO fallback logic
+    # NO bypass possible
+    try:
+        # PHASE 5: Use kernel-validated context (primary)
+        tenant_context = get_tenant_context_from_request(request)
+        firm_id = tenant_context.firm_id
+        request_id = tenant_context.request_id
+    except Exception as e:
+        # TenantKernel should NEVER allow a request here without valid context
+        # If we reach here, it's a system failure (500)
+        logger.critical(
+            f"[payment/init] [KERNEL_FAILURE] TenantContext missing from kernel. "
+            f"User: {current.get('email')}, Error: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Tenant kernel validation failure"
+        )
+
     plan_data = PLAN_PRICES_COP.get(request.plan_id)
     if not plan_data:
         raise HTTPException(status_code=400, detail="Plan no válido")
@@ -781,8 +880,14 @@ async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = D
         "expires_at": datetime.utcnow() + timedelta(hours=24)
     }
 
-    await db.transactions.insert_one(transaction)
-    
+    # PHASE 2: Persist transaction with multi-tenant isolation
+    # firm_id and request_id from TenantIsolationMiddleware (centralized source)
+    await transaction_repo.create(
+        firm_id=firm_id,
+        data=transaction,
+        request_id=request_id
+    )
+
     return PaymentInitResponse(
         gateway=gateway,
         checkout_url=checkout_url,
@@ -821,7 +926,17 @@ async def confirm_payment(payment_id: str, db: AsyncIOMotorDatabase = Depends(ge
 
 
 @router.post("/webhook")
-async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def mp_webhook(
+    request: Request,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    webhook_repo: WebhookEventRepository = Depends(get_webhook_repo),
+    audit_repo: AuditLogRepository = Depends(get_audit_repo),
+    transaction_repo: TransactionRepository = Depends(get_transaction_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    refund_repo: RefundRepository = Depends(get_refund_repo),
+    chargeback_repo: ChargebackRepository = Depends(get_chargeback_repo),
+    notification_repo: NotificationRepository = Depends(get_notification_repo)
+):
     """
     Webhook Oficial Consolidado de Mercado Pago.
 
@@ -877,7 +992,8 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             "invalid_request",
             execution_time,
             client_ip,
-            "Missing event_id or event_type"
+            "Missing event_id or event_type",
+            audit_repo=audit_repo
         )
         return {"received": False, "error": "Missing event_id or event_type"}
 
@@ -901,17 +1017,32 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             "invalid_signature",
             execution_time,
             client_ip,
-            "HMAC signature validation failed"
+            "HMAC signature validation failed",
+            audit_repo=audit_repo
         )
         logger.warning(f"Invalid HMAC signature for event {event_id}")
         return {"received": False, "error": "Invalid signature"}
 
     # ═══════════════════════════════════════════════════════════════════════════════
+    # TASK S1-03: RESOLVER TENANT DESDE EVENTO EXTERNO
+    # ═══════════════════════════════════════════════════════════════════════════════
+
+    # Extraer event_data para resolver firm_id
+    event_data_for_resolution = body.get("data", {})
+    resolved_firm_id = await resolve_tenant_from_webhook_event(
+        db, event_type, event_data_for_resolution
+    )
+    if not resolved_firm_id:
+        resolved_firm_id = "system"
+        logger.warning(f"Could not resolve firm_id for {event_type}:{event_id}, using fallback 'system'")
+
+    # ═══════════════════════════════════════════════════════════════════════════════
     # FASE 3: VERIFICAR DUPLICADOS (IDEMPOTENCIA)
     # ═══════════════════════════════════════════════════════════════════════════════
 
-    if await is_event_duplicate(db, event_id):
+    if await is_event_duplicate(db, event_id, repo=webhook_repo, firm_id=resolved_firm_id):
         execution_time = (time.time() - start_time) * 1000
+        # TASK S1-03: Use resolved_firm_id instead of "system"
         await log_webhook(
             db,
             event_id,
@@ -921,7 +1052,9 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             body,
             "duplicate",
             execution_time,
-            client_ip
+            client_ip,
+            audit_repo=audit_repo,
+            firm_id=resolved_firm_id
         )
         logger.info(f"Duplicate event received: {event_id}")
         return {"received": True, "status": "duplicate"}
@@ -958,7 +1091,46 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
                 event_data = body.get("data", {})
 
             # Ejecutar handler
-            success = await handler(db, event_type, event_data)
+            # TASK S1-04: Pasar repositories y firm_id según el tipo de evento
+            request_id_webhook = f"webhook_{event_id}"
+
+            if "payment" in event_type:
+                success = await handler(
+                    db, event_type, event_data,
+                    tx_repo=transaction_repo,
+                    audit_repo=audit_repo,
+                    firm_id=resolved_firm_id,
+                    request_id=request_id_webhook
+                )
+            elif "subscription" in event_type:
+                success = await handler(
+                    db, event_type, event_data,
+                    user_repo=user_repo,
+                    audit_repo=audit_repo,
+                    firm_id=resolved_firm_id,
+                    request_id=request_id_webhook
+                )
+            elif "refund" in event_type:
+                success = await handler(
+                    db, event_type, event_data,
+                    tx_repo=transaction_repo,
+                    refund_repo=refund_repo,
+                    audit_repo=audit_repo,
+                    firm_id=resolved_firm_id,
+                    request_id=request_id_webhook
+                )
+            elif "chargeback" in event_type:
+                success = await handler(
+                    db, event_type, event_data,
+                    tx_repo=transaction_repo,
+                    chargeback_repo=chargeback_repo,
+                    notification_repo=notification_repo,
+                    audit_repo=audit_repo,
+                    firm_id=resolved_firm_id,
+                    request_id=request_id_webhook
+                )
+            else:
+                success = await handler(db, event_type, event_data)
 
             if not success:
                 result_status = "error"
@@ -969,6 +1141,7 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             logger.debug(f"No handler for event type: {event_type}")
 
         # Registrar evento procesado
+        # TASK S1-03: Use resolved_firm_id instead of "system"
         await record_webhook_event(
             db,
             event_id,
@@ -976,7 +1149,9 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             result_status,
             body,
             processed=(result_status == "success"),
-            error=error_msg
+            error=error_msg,
+            repo=webhook_repo,
+            firm_id=resolved_firm_id
         )
 
     except Exception as e:
@@ -985,6 +1160,7 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
         logger.exception(f"Error processing webhook {event_type}:{event_id}")
 
         # Registrar evento con error
+        # TASK S1-03: Use resolved_firm_id instead of "system"
         await record_webhook_event(
             db,
             event_id,
@@ -992,7 +1168,9 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             "error",
             body,
             processed=False,
-            error=error_msg
+            error=error_msg,
+            repo=webhook_repo,
+            firm_id=resolved_firm_id if 'resolved_firm_id' in locals() else "system"
         )
 
     finally:
@@ -1002,6 +1180,7 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
 
         execution_time = (time.time() - start_time) * 1000
 
+        # TASK S1-03: Use resolved_firm_id instead of "system"
         await log_webhook(
             db,
             event_id,
@@ -1012,7 +1191,9 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
             result_status,
             execution_time,
             client_ip,
-            error_msg
+            error_msg,
+            audit_repo=audit_repo,
+            firm_id=resolved_firm_id if 'resolved_firm_id' in locals() else "system"
         )
 
     # Siempre responder 200 OK (acuso de recibo)

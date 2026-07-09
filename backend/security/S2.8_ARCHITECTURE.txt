@@ -1,0 +1,418 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    S2.8 AUTONOMOUS SECURITY RESPONSE LAYER                    ║
+║                          ARCHITECTURE DIAGRAM                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                            REQUEST PROCESSING FLOW
+═════════════════════════════════════════════════════════════════════════════════
+
+    CLIENT REQUEST
+    (HTTP/REST)
+         │
+         ├──────────────────────────────────────────────────────────────┐
+         │                                                              │
+         ↓                                                              ↓
+    ┌─────────────┐                                            ┌──────────────┐
+    │ Auth Layer  │                                            │ Rate Limiting│
+    │ (JWT Check) │                                            │   (Legacy)   │
+    └──────┬──────┘                                            └──────────────┘
+         │
+         ↓
+    ┌──────────────────────────────────────────────┐
+    │      S2.5 GSCL ENFORCEMENT LAYER             │
+    │  ┌─────────────────────────────────────────┐ │
+    │  │ • Policy Check                          │ │
+    │  │ • Tenant Validation                     │ │
+    │  │ • Ownership Verification                │ │
+    │  │ • RBAC Enforcement                      │ │
+    │  │ • Secure Repository Access              │ │
+    │  │ • GuardedDB Barriers                    │ │
+    │  │ • Audit Logging                         │ │
+    │  └─────────────────────────────────────────┘ │
+    └──────┬───────────────────────────────────────┘
+         │ If ALLOWED
+         ↓
+    ┌──────────────────────────────────────────────┐
+    │    S2.6 SECURITY INTELLIGENCE LAYER          │
+    │  ┌─────────────────────────────────────────┐ │
+    │  │ Behavioral Profile Engine               │ │
+    │  │   → Request rate                        │ │
+    │  │   → Resource distribution               │ │
+    │  │   → Action entropy                      │ │
+    │  │   → Trust score                         │ │
+    │  └─────────────────────────────────────────┘ │
+    │  ┌─────────────────────────────────────────┐ │
+    │  │ Attack Graph Engine                     │ │
+    │  │   → Chain detection                     │ │
+    │  │   → Attack classification               │ │
+    │  │   → Severity scoring                    │ │
+    │  └─────────────────────────────────────────┘ │
+    │  ┌─────────────────────────────────────────┐ │
+    │  │ Adaptive Risk Engine                    │ │
+    │  │   → Dynamic risk scoring                │ │
+    │  │   → Context weighting                   │ │
+    │  │   → Threshold adaptation                │ │
+    │  └─────────────────────────────────────────┘ │
+    │  ┌─────────────────────────────────────────┐ │
+    │  │ Threat Correlation Engine               │ │
+    │  │   → Multi-user attack detection         │ │
+    │  │   → Distributed pattern recognition     │ │
+    │  └─────────────────────────────────────────┘ │
+    │  ┌─────────────────────────────────────────┐ │
+    │  │ Security Anomaly Detector               │ │
+    │  │   → Privilege escalation                │ │
+    │  │   → IDOR patterns                       │ │
+    │  │   → Tenant bypass attempts              │ │
+    │  └─────────────────────────────────────────┘ │
+    │                                             │
+    │  OUTPUT: risk_context = {                  │
+    │    risk_score: 0-100,                      │
+    │    behavioral_deviation: 0-100,            │
+    │    attack_graph_state: {...},              │
+    │    correlation_signals: [...],             │
+    │    tenant_risk: 0-100,                     │
+    │  }                                         │
+    └──────┬───────────────────────────────────────┘
+         │
+         ↓
+    ┌──────────────────────────────────────────────────────────┐
+    │      🚨 S2.8 AUTONOMOUS RESPONSE LAYER (NEW) 🚨         │
+    │                                                          │
+    │  ┌──────────────────────────────────────────────────┐   │
+    │  │ 1. AUTONOMOUS DECISION ENGINE                    │   │
+    │  │  ┌──────────────────────────────────────────┐    │   │
+    │  │  │ Risk Score → Decision Mapping:           │    │   │
+    │  │  │   0-39   → ALLOW                         │    │   │
+    │  │  │   40-59  → MONITOR                       │    │   │
+    │  │  │   60-74  → THROTTLE                      │    │   │
+    │  │  │   75-84  → BLOCK                         │    │   │
+    │  │  │   85-94  → ISOLATE_USER                  │    │   │
+    │  │  │   95-100 → ISOLATE_TENANT + FAIL_SAFE    │    │   │
+    │  │  └──────────────────────────────────────────┘    │   │
+    │  │                                                  │   │
+    │  │  • Confidence Calculation                       │   │
+    │  │  • Reason Generation                           │   │
+    │  │  • Action Determination                        │   │
+    │  │  • TTL Calculation                             │   │
+    │  │  • Decision History Tracking                   │   │
+    │  └──────────────────────────────────────────────────┘   │
+    │                                                          │
+    │  ┌──────────────────────────────────────────────────┐   │
+    │  │ 2. MITIGATION ENGINE                            │   │
+    │  │  ┌──────────────────────────────────────────┐    │   │
+    │  │  │ Execute Actions:                         │    │   │
+    │  │  │  • rate_limit_user                       │    │   │
+    │  │  │  • block_user                            │    │   │
+    │  │  │  • block_ip                              │    │   │
+    │  │  │  • quarantine_tenant                     │    │   │
+    │  │  │  • revoke_tokens                         │    │   │
+    │  │  │  • reduce_permissions                    │    │   │
+    │  │  │  • isolate_user                          │    │   │
+    │  │  │  • trigger_fail_safe                     │    │   │
+    │  │  │  • notify_soc                            │    │   │
+    │  │  └──────────────────────────────────────────┘    │   │
+    │  │                                                  │   │
+    │  │  • Async Execution Pipeline                     │   │
+    │  │  • Status Tracking                             │   │
+    │  │  • Action History Audit                        │   │
+    │  │  • Expiry Management                           │   │
+    │  └──────────────────────────────────────────────────┘   │
+    │                                                          │
+    │  ┌──────────────────────────────────────────────────┐   │
+    │  │ 3. AUTO-POLICY ENGINE                           │   │
+    │  │  ┌──────────────────────────────────────────┐    │   │
+    │  │  │ Dynamic Policy Modes:                    │    │   │
+    │  │  │  • NORMAL    (standard ops)              │    │   │
+    │  │  │  • ELEVATED  (no deletes, MFA)          │    │   │
+    │  │  │  • STRICT    (read-only, whitelist)     │    │   │
+    │  │  │  • LOCKDOWN  (minimal access)           │    │   │
+    │  │  └──────────────────────────────────────────┘    │   │
+    │  │                                                  │    │
+    │  │  • Per-Tenant Policy Adjustment                 │    │
+    │  │  • Global Policy Management                     │    │
+    │  │  • Operation Whitelisting                       │    │
+    │  │  • Policy History Tracking                      │    │
+    │  └──────────────────────────────────────────────────┘   │
+    │                                                          │
+    │  ┌──────────────────────────────────────────────────┐   │
+    │  │ 4. CONTAINMENT ENGINE                           │   │
+    │  │  ┌──────────────────────────────────────────┐    │   │
+    │  │  │ Containment Scopes:                      │    │   │
+    │  │  │  • USER     (sandbox user)               │    │   │
+    │  │  │  • TENANT   (read-only tenant)          │    │   │
+    │  │  │  • ENDPOINT (disable endpoint)          │    │   │
+    │  │  │  • SESSION  (sandbox session)           │    │   │
+    │  │  │                                         │    │   │
+    │  │  │ Containment Modes:                      │    │   │
+    │  │  │  • MONITORED (log activity)             │    │   │
+    │  │  │  • SANDBOX   (fake responses)           │    │   │
+    │  │  │  • READONLY  (no writes)                │    │   │
+    │  │  │  • DISABLED  (return 503)               │    │   │
+    │  │  └──────────────────────────────────────────┘    │   │
+    │  │                                                  │    │
+    │  │  • Threat Isolation                             │    │
+    │  │  • Activity Logging                             │    │
+    │  │  • Status Tracking                              │    │
+    │  │  • Manual Release                               │    │
+    │  └──────────────────────────────────────────────────┘   │
+    │                                                          │
+    │  ┌──────────────────────────────────────────────────┐   │
+    │  │ 5. RECOVERY ENGINE                              │   │
+    │  │  ┌──────────────────────────────────────────┐    │   │
+    │  │  │ Recovery States:                         │    │   │
+    │  │  │  ACTIVE_THREAT                          │    │   │
+    │  │  │    ↓                                     │    │   │
+    │  │  │  THREAT_CONTAINED                       │    │   │
+    │  │  │    ↓                                     │    │   │
+    │  │  │  SAFE_RECOVERY                          │    │   │
+    │  │  │    ↓                                     │    │   │
+    │  │  │  GRADUAL_RESTORE                        │    │   │
+    │  │  │    ↓                                     │    │   │
+    │  │  │  FULL_RESTORE                           │    │   │
+    │  │  └──────────────────────────────────────────┘    │   │
+    │  │                                                  │    │
+    │  │  • Stage-Based Recovery                         │    │
+    │  │  • Permission Restoration                       │    │
+    │  │  • Baseline Reset                               │    │
+    │  │  • Health Checking                              │    │
+    │  │  • Auto-Completion                              │    │
+    │  └──────────────────────────────────────────────────┘   │
+    │                                                          │
+    └──────────────────────────┬───────────────────────────────┘
+         │
+         ├─────────────────────────────────────────────────────┐
+         │                                                     │
+         ↓                                                     ↓
+    ┌──────────────────────────────────┐    ┌─────────────────────────────┐
+    │  S2.7 SOC MONITORING LAYER       │    │  SYSTEM STATE UPDATED       │
+    │  ┌──────────────────────────────┐│    │  ┌─────────────────────────┐│
+    │  │ • Log autonomous actions     ││    │  │ • Blocked users list    ││
+    │  │ • Update incident status     ││    │  │ • Quarantined tenants   ││
+    │  │ • Generate alerts            ││    │  │ • Rate limits active    ││
+    │  │ • Stream to dashboard        ││    │  │ • Policies adjusted     ││
+    │  │ • Notify security team       ││    │  │ • Containments tracked  ││
+    │  │ • Track action success       ││    │  │ • Recovery plans active ││
+    │  └──────────────────────────────┘│    │  └─────────────────────────┘│
+    └──────────────────────────────────┘    └─────────────────────────────┘
+         │
+         ↓
+    ┌──────────────────────┐
+    │  RESPONSE TO CLIENT  │
+    │  ┌────────────────┐  │
+    │  │ If ALLOW:      │  │
+    │  │  200 + data    │  │
+    │  │                │  │
+    │  │ If MONITOR:    │  │
+    │  │  200 + data    │  │
+    │  │  (logged)      │  │
+    │  │                │  │
+    │  │ If THROTTLE:   │  │
+    │  │  429 Rate Lim  │  │
+    │  │                │  │
+    │  │ If BLOCK:      │  │
+    │  │  403 Forbidden │  │
+    │  │                │  │
+    │  │ If ISOLATED:   │  │
+    │  │  403 + sandbox │  │
+    │  │  response      │  │
+    │  └────────────────┘  │
+    └──────────────────────┘
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                        COMPONENT INTERACTION FLOW
+═════════════════════════════════════════════════════════════════════════════════
+
+Risk Context (from S2.6)
+         ↓
+    ┌────────────────────────────────────────────────────────────┐
+    │ Autonomous Decision Engine                                 │
+    │ (converts risk → decision)                                 │
+    └───────────────────┬──────────────────────────────────────────┘
+         ↓              ↓              ↓              ↓
+    ┌────────┐    ┌──────────┐  ┌─────────┐  ┌──────────────┐
+    │ ALLOW  │    │ MONITOR  │  │THROTTLE │  │ BLOCK        │
+    └────────┘    └──────────┘  └─────────┘  └──────────────┘
+         ↓              ↓              ↓              ↓
+    ┌─────────────────────────────────────────────────────┐
+    │ Mitigation Engine                                   │
+    │ (executes actions)                                  │
+    └─────────────────────────────────────────────────────┘
+         ↓
+    ┌─────────────────────────────────────────────────────┐
+    │ Auto-Policy Engine                                  │
+    │ (adjusts restrictions)                              │
+    └─────────────────────────────────────────────────────┘
+         ↓
+    ┌─────────────────────────────────────────────────────┐
+    │ Containment Engine (if needed)                       │
+    │ (isolates threats)                                   │
+    └─────────────────────────────────────────────────────┘
+         ↓
+    ┌─────────────────────────────────────────────────────┐
+    │ Recovery Engine (after incident)                     │
+    │ (restores normalcy)                                  │
+    └─────────────────────────────────────────────────────┘
+         ↓
+    ┌─────────────────────────────────────────────────────┐
+    │ SOC Event Stream                                     │
+    │ (logs all actions)                                   │
+    └─────────────────────────────────────────────────────┘
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                      INTEGRATION POINTS IN CODEBASE
+═════════════════════════════════════════════════════════════════════════════════
+
+File: security_engine.py
+  Function: authorize()
+    ├─ Accepts optional context parameter
+    ├─ context["risk_context"] contains S2.6 signals
+    ├─ Calls _apply_autonomous_response() on high-risk decisions
+    └─ Decision and actions passed to mitigation engine
+
+File: soc_event_stream.py
+  Method: log_autonomous_action()
+    ├─ Receives action details
+    ├─ Maps risk score to severity
+    ├─ Creates SecurityEvent
+    └─ Broadcasts to SOC subscribers
+
+File: mitigation_engine.py
+  Method: execute_action()
+    ├─ Receives action dict
+    ├─ Executes specific mitigation
+    ├─ Logs to SOC on success/failure
+    └─ Updates internal state
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                            DECISION MATRIX
+═════════════════════════════════════════════════════════════════════════════════
+
+Risk Score Range    Decision Type       Primary Actions         TTL (seconds)
+─────────────────────────────────────────────────────────────────────────────
+0-39                ALLOW               • Continue normally     3600
+                                        • Log decision
+
+40-59               MONITOR             • Increase logging      1800
+                                        • Track behavior
+                                        • Alert if escalates
+
+60-74               THROTTLE            • Rate limit (10 req)   900
+                                        • Increase logging
+                                        • Alert admin
+
+75-84               BLOCK               • Deny access           3600
+                                        • Revoke session
+                                        • Alert SOC
+
+85-94               ISOLATE_USER        • Sandbox user          7200
+                                        • Revoke tokens
+                                        • Log activity
+                                        • Alert SOC CRITICAL
+
+95-100              ISOLATE_TENANT      • Tenant read-only      14400
+                    + FAIL_SAFE         • Revoke all tokens
+                                        • Trigger fail-safe
+                                        • CRITICAL escalation
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                          AUTONOMOUS LOOP CYCLE
+═════════════════════════════════════════════════════════════════════════════════
+
+Continuous Operation (Every Request):
+
+    ┌─────────────────────────────────┐
+    │ 1. DETECT (S2.6)                │
+    │    • Analyze behavior           │
+    │    • Evaluate attack graphs     │
+    │    • Score risk                 │
+    │    • Correlate threats          │
+    │    → risk_context               │
+    └────────────┬────────────────────┘
+                 │
+    ┌────────────↓────────────────────┐
+    │ 2. DECIDE (S2.8)                │
+    │    • Map risk to decision       │
+    │    • Calculate confidence       │
+    │    • Generate reason            │
+    │    • Determine actions          │
+    │    → decision + actions         │
+    └────────────┬────────────────────┘
+                 │
+    ┌────────────↓────────────────────┐
+    │ 3. ACT (S2.8)                   │
+    │    • Execute mitigations        │
+    │    • Adjust policies            │
+    │    • Isolate threats            │
+    │    • Apply restrictions         │
+    │    → updated system state       │
+    └────────────┬────────────────────┘
+                 │
+    ┌────────────↓────────────────────┐
+    │ 4. OBSERVE (S2.7)               │
+    │    • Log actions                │
+    │    • Update incidents           │
+    │    • Generate alerts            │
+    │    • Stream to dashboard        │
+    │    → SOC visibility             │
+    └────────────┬────────────────────┘
+                 │
+    ┌────────────↓────────────────────┐
+    │ 5. LEARN (S2.6)                 │
+    │    • Track decision accuracy    │
+    │    • Adjust thresholds          │
+    │    • Update profiles            │
+    │    • Feedback to risk engine    │
+    │    → improved models            │
+    └────────────┬────────────────────┘
+                 │
+                 └──────────────────────→ Next Request
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                      SYSTEM LAYERING (FULL STACK)
+═════════════════════════════════════════════════════════════════════════════════
+
+Layer 1: GSCL (S2.5) - Enforcement
+  • Static policy checking
+  • Tenant isolation
+  • Ownership validation
+  • RBAC enforcement
+  • Guarded DB access
+
+Layer 2: Intelligence (S2.6) - Analysis
+  • Behavior profiling
+  • Attack graphs
+  • Risk scoring
+  • Threat correlation
+  • Anomaly detection
+
+Layer 3: Autonomous Response (S2.8) - Action
+  • Decision making
+  • Mitigation execution
+  • Policy adjustment
+  • Threat containment
+  • Incident recovery
+
+Layer 4: SOC (S2.7) - Monitoring
+  • Event streaming
+  • Incident management
+  • Alert generation
+  • Risk aggregation
+  • Dashboard visualization
+
+Layer 5: User (Client) - Response
+  • Allow or deny
+  • Throttle or block
+  • Sandbox or isolate
+  • Normal or degraded response
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                            END OF ARCHITECTURE
+═════════════════════════════════════════════════════════════════════════════════

@@ -4,12 +4,19 @@ Metadatos de documentos por abogado (colección db.documents).
 El contenido cifrado (Zero-Knowledge) y la integración con Google Drive
 se manejan en los endpoints /documents/upload y /documents/{id}/content.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
+from routes.auth import get_current_user
+from security.document_access import (
+    get_secure_document,
+    validate_document_ownership,
+    validate_lawyer_id_ownership,
+    validate_document_payload_ownership,
+)
 
 router = APIRouter(prefix="/documents", tags=["Document Manager"])
 
@@ -81,7 +88,10 @@ class EncryptedUpload(BaseModel):
 
 
 @router.get("/", response_model=List[dict])
-async def list_documents(lawyer_id: str, folder: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def list_documents(lawyer_id: str, folder: Optional[str] = None, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Ownership validation: lawyer_id must match current_user
+    validate_lawyer_id_ownership(lawyer_id, current_user, getattr(request.state, 'tenant_context', None) if request else None)
+
     q = {"lawyer_id": lawyer_id}
     if folder:
         q["folder"] = folder
@@ -90,7 +100,10 @@ async def list_documents(lawyer_id: str, folder: Optional[str] = None, db: Async
 
 
 @router.get("/storage/{lawyer_id}", response_model=dict)
-async def storage_summary(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def storage_summary(lawyer_id: str, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Ownership validation: lawyer_id must match current_user
+    validate_lawyer_id_ownership(lawyer_id, current_user, getattr(request.state, 'tenant_context', None) if request else None)
+
     pipeline = [
         {"$match": {"lawyer_id": lawyer_id}},
         {"$group": {"_id": None, "total": {"$sum": "$size_bytes"}, "count": {"$sum": 1}}},
@@ -110,7 +123,10 @@ async def storage_summary(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get
 
 
 @router.get("/folders/{lawyer_id}", response_model=List[dict])
-async def list_folders(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def list_folders(lawyer_id: str, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Ownership validation: lawyer_id must match current_user
+    validate_lawyer_id_ownership(lawyer_id, current_user, getattr(request.state, 'tenant_context', None) if request else None)
+
     pipeline = [
         {"$match": {"lawyer_id": lawyer_id, "folder": {"$ne": None}}},
         {"$group": {"_id": "$folder", "count": {"$sum": 1}}},
@@ -121,7 +137,10 @@ async def list_folders(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db
 
 
 @router.post("/", response_model=dict, status_code=201)
-async def create_document_meta(payload: DocumentMeta, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_document_meta(payload: DocumentMeta, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Ownership validation: payload.lawyer_id must match current_user
+    validate_document_payload_ownership(payload.lawyer_id, current_user, getattr(request.state, 'tenant_context', None) if request else None)
+
     doc = payload.model_dump()
     doc["encrypted"] = False
     doc["storage"] = "metadata"
@@ -132,13 +151,16 @@ async def create_document_meta(payload: DocumentMeta, db: AsyncIOMotorDatabase =
 
 
 @router.post("/upload", response_model=dict, status_code=201)
-async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def upload_encrypted_document(payload: EncryptedUpload, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
     """
     Recibe un documento YA CIFRADO en el cliente (Zero-Knowledge) y lo persiste.
     - Si Google Drive está configurado, sube el ciphertext a Drive (storage=drive).
     - Si no, guarda el ciphertext en MongoDB (storage=mongo).
     En ambos casos el backend solo ve bytes opacos.
     """
+    # Ownership validation: payload.lawyer_id must match current_user
+    validate_document_payload_ownership(payload.lawyer_id, current_user, getattr(request.state, 'tenant_context', None) if request else None)
+
     import base64
     from utils import drive_service
 
@@ -177,19 +199,19 @@ async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDa
 
 
 @router.get("/{document_id}/content", response_model=dict)
-async def get_encrypted_content(document_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_encrypted_content(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
     """
     Devuelve el ciphertext y los parámetros públicos (iv, salt) para que el
     navegador descifre localmente con la frase del abogado.
     """
-    import base64
-    from utils import drive_service
+    # Ownership & tenant validation (with ObjectId safety)
+    doc = await get_secure_document(document_id, current_user, getattr(request.state, 'tenant_context', None) if request else None, db)
 
-    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
-    if not doc:
-        raise HTTPException(404, "Documento no encontrado")
     if not doc.get("encrypted"):
         raise HTTPException(400, "El documento no tiene contenido cifrado")
+
+    import base64
+    from utils import drive_service
 
     if doc.get("storage") == "drive" and doc.get("drive_file_id"):
         data = drive_service.download_bytes(doc["drive_file_id"])
@@ -219,25 +241,31 @@ class DocumentEdit(BaseModel):
 
 
 @router.patch("/{document_id}", response_model=dict)
-async def edit_document(document_id: str, payload: DocumentEdit, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def edit_document(document_id: str, payload: DocumentEdit, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
     """Edita metadatos del documento (renombrar, mover de carpeta, vincular a caso/cliente).
     El contenido cifrado no se toca: la edición es solo de metadatos (Zero-Knowledge intacto)."""
+    # Ownership & tenant validation before modification
+    await validate_document_ownership(document_id, current_user, getattr(request.state, 'tenant_context', None) if request else None, db)
+
     update = {k: v for k, v in payload.model_dump().items() if v is not None}
     if not update:
         raise HTTPException(400, "Nada que actualizar")
     update["updated_at"] = datetime.utcnow()
-    res = await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": update})
+
+    # Now we can safely update (ownership already validated)
+    object_id = ObjectId(document_id)
+    res = await db.documents.update_one({"_id": object_id}, {"$set": update})
     if res.matched_count == 0:
         raise HTTPException(404, "Documento no encontrado")
-    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
+    doc = await db.documents.find_one({"_id": object_id})
     return _serialize(doc)
 
 
 @router.delete("/{document_id}", status_code=204)
-async def delete_document(document_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
-    if not doc:
-        raise HTTPException(404, "Documento no encontrado")
+async def delete_document(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # Ownership & tenant validation before deletion
+    doc = await get_secure_document(document_id, current_user, getattr(request.state, 'tenant_context', None) if request else None, db)
+
     # Si está en Drive, intentar borrarlo allí también (best-effort)
     if doc.get("drive_file_id"):
         try:
@@ -245,5 +273,8 @@ async def delete_document(document_id: str, db: AsyncIOMotorDatabase = Depends(g
             delete_drive_file(doc["drive_file_id"])
         except Exception:
             pass
-    await db.documents.delete_one({"_id": ObjectId(document_id)})
+
+    # Now we can safely delete (ownership already validated)
+    object_id = ObjectId(document_id)
+    await db.documents.delete_one({"_id": object_id})
     return None

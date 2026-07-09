@@ -1,13 +1,14 @@
 from typing import Dict, List, Any, Optional
 from motor.motor_asyncio import AsyncIOMotorCollection
 from datetime import datetime
-from backend.middleware.tenant_isolation import TenantAwareQuery
-from backend.repositories.enterprise_base_repository import BaseRepository
+from middleware.tenant_isolation import TenantAwareQuery
+from models.enterprise_cases import Document
+from repositories.enterprise_base_repository import BaseRepository
 
 
 class DocumentRepository(BaseRepository):
     def __init__(self, collection: AsyncIOMotorCollection):
-        super().__init__(collection)
+        super().__init__(collection, Document)
 
     async def find_by_case(self, firm_id: str, case_id: str, request_id: str, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
         query = TenantAwareQuery.add_firm_filter({"case_id": case_id, "deleted_at": None}, firm_id)

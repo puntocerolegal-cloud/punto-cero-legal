@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Request, status, HTTPException
 from typing import Optional
 from datetime import datetime
-from backend.middleware.tenant_isolation import require_tenant_context
-from backend.models.enterprise_cases import CaseDTO, CaseStatus, LegalArea
+from middleware.tenant_isolation import require_tenant_context
+from models.enterprise_cases import CaseDTO, CaseStatus, LegalArea
 
 router = APIRouter(prefix="/api/firms/{firm_id}/cases", tags=["Cases"])
 

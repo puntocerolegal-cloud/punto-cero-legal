@@ -79,9 +79,10 @@ export function ExecutiveDashboard() {
   }, [subscriptions, casesStat, partnersStat]);
 
   // Estados de conexión (datos reales): Cargando / Error.
-  const empty = !loading && !error && cases.length === 0 && subscriptions.length === 0 && partners.length === 0;
-  if (loading || error || empty) {
-    return <ConnectionState loading={loading} error={error} empty={empty} title="PUNTO CERO SYSTEM OS" />;
+  // Nota: si los datos están vacíos pero sin error, mostramos el dashboard con EmptyState componentes internos.
+  // Solo loading/error trigguean ConnectionState.
+  if (loading || error) {
+    return <ConnectionState loading={loading} error={error} empty={false} title="PUNTO CERO SYSTEM OS" />;
   }
 
   const ops = [
