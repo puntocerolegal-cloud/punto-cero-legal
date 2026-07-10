@@ -123,17 +123,7 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
 
 @router.post("/login", response_model=dict)
 async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_db)):
-    import logging
-    logger = logging.getLogger(__name__)
-
     user = await db.users.find_one({"email": credentials.email})
-
-    # Log para diagnóstico
-    if credentials.email in ["abogado@puntocerolegal.com", "firma@puntocerolegal.com"]:
-        if user:
-            logger.warning(f"[LOGIN DEBUG] {credentials.email} found: role={user.get('role')} status={user.get('status')} has_pwd_hash={bool(user.get('password_hash'))} has_pwd={bool(user.get('password'))}")
-        else:
-            logger.warning(f"[LOGIN DEBUG] {credentials.email} NOT FOUND in db.users")
 
     # Guarda: candidatos creados vía landing tienen password_hash=None hasta ser aprobados
     password_hash = user.get("password_hash") if user else None
