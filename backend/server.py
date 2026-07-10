@@ -191,6 +191,18 @@ async def rate_limit_exceeded_handler(request, exc):
         content={"detail": "Too many requests. Please try again later."}
     )
 
+# CORS middleware (MUST be FIRST to handle OPTIONS preflight before any other middleware)
+from starlette.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=get_cors_origins(),
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    max_age=86400,
+)
+
 # PHASE 5: TenantKernel middleware (primary - FIRST execution)
 # PHASE 9: Legacy TenantIsolationMiddleware (fallback/compatibility)
 # PHASE 10: Security Enforcer (global authorization enforcement)
@@ -568,6 +580,7 @@ def get_cors_origins():
         "http://127.0.0.1:5173",
 
         # ─ Dominios de producción ─
+        "https://app.puntocerolegal.com",
         "https://puntocerolegal.com",
         "https://www.puntocerolegal.com",
 
@@ -578,11 +591,13 @@ def get_cors_origins():
         "https://puntocero-legal-api.onrender.com",
     ]
 
-    # ─ Vercel preview deployments (patrón dinámico) ─
+    # ─ Vercel preview deployments (patrones dinámicos) ─
     # Permite CUALQUIER subdominio de vercel.app que contenga "puntocerolegal-3926s-projects"
     # Esto cubre todos los previews: me3ma4jnr, 1jqn23vb1, kz4s25i13, etc.
     vercel_preview_patterns = [
         "https://punto-cero-legal-*-puntocerolegal-3926s-projects.vercel.app",
+        "https://*.vercel.app",
+        "https://punto-cero-legal-*.vercel.app",
     ]
     origins.extend(vercel_preview_patterns)
 
@@ -592,14 +607,6 @@ def get_cors_origins():
 
     return origins
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=get_cors_origins(),
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    max_age=86400,
-)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

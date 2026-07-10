@@ -63,6 +63,7 @@ class TenantKernelMiddlewareWrapper(BaseHTTPMiddleware):
         "/api/firms/activate-account",  # account activation from email link
         "/api/public/",                 # landing intake: case-intake, lawyer-application
         "/api/payment/webhook",         # payment provider webhooks (MercadoPago/PayPal)
+        "/api/payment/catalog",         # public payment catalog (no auth required)
     )
 
     def __init__(self, app):
@@ -80,6 +81,10 @@ class TenantKernelMiddlewareWrapper(BaseHTTPMiddleware):
         Main middleware entry point.
         Validates tenant before endpoint execution.
         """
+
+        # Allow CORS preflight requests
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
         try:
             # Check if this path needs kernel validation

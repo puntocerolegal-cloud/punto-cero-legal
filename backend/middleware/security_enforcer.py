@@ -29,6 +29,7 @@ EXEMPT_PATHS = {
     "/api/auth/login",
     "/api/auth/register",
     "/api/auth/refresh",
+    "/api/payment/catalog",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -57,6 +58,10 @@ class SecurityEnforcerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
+        
+        # Allow CORS preflight requests
+        if method == "OPTIONS":
+            return await call_next(request)
         
         # Allow exempt paths
         if any(path.startswith(exempt) for exempt in EXEMPT_PATHS):

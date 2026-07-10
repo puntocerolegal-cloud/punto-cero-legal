@@ -65,6 +65,7 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/refresh",
+        "/api/payment/catalog",
     }
 
     # Public endpoints reachable before authentication (prefix match).
@@ -80,6 +81,10 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
         Intercept request, extract tenant context, validate isolation.
         Attach tenant context to request state for downstream handlers.
         """
+
+        # Allow CORS preflight requests
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
         # Skip exempt paths (exact match) and public pre-auth paths (prefix match)
         path = request.url.path
