@@ -177,6 +177,33 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
         }
     }
 
+@router.get("/debug/check-official-accounts")
+async def debug_check_accounts(db: AsyncIOMotorDatabase = Depends(get_db)):
+    """TEMPORAL: Verificar estado de cuentas oficiales para debug."""
+    accounts_to_check = [
+        "darwin@puntocerolegal.com",
+        "alejandro@puntocerolegal.com",
+        "abogado@puntocerolegal.com",
+        "firma@puntocerolegal.com"
+    ]
+    result = {}
+    for email in accounts_to_check:
+        user = await db.users.find_one({"email": email})
+        if user:
+            result[email] = {
+                "exists": True,
+                "role": user.get("role"),
+                "status": user.get("status"),
+                "is_verified": user.get("is_verified"),
+                "has_password_hash": bool(user.get("password_hash")),
+                "has_password": bool(user.get("password")),
+                "firm_id": user.get("firm_id"),
+                "deleted_at": user.get("deleted_at")
+            }
+        else:
+            result[email] = {"exists": False}
+    return result
+
 @router.post("/change-password-first-login", response_model=dict, status_code=status.HTTP_200_OK)
 async def change_password_first_login(
     payload: dict,
