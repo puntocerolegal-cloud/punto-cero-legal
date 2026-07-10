@@ -397,37 +397,110 @@ async def init_master_accounts():
     except asyncio.TimeoutError:
         logger.error("Migration initialization timed out after 10s")
 
-    # Internal diagnosis: check official accounts (logs only, no API exposure)
-    async def diagnose_official_accounts():
-        """Internal: Logs status of official accounts for debugging."""
+    # Ensure official accounts are always available (idempotent)
+    async def ensure_official_accounts():
+        """Ensures official system accounts exist and are properly configured."""
         try:
             official_accounts = [
-                "darwin@puntocerolegal.com",
-                "alejandro@puntocerolegal.com",
-                "abogado@puntocerolegal.com",
-                "firma@puntocerolegal.com"
+                {
+                    "email": "darwin@puntocerolegal.com",
+                    "full_name": "Dr. Darwin Gomez",
+                    "role": "admin_general",
+                    "password": "Admin2025!"
+                },
+                {
+                    "email": "alejandro@puntocerolegal.com",
+                    "full_name": "Dr. Alejandro Cetina",
+                    "role": "socio_comercial",
+                    "password": "Socio2025!"
+                },
+                {
+                    "email": "abogado@puntocerolegal.com",
+                    "full_name": "Dr. Abogado Official",
+                    "role": "lawyer",
+                    "password": "Abogado2025!"
+                },
+                {
+                    "email": "firma@puntocerolegal.com",
+                    "full_name": "Firma Official",
+                    "role": "firm_owner",
+                    "password": "Firma2025!"
+                }
             ]
-            logger.info("=" * 80)
-            logger.info("INTERNAL DIAGNOSIS: Official Accounts Status")
-            logger.info("=" * 80)
-            for email in official_accounts:
-                user = await db.users.find_one({"email": email})
-                if not user:
-                    logger.warning(f"  {email}: NOT FOUND in MongoDB")
+
+            logger.info("[OFFICIAL ACCOUNTS] Verifying official system accounts...")
+
+            for account in official_accounts:
+                existing = await db.users.find_one({"email": account["email"]})
+
+                if not existing:
+                    # Account doesn't exist - create it
+                    logger.warning(f"  {account['email']}: NOT FOUND - creating...")
+                    await db.users.insert_one({
+                        "email": account["email"],
+                        "password_hash": pwd.hash(account["password"][:72]),
+                        "full_name": account["full_name"],
+                        "role": account["role"],
+                        "status": "ACTIVE",
+                        "is_verified": True,
+                        "country": "Colombia",
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow()
+                    })
+                    logger.info(f"  ✅ {account['email']}: Created")
                 else:
-                    logger.info(f"  {email}: EXISTS | role={user.get('role')} status={user.get('status')} verified={user.get('is_verified')} pwd_hash={bool(user.get('password_hash'))}")
-                    if user.get('deleted_at'):
-                        logger.warning(f"    -> BLOCKED: deleted_at is set")
-                    if not user.get('password_hash') and not user.get('password'):
-                        logger.warning(f"    -> BLOCKED: no password_hash or password field")
-            logger.info("=" * 80)
+                    # Account exists - verify critical fields
+                    needs_update = False
+                    updates = {}
+
+                    # Ensure not soft-deleted
+                    if existing.get("deleted_at"):
+                        logger.warning(f"  {account['email']}: Was soft-deleted, restoring...")
+                        updates["deleted_at"] = None
+                        needs_update = True
+
+                    # Ensure ACTIVE status
+                    if existing.get("status") not in ["ACTIVE", "active"]:
+                        logger.warning(f"  {account['email']}: Status was {existing.get('status')}, fixing to ACTIVE...")
+                        updates["status"] = "ACTIVE"
+                        needs_update = True
+
+                    # Ensure verified
+                    if not existing.get("is_verified"):
+                        logger.warning(f"  {account['email']}: Not verified, fixing...")
+                        updates["is_verified"] = True
+                        needs_update = True
+
+                    # Ensure has password hash
+                    if not existing.get("password_hash") and not existing.get("password"):
+                        logger.warning(f"  {account['email']}: No password, setting...")
+                        updates["password_hash"] = pwd.hash(account["password"][:72])
+                        needs_update = True
+
+                    # Ensure role is correct
+                    if existing.get("role") != account["role"]:
+                        logger.warning(f"  {account['email']}: Role was {existing.get('role')}, fixing to {account['role']}...")
+                        updates["role"] = account["role"]
+                        needs_update = True
+
+                    if needs_update:
+                        updates["updated_at"] = datetime.utcnow()
+                        await db.users.update_one(
+                            {"email": account["email"]},
+                            {"$set": updates}
+                        )
+                        logger.info(f"  ✅ {account['email']}: Fixed ({', '.join(updates.keys())})")
+                    else:
+                        logger.info(f"  ✅ {account['email']}: OK")
+
+            logger.info("[OFFICIAL ACCOUNTS] All official accounts verified")
         except Exception as e:
-            logger.warning(f"Account diagnosis failed: {e}")
+            logger.error(f"[OFFICIAL ACCOUNTS] Error: {e}")
 
     try:
-        await asyncio.wait_for(diagnose_official_accounts(), timeout=5.0)
+        await asyncio.wait_for(ensure_official_accounts(), timeout=10.0)
     except asyncio.TimeoutError:
-        logger.warning("Account diagnosis timed out")
+        logger.error("Official accounts verification timed out")
 
 # Include the router in the main app
 app.include_router(api_router)
