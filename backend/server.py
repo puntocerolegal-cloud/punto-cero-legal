@@ -327,8 +327,6 @@ async def init_master_accounts():
     test_users = [
         {"email": "darwin@puntocerolegal.com", "password": "Admin2025!", "name": "Dr. Darwin Gomez", "role": "admin_general"},
         {"email": "alejandro@puntocerolegal.com", "password": "Socio2025!", "name": "Dr. Alejandro Cetina", "role": "socio_comercial"},
-        {"email": "abogado@puntocerolegal.com", "password": "Abogado2025!", "name": "Dr. Abogado Official", "role": "lawyer"},
-        {"email": "firma@puntocerolegal.com", "password": "Firma2025!", "name": "Firma Official Owner", "role": "firm_owner"},
         {"email": "lawyer@test.com", "password": "Lawyer2025!", "name": "Juan Abogado", "role": "lawyer"},
         {"email": "client@test.com", "password": "Client2025!", "name": "Carlos Cliente", "role": "client"},
     ]
