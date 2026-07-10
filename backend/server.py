@@ -397,6 +397,38 @@ async def init_master_accounts():
     except asyncio.TimeoutError:
         logger.error("Migration initialization timed out after 10s")
 
+    # Internal diagnosis: check official accounts (logs only, no API exposure)
+    async def diagnose_official_accounts():
+        """Internal: Logs status of official accounts for debugging."""
+        try:
+            official_accounts = [
+                "darwin@puntocerolegal.com",
+                "alejandro@puntocerolegal.com",
+                "abogado@puntocerolegal.com",
+                "firma@puntocerolegal.com"
+            ]
+            logger.info("=" * 80)
+            logger.info("INTERNAL DIAGNOSIS: Official Accounts Status")
+            logger.info("=" * 80)
+            for email in official_accounts:
+                user = await db.users.find_one({"email": email})
+                if not user:
+                    logger.warning(f"  {email}: NOT FOUND in MongoDB")
+                else:
+                    logger.info(f"  {email}: EXISTS | role={user.get('role')} status={user.get('status')} verified={user.get('is_verified')} pwd_hash={bool(user.get('password_hash'))}")
+                    if user.get('deleted_at'):
+                        logger.warning(f"    -> BLOCKED: deleted_at is set")
+                    if not user.get('password_hash') and not user.get('password'):
+                        logger.warning(f"    -> BLOCKED: no password_hash or password field")
+            logger.info("=" * 80)
+        except Exception as e:
+            logger.warning(f"Account diagnosis failed: {e}")
+
+    try:
+        await asyncio.wait_for(diagnose_official_accounts(), timeout=5.0)
+    except asyncio.TimeoutError:
+        logger.warning("Account diagnosis timed out")
+
 # Include the router in the main app
 app.include_router(api_router)
 
