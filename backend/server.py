@@ -384,6 +384,19 @@ async def init_master_accounts():
     except asyncio.TimeoutError:
         logger.error("OS index initialization timed out after 20s")
 
+    # Hotfix: Normalize password field for old users (backward compatibility)
+    async def run_migrations():
+        try:
+            from migrations.002_normalize_password_field import Migration002
+            await Migration002.apply(db)
+        except Exception as e:
+            logger.warning(f"Migration 002 failed (non-critical): {e}")
+
+    try:
+        await asyncio.wait_for(run_migrations(), timeout=10.0)
+    except asyncio.TimeoutError:
+        logger.error("Migration initialization timed out after 10s")
+
 # Include the router in the main app
 app.include_router(api_router)
 

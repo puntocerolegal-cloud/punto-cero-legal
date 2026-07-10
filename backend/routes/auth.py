@@ -124,11 +124,16 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
 @router.post("/login", response_model=dict)
 async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_db)):
     user = await db.users.find_one({"email": credentials.email})
-    
+
     # Guarda: candidatos creados vía landing tienen password_hash=None hasta ser aprobados
-    if not user or not user.get("password_hash"):
+    password_hash = user.get("password_hash") if user else None
+    # Compatibilidad: usuarios antiguos pueden tener "password" en lugar de "password_hash"
+    if not password_hash and user:
+        password_hash = user.get("password")
+
+    if not user or not password_hash:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
-    if not verify_password(credentials.password, user["password_hash"]):
+    if not verify_password(credentials.password, password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo o contraseña incorrectos"
