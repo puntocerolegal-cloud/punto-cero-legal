@@ -387,10 +387,10 @@ async def init_master_accounts():
     # Hotfix: Normalize password field for old users (backward compatibility)
     async def run_migrations():
         try:
-            from migrations.002_normalize_password_field import Migration002
-            await Migration002.apply(db)
+            from migrations.normalize_password_field import MigratePasswordField
+            await MigratePasswordField.apply(db)
         except Exception as e:
-            logger.warning(f"Migration 002 failed (non-critical): {e}")
+            logger.warning(f"Password field migration failed (non-critical): {e}")
 
     try:
         await asyncio.wait_for(run_migrations(), timeout=10.0)
