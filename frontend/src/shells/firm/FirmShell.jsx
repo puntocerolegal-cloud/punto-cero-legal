@@ -11,23 +11,23 @@ function FirmShellRoutes() {
 
   return (
     <Routes>
-      <Route path="/firm-os" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.home /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/crm" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.crm /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/cases" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.cases /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/clients" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.clients /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/agenda" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.calendar /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/ai" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.ai /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/meetings" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.meetings /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/invoices" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.invoices /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/documents" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.documents /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/settings" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.settings /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/automation" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.automation /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/workflow-builder" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.workflowBuilder /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/scheduler" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.scheduler /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/intelligence" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.intelligence /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/mission-control" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.missionControl /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/autonomous-operations" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.autonomousOperations /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="/firm-os/governance" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.governance /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.home /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="crm" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.crm /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="cases" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.cases /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="clients" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.clients /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="agenda" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.calendar /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="ai" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.ai /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="meetings" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.meetings /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="invoices" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.invoices /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="documents" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.documents /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="settings" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.settings /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="automation" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.automation /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="workflow-builder" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.workflowBuilder /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="scheduler" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.scheduler /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="intelligence" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.intelligence /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="mission-control" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.missionControl /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="autonomous-operations" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.autonomousOperations /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="governance" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.governance /></FirmOSLayout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={location.pathname.startsWith('/firm-os') ? '/firm-os' : '/'} replace />} />
     </Routes>
   );

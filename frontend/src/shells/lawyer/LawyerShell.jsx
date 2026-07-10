@@ -12,16 +12,16 @@ function LawyerShellRoutes() {
 
   return (
     <Routes>
-      <Route path="/dashboard" element={<ProtectedRoute require={LAWYER_ROLES}><DashboardLayout><lawyerRegistry.home /></DashboardLayout></ProtectedRoute>} />
-      <Route path="/dashboard/crm" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><DashboardLayout><lawyerRegistry.crm /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/cases" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="cases"><DashboardLayout><lawyerRegistry.cases /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/clients" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><DashboardLayout><lawyerRegistry.clients /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/agenda" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="agenda"><DashboardLayout><lawyerRegistry.calendar /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/ai" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="ai"><DashboardLayout><lawyerRegistry.ai /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/meetings" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="video"><DashboardLayout><lawyerRegistry.meetings /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/invoices" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="billing"><DashboardLayout><lawyerRegistry.invoices /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/documents" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="documents"><DashboardLayout><lawyerRegistry.documents /></DashboardLayout></FeatureGate></ProtectedRoute>} />
-      <Route path="/dashboard/settings" element={<ProtectedRoute require={LAWYER_ROLES}><DashboardLayout><lawyerRegistry.settings /></DashboardLayout></ProtectedRoute>} />
+      <Route path="" element={<ProtectedRoute require={LAWYER_ROLES}><DashboardLayout><lawyerRegistry.home /></DashboardLayout></ProtectedRoute>} />
+      <Route path="crm" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><DashboardLayout><lawyerRegistry.crm /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="cases" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="cases"><DashboardLayout><lawyerRegistry.cases /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="clients" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><DashboardLayout><lawyerRegistry.clients /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="agenda" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="agenda"><DashboardLayout><lawyerRegistry.calendar /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="ai" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="ai"><DashboardLayout><lawyerRegistry.ai /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="meetings" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="video"><DashboardLayout><lawyerRegistry.meetings /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="invoices" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="billing"><DashboardLayout><lawyerRegistry.invoices /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="documents" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="documents"><DashboardLayout><lawyerRegistry.documents /></DashboardLayout></FeatureGate></ProtectedRoute>} />
+      <Route path="settings" element={<ProtectedRoute require={LAWYER_ROLES}><DashboardLayout><lawyerRegistry.settings /></DashboardLayout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={location.pathname.startsWith('/dashboard') ? '/dashboard' : '/'} replace />} />
     </Routes>
   );
