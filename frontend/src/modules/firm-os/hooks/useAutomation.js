@@ -29,7 +29,7 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
 
   const automationVM = useMemo(() => {
     return buildAutomationViewModel(lawyers, cases, clients, departments, offices);
-  }, [lawyers, cases, clients, stableDepartments, stableOffices]);
+  }, [lawyers, cases, clients, departments, offices]);
 
   const runRule = useCallback((ruleId) => {
     const rule = AUTOMATION_RULES.find(r => r.id === ruleId);
@@ -58,7 +58,7 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
     }
 
     return result;
-  }, [engine, lawyers, cases, clients, stableDepartments, stableOffices]);
+  }, [engine, lawyers, cases, clients, departments, offices]);
 
   const runAutomation = useCallback(() => {
     const context = {
@@ -85,7 +85,7 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
     }
 
     return results;
-  }, [engine, lawyers, cases, clients, stableDepartments, stableOffices]);
+  }, [engine, lawyers, cases, clients, departments, offices]);
 
   const clearHistory = useCallback(() => {
     setHistory([]);
