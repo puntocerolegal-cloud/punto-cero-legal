@@ -8,6 +8,7 @@ from utils import notifier
 from utils.rate_limiter_decorator import rate_limit  # CRITICAL FIX (S5.3-Finding#9)
 from fastapi import Request
 from bson import ObjectId
+from repositories.user_repository import UserRepository
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -37,7 +38,13 @@ async def get_current_user(
     if not payload:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
-    user = await db.users.find_one({"email": payload["sub"]})
+    # FIX: Use SecureRepository instead of direct db access
+    user_repo = UserRepository(db.users)
+    user = await user_repo.find_by_email(
+        firm_id=payload.get("firm_id", ""),
+        email=payload["sub"],
+        request_id="auth"
+    )
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
@@ -64,13 +71,22 @@ async def get_me(current = Depends(get_current_user), db: AsyncIOMotorDatabase =
     firm_id = current.get("firm_id")
     role = current.get("role", "lawyer")
     if role == "firm_owner" and not firm_id:
-        firm = await db.firms.find_one({"owner_email": current["email"], "status": "ACTIVE"})
+        # FIX: Use SecureRepository instead of direct db access
+        from repositories.firm_repository import FirmRepository
+        firm_repo = FirmRepository(db.firms)
+        firm = await firm_repo.find_by_owner_email(
+            owner_email=current["email"],
+            request_id="auth"
+        )
         if firm:
             firm_id = str(firm["_id"])
             # Actualizar el usuario con firm_id para futuros accesos
-            await db.users.update_one(
-                {"_id": current["_id"]},
-                {"$set": {"firm_id": firm_id}}
+            user_repo = UserRepository(db.users)
+            await user_repo.update_by_email(
+                firm_id=firm.get("organization_id", ""),
+                email=current["email"],
+                updates={"firm_id": firm_id},
+                request_id="auth"
             )
 
     return {
@@ -95,20 +111,27 @@ async def get_me(current = Depends(get_current_user), db: AsyncIOMotorDatabase =
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 @rate_limit(max_requests=3, window_seconds=60)  # 3 registration attempts per minute per IP
 async def register(request: Request, user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
+    # FIX: Use SecureRepository instead of direct db access
+    user_repo = UserRepository(db.users)
+
     # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data.email})
+    existing_user = await user_repo.find_by_email(
+        firm_id="",
+        email=user_data.email,
+        request_id="register"
+    )
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Este correo ya está registrado"
         )
-    
+
     # Create user
     user_dict = user_data.model_dump(exclude={"password"})
     user_dict["password_hash"] = get_password_hash(user_data.password)
     user_dict["created_at"] = datetime.utcnow()
     user_dict["updated_at"] = datetime.utcnow()
-    
+
     # Auto-verified solo para roles administrativos
     if user_data.role in ["admin", "admin_general", "socio_comercial"]:
         user_dict["status"] = "ACTIVE"
@@ -116,9 +139,15 @@ async def register(request: Request, user_data: UserCreate, db: AsyncIOMotorData
     else:
         user_dict["status"] = "PENDING_VERIFICATION"
         user_dict["is_verified"] = False
-    
-    result = await db.users.insert_one(user_dict)
-    user_dict["_id"] = str(result.inserted_id)
+
+    result_id = await user_repo.insert_one(
+        collection_name="users",
+        document=user_dict,
+        user={},
+        resource_type="user",
+        db=db
+    )
+    user_dict["_id"] = result_id
 
     # Alerta al administrador: nuevo usuario registrado (evento crítico).
     if user_data.role not in ["admin", "admin_general", "socio_comercial"]:
@@ -135,7 +164,7 @@ async def register(request: Request, user_data: UserCreate, db: AsyncIOMotorData
     access_token = create_access_token(data={
         "sub": user_data.email,
         "role": user_data.role,
-        "user_id": str(result.inserted_id),
+        "user_id": str(result_id),
         "firm_id": user_dict.get("firm_id")  # Required for tenant isolation
     })
     
@@ -155,8 +184,14 @@ async def register(request: Request, user_data: UserCreate, db: AsyncIOMotorData
 @router.post("/login", response_model=dict)
 @rate_limit(max_requests=5, window_seconds=60)  # 5 login attempts per minute per IP
 async def login(request: Request, credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_db)):
-    user = await db.users.find_one({"email": credentials.email})
-    
+    # FIX: Use SecureRepository instead of direct db access
+    user_repo = UserRepository(db.users)
+    user = await user_repo.find_by_email(
+        firm_id="",
+        email=credentials.email,
+        request_id="login"
+    )
+
     # Guarda: candidatos creados vía landing tienen password_hash=None hasta ser aprobados
     if not user or not user.get("password_hash"):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
@@ -165,13 +200,13 @@ async def login(request: Request, credentials: UserLogin, db: AsyncIOMotorDataba
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo o contraseña incorrectos"
         )
-    
+
     if user.get("status") in ["inactive", "suspended"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Tu cuenta no está activa. Contacta al soporte."
         )
-    
+
     # Fuente de verdad de verificación: campo is_verified.
     # Para roles administrativos: siempre True (los maestros son confiables).
     admin_roles = ["admin", "admin_general", "socio_comercial"]
@@ -184,13 +219,21 @@ async def login(request: Request, credentials: UserLogin, db: AsyncIOMotorDataba
     # FIX: Si el usuario es firm_owner y no tiene firm_id, buscar la firma por owner_email
     firm_id = user.get("firm_id")
     if role == "firm_owner" and not firm_id:
-        firm = await db.firms.find_one({"owner_email": user["email"], "status": "ACTIVE"})
+        # FIX: Use SecureRepository instead of direct db access
+        from repositories.firm_repository import FirmRepository
+        firm_repo = FirmRepository(db.firms)
+        firm = await firm_repo.find_by_owner_email(
+            owner_email=user["email"],
+            request_id="login"
+        )
         if firm:
             firm_id = str(firm["_id"])
             # Actualizar el usuario con firm_id para futuros logins
-            await db.users.update_one(
-                {"_id": user["_id"]},
-                {"$set": {"firm_id": firm_id}}
+            await user_repo.update_by_email(
+                firm_id=firm.get("organization_id", ""),
+                email=user["email"],
+                updates={"firm_id": firm_id},
+                request_id="login"
             )
 
     # [BLOCK 1] Create JWT with firm_id and user_id for multi-tenant isolation
@@ -277,13 +320,17 @@ async def change_password_first_login(
     # Actualizar contraseña
     password_hash = get_password_hash(new_password)
 
-    await db.users.update_one(
-        {"_id": ObjectId(current_user["_id"])},
-        {"$set": {
+    # FIX: Use SecureRepository instead of direct db access
+    user_repo = UserRepository(db.users)
+    await user_repo.update_by_id(
+        firm_id=current_user.get("firm_id", ""),
+        user_id=current_user["_id"],
+        update_data={
             "password_hash": password_hash,
             "requires_password_change": False,
             "updated_at": datetime.utcnow()
-        }}
+        },
+        request_id="change-password"
     )
 
     return {

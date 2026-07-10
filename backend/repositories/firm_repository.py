@@ -212,6 +212,40 @@ class FirmRepository(BaseRepository[Firm]):
             logger.error(f"[FIRM] FIND_BY_OWNER error: {str(e)}")
             raise
 
+    async def find_by_owner_email(
+        self,
+        owner_email: str,
+        request_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Find firm by owner email.
+        
+        Args:
+            owner_email: Owner user email
+            request_id: For audit trail
+            
+        Returns:
+            Firm document or None
+        """
+        try:
+            query = {
+                "owner_email": owner_email,
+                "status": "ACTIVE",
+                "deleted_at": None
+            }
+            
+            firm = await self.collection.find_one(query)
+            
+            logger.debug(
+                f"[FIRM] FIND_BY_OWNER_EMAIL owner_email={owner_email} "
+                f"found={firm is not None} request_id={request_id}"
+            )
+            
+            return firm
+        except Exception as e:
+            logger.error(f"[FIRM] FIND_BY_OWNER_EMAIL error: {str(e)}")
+            raise
+
     # ========================================================================
     # STATUS TRANSITIONS
     # ========================================================================
