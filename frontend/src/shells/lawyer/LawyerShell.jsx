@@ -12,7 +12,7 @@ function LawyerShellRoutes() {
 
   return (
     <Routes>
-      <Route path="" element={<ProtectedRoute require={LAWYER_ROLES}><DashboardLayout><lawyerRegistry.home /></DashboardLayout></ProtectedRoute>} />
+      <Route index element={<ProtectedRoute require={LAWYER_ROLES}><DashboardLayout><lawyerRegistry.home /></DashboardLayout></ProtectedRoute>} />
       <Route path="crm" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><DashboardLayout><lawyerRegistry.crm /></DashboardLayout></FeatureGate></ProtectedRoute>} />
       <Route path="cases" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="cases"><DashboardLayout><lawyerRegistry.cases /></DashboardLayout></FeatureGate></ProtectedRoute>} />
       <Route path="clients" element={<ProtectedRoute require={LAWYER_ROLES}><FeatureGate feature="crm"><DashboardLayout><lawyerRegistry.clients /></DashboardLayout></FeatureGate></ProtectedRoute>} />

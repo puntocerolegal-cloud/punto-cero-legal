@@ -11,7 +11,7 @@ function AdminShellRoutes() {
 
   return (
     <Routes>
-      <Route path="" element={<ProtectedRoute require={ADMIN_ROLES}><AdminOSLayout title="PUNTO CERO SYSTEM OS">{adminRegistry.home()}</AdminOSLayout></ProtectedRoute>} />
+      <Route index element={<ProtectedRoute require={ADMIN_ROLES}><AdminOSLayout title="PUNTO CERO SYSTEM OS">{adminRegistry.home()}</AdminOSLayout></ProtectedRoute>} />
       <Route path="financial-os" element={<ProtectedRoute require={ADMIN_ROLES}><AdminOSLayout title="Financial OS">{adminRegistry.financialOs()}</AdminOSLayout></ProtectedRoute>} />
       <Route path="ai-copilot" element={<ProtectedRoute require={ADMIN_ROLES}><AdminOSLayout title="AI Legal Autopilot">{adminRegistry.aiCopilot()}</AdminOSLayout></ProtectedRoute>} />
       <Route path="autonomous-control" element={<ProtectedRoute require={ADMIN_ROLES}><AdminOSLayout title="Autonomous & Global Legal OS">{adminRegistry.autonomousControl()}</AdminOSLayout></ProtectedRoute>} />

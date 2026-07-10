@@ -11,7 +11,7 @@ function FirmShellRoutes() {
 
   return (
     <Routes>
-      <Route path="" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.home /></FirmOSLayout></ProtectedRoute>} />
+      <Route index element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.home /></FirmOSLayout></ProtectedRoute>} />
       <Route path="crm" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.crm /></FirmOSLayout></ProtectedRoute>} />
       <Route path="cases" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.cases /></FirmOSLayout></ProtectedRoute>} />
       <Route path="clients" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.clients /></FirmOSLayout></ProtectedRoute>} />
