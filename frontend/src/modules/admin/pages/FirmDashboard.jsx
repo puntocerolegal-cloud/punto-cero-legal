@@ -469,7 +469,7 @@ export function FirmDashboard() {
               <div className="space-y-4">
                 <div>
                   <p className="text-white/60 text-sm">Plan Contratado</p>
-                  <p className="text-xl font-semibold text-white mt-2">Plan Profesional</p>
+                  <p className="text-xl font-semibold text-white mt-2">Firma en Crecimiento</p>
                 </div>
                 <div>
                   <p className="text-white/60 text-sm">Próxima Renovación</p>

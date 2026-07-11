@@ -411,6 +411,28 @@ async def _create_mp_preference(tx: dict, plan_name: str) -> Optional[dict]:
     return {"url": url, "preference_id": data.get("id")}
 
 
+async def _fetch_mp_payment(payment_id: str) -> Optional[dict]:
+    """Consulta el pago REAL en Mercado Pago. El webhook de MP solo envía el id;
+    el estado (status) y external_reference deben leerse de la API de pagos.
+    Devuelve el objeto de pago o None (sin token / error)."""
+    token = os.environ.get("MP_ACCESS_TOKEN", "")
+    if not token or not payment_id:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(
+                f"{MP_API}/v1/payments/{payment_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if r.status_code != 200:
+            logger.error("MP get payment %s error %s: %s", payment_id, r.status_code, r.text[:200])
+            return None
+        return r.json()
+    except Exception as e:
+        logger.error("MP get payment %s exception: %s", payment_id, e)
+        return None
+
+
 async def _apply_payment_success(db, transaction: dict) -> bool:
     """Activa la suscripción y aplica referidos cuando un pago queda aprobado.
     Idempotente. Conserva EXACTAMENTE la lógica previa de confirm()."""
@@ -705,7 +727,7 @@ async def get_plans(country: str = "Colombia", billing_cycle: str = "monthly"):
         
         plans.append({
             "id": plan_id,
-            "name": plan_id.capitalize(),
+            "name": PLAN_CATALOG.get(plan_id, {}).get("name") or plan_id.capitalize(),
             "price_cop": cop_price,
             "price_local": local_price,
             "monthly_equivalent": round(monthly_eq, 2),
@@ -737,7 +759,7 @@ async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = D
     
     gateway = "mercado_pago" if request.country in MERCADO_PAGO_COUNTRIES else "paypal"
     payment_id = f"PCL-{uuid.uuid4().hex[:12].upper()}"
-    plan_name = request.plan_id.capitalize()
+    plan_name = PLAN_CATALOG.get(request.plan_id, {}).get("name") or request.plan_id.capitalize()
 
     # Datos base de la transacción (necesarios para crear la preferencia real).
     tx_base = {
@@ -792,7 +814,7 @@ async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = D
         currency=currency,
         plan={
             "id": request.plan_id,
-            "name": request.plan_id.capitalize(),
+            "name": PLAN_CATALOG.get(request.plan_id, {}).get("name") or request.plan_id.capitalize(),
             "processes": plan_data["processes"],
             "billing_cycle": request.billing_cycle
         },
@@ -945,9 +967,15 @@ async def mp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(get_db
 
             # Extraer datos específicos según el tipo de evento
             if "payment" in event_type:
-                event_data = body.get("data", {})
-                if not isinstance(event_data, dict):
-                    event_data = {"id": event_id}
+                # El webhook de MP solo envía {data:{id}}. Consultamos el pago
+                # REAL en la API para obtener status + external_reference; sin eso
+                # el handler nunca vería "approved" y la suscripción no se activaría.
+                raw = body.get("data", {})
+                mp_pid = (raw.get("id") if isinstance(raw, dict) else None) or event_id
+                fetched = await _fetch_mp_payment(mp_pid)
+                event_data = fetched if isinstance(fetched, dict) and fetched else (
+                    raw if isinstance(raw, dict) else {"id": mp_pid}
+                )
             elif "subscription" in event_type:
                 event_data = body.get("data", {})
             elif "refund" in event_type:
