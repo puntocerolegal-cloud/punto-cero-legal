@@ -502,6 +502,57 @@ async def init_master_accounts():
     except asyncio.TimeoutError:
         logger.error("Official accounts verification timed out")
 
+    # F-003: la cuenta oficial de firma (firm_owner) debe tener una firma REAL
+    # asociada; si no, el Dashboard de Firma queda con firm_id=null y las rutas
+    # firm-scoped (/firms/{firmId}/*) devuelven 400. Idempotente: vincula la
+    # firma existente por owner_email si la hay, o crea la firma oficial usando
+    # la MISMA estructura del registro (routes/firms.py). No crea datos mock.
+    async def ensure_official_firm():
+        try:
+            owner = await db.users.find_one({"email": "firma@puntocerolegal.com"})
+            if not owner or owner.get("role") != "firm_owner":
+                return
+            owner_id = str(owner["_id"])
+            firm = await db.firms.find_one({"owner_email": "firma@puntocerolegal.com"})
+            if not firm:
+                firm_doc = {
+                    "name": owner.get("full_name") or "Firma Oficial Punto Cero",
+                    "email": owner.get("email"),
+                    "phone": owner.get("phone"),
+                    "address": None,
+                    "city": None,
+                    "country": owner.get("country") or "Colombia",
+                    "plan": "firm_growth",
+                    "max_lawyers": 5,
+                    "active_lawyers_count": 0,
+                    "owner_id": owner_id,
+                    "owner_name": owner.get("full_name"),
+                    "owner_email": owner.get("email"),
+                    "status": "active",
+                    "is_verified": True,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                }
+                res = await db.firms.insert_one(firm_doc)
+                firm_id = str(res.inserted_id)
+                logger.info(f"[OFFICIAL FIRM] Firma oficial creada para firma@ -> {firm_id}")
+            else:
+                firm_id = str(firm["_id"])
+                if firm.get("owner_id") != owner_id:
+                    await db.firms.update_one({"_id": firm["_id"]}, {"$set": {"owner_id": owner_id, "updated_at": datetime.utcnow()}})
+            if owner.get("firm_id") != firm_id:
+                await db.users.update_one({"_id": owner["_id"]}, {"$set": {"firm_id": firm_id, "updated_at": datetime.utcnow()}})
+                logger.info(f"[OFFICIAL FIRM] firma@ vinculada a firm_id={firm_id}")
+            else:
+                logger.info(f"[OFFICIAL FIRM] firma@ ya vinculada a firm_id={firm_id}")
+        except Exception as e:
+            logger.error(f"[OFFICIAL FIRM] Error: {e}")
+
+    try:
+        await asyncio.wait_for(ensure_official_firm(), timeout=10.0)
+    except asyncio.TimeoutError:
+        logger.error("Official firm verification timed out")
+
 # Include the router in the main app
 app.include_router(api_router)
 
