@@ -117,17 +117,22 @@ export function composeAssignmentsData(lawyers = [], cases = []) {
 export function composeTeamData(lawyers = []) {
   const metrics = calculateLawyerMetrics(lawyers);
 
-  const byDepartment = {};
-  lawyers.forEach(l => {
-    const dept = l.department || "Sin departamento";
-    byDepartment[dept] = (byDepartment[dept] || 0) + 1;
-  });
+  // La capa de aplicación (teamApplication) hace .map() sobre byDepartment/byOffice,
+  // por lo que deben ser ARRAYS de { name, count, active, busy } (no objetos).
+  const groupBy = (keyFn) => {
+    const map = {};
+    lawyers.forEach(l => {
+      const key = keyFn(l);
+      if (!map[key]) map[key] = { name: key, count: 0, active: 0, busy: 0 };
+      map[key].count += 1;
+      if (l.status === "activo") map[key].active += 1;
+      if (l.available === false) map[key].busy += 1;
+    });
+    return Object.values(map);
+  };
 
-  const byOffice = {};
-  lawyers.forEach(l => {
-    const office = l.office || "Sin oficina";
-    byOffice[office] = (byOffice[office] || 0) + 1;
-  });
+  const byDepartment = groupBy(l => l.department || "Sin departamento");
+  const byOffice = groupBy(l => l.office || "Sin oficina");
 
   return {
     metrics,

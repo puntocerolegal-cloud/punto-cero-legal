@@ -5,7 +5,18 @@ import { AUTOMATION_RULES } from '../automation/rules/defaultRules';
 
 const STORAGE_KEY = 'firm-os/automation';
 
+// Referencia estable: los parámetros por defecto [] crean una NUEVA referencia
+// en cada render, lo que hace que el useMemo de automationVM recompute siempre y
+// dispare setState en useNotifications → bucle infinito (React #185). Al fijar
+// arrays vacíos a una constante, las dependencias se mantienen estables.
+const EMPTY_ARRAY = [];
+
 export function useAutomation(lawyers = [], cases = [], clients = [], departments = [], offices = []) {
+  const sLawyers = lawyers.length ? lawyers : EMPTY_ARRAY;
+  const sCases = cases.length ? cases : EMPTY_ARRAY;
+  const sClients = clients.length ? clients : EMPTY_ARRAY;
+  const sDepartments = departments.length ? departments : EMPTY_ARRAY;
+  const sOffices = offices.length ? offices : EMPTY_ARRAY;
   const [history, setHistory] = useState(() => {
     try {
       if (typeof localStorage !== 'undefined') {
@@ -21,8 +32,8 @@ export function useAutomation(lawyers = [], cases = [], clients = [], department
   const engine = useMemo(() => getAutomationEngine(), []);
 
   const automationVM = useMemo(() => {
-    return buildAutomationViewModel(lawyers, cases, clients, departments, offices);
-  }, [lawyers, cases, clients, departments, offices]);
+    return buildAutomationViewModel(sLawyers, sCases, sClients, sDepartments, sOffices);
+  }, [sLawyers, sCases, sClients, sDepartments, sOffices]);
 
   const runRule = useCallback((ruleId) => {
     const rule = AUTOMATION_RULES.find(r => r.id === ruleId);
