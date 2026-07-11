@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Mail, Calendar, FileText, Zap, Activity, MessageCircle, Clock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirmCoreData } from "../hooks/useFirmCoreData";
@@ -98,12 +99,17 @@ const LawyerCard = ({ lawyer, onViewAgenda, onAssignCase, onSendMessage, onViewD
           <FileText className="w-3.5 h-3.5" />
           Documentos
         </button>
+        <button onClick={() => onViewHistory(lawyer)} className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-slate-600/20 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-600/30 transition-all">
+          <Clock className="w-3.5 h-3.5" />
+          Historial
+        </button>
       </div>
     </div>
   );
 };
 
 export function FirmLawyers() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { loading, error, lawyers, refresh: refreshLawyers } = useFirmCoreData();
   const { preferences } = usePreferences();
@@ -131,25 +137,21 @@ export function FirmLawyers() {
   const lawyerPrefsVM = buildLawyerPreferences(preferences);
   const bulkVM = buildLawyersBulkViewModel(displayLawyers, selectedIds);
 
-  const handleViewAgenda = (lawyer) => {
-    alert(`Ver agenda de ${lawyer.name} - Conectar con módulo de Agenda`);
+  // F-001: los botones navegan al módulo correspondiente llevando el contexto
+  // del abogado (id + nombre) por query string para que el destino pre-filtre.
+  const goToModule = (path, lawyer) => {
+    const params = new URLSearchParams();
+    if (lawyer?.id) params.set("lawyer", String(lawyer.id));
+    if (lawyer?.name) params.set("name", lawyer.name);
+    const qs = params.toString();
+    navigate(`/firm-os/${path}${qs ? `?${qs}` : ""}`);
   };
 
-  const handleAssignCase = (lawyer) => {
-    alert(`Asignar caso a ${lawyer.name} - Ir a módulo de Asignación`);
-  };
-
-  const handleSendMessage = (lawyer) => {
-    alert(`Enviar mensaje a ${lawyer.name} - Ir a módulo de Comunicación`);
-  };
-
-  const handleViewDocuments = (lawyer) => {
-    alert(`Ver documentos de ${lawyer.name} - Ir a módulo de Documentos`);
-  };
-
-  const handleViewHistory = (lawyer) => {
-    alert(`Ver historial de ${lawyer.name}`);
-  };
+  const handleViewAgenda = (lawyer) => goToModule("agenda", lawyer);
+  const handleAssignCase = (lawyer) => goToModule("assignments", lawyer);
+  const handleSendMessage = (lawyer) => goToModule("communication", lawyer);
+  const handleViewDocuments = (lawyer) => goToModule("documents", lawyer);
+  const handleViewHistory = (lawyer) => goToModule("cases", lawyer);
 
   return (
     <div className="space-y-8">
