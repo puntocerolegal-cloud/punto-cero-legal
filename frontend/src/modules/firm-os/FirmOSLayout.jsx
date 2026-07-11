@@ -1,5 +1,5 @@
 import React from "react";
-import DashboardLayout from "@/components/DashboardLayout";
+import DashboardLayout, { NestedLayoutContext } from "@/components/DashboardLayout";
 import { FirmOSSidebar } from "./FirmOSSidebar";
 
 /**
@@ -16,8 +16,12 @@ export function FirmOSLayout({ children }) {
       </aside>
 
       <main className="relative z-10 lg:ml-64 min-h-screen">
-        {/* Delega header y layout al contenido envuelto */}
-        {children}
+        {/* F-013: padding uniforme + Provider para que las páginas reutilizadas de
+            Lawyer OS (que se auto-envuelven en DashboardLayout) no pinten un
+            segundo sidebar/header/margen y queden alineadas. */}
+        <div className="px-6 lg:px-8 py-5">
+          <NestedLayoutContext.Provider value={true}>{children}</NestedLayoutContext.Provider>
+        </div>
       </main>
     </div>
   );

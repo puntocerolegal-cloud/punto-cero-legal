@@ -11,6 +11,12 @@ import { NotificationBell } from './layout/NotificationBell';
 import { HeaderAlerts } from './layout/HeaderAlerts';
 import { SupportButton } from './layout/SupportButton';
 
+// F-013: contexto para evitar el sobremontaje de layouts. Cuando un
+// DashboardLayout se renderiza DENTRO de otro layout (LawyerShell ya lo envuelve
+// y las páginas se auto-envuelven; o FirmOSLayout que reutiliza las páginas), el
+// interno debe pintar SOLO el contenido, no un segundo sidebar/header/márgenes.
+export const NestedLayoutContext = React.createContext(false);
+
 // Color por estado oficial (DEMO/TRIAL/ACTIVO/PENDIENTE_PAGO/VENCIDO/CANCELADO).
 const STATE_COLOR = {
   DEMO: '#06b6d4', TRIAL: '#f59e0b', ACTIVO: '#10b981',
@@ -51,6 +57,8 @@ const lastName = (fullName) => {
 };
 
 export const DashboardLayout = ({ children }) => {
+  // TODOS los hooks se invocan antes del early-return (rules-of-hooks).
+  const isNested = React.useContext(NestedLayoutContext);
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,6 +73,11 @@ export const DashboardLayout = ({ children }) => {
   const { access } = useSubscription();
   const planActual = access?.plan?.name || '—';
   const estadoActual = access?.status || 'ACTIVO';
+
+  // Anidado (dentro de LawyerShell/FirmOSLayout): solo el contenido, sin duplicar.
+  if (isNested) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white">
@@ -146,7 +159,9 @@ export const DashboardLayout = ({ children }) => {
         </header>
 
         {/* Contenido del módulo */}
-        <div className="px-6 lg:px-8 py-5">{children}</div>
+        <div className="px-6 lg:px-8 py-5">
+          <NestedLayoutContext.Provider value={true}>{children}</NestedLayoutContext.Provider>
+        </div>
       </main>
     </div>
   );
