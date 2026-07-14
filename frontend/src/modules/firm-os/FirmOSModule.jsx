@@ -10,24 +10,9 @@ import { FirmTeam } from "./pages/FirmTeam";
 import { FirmOnboarding } from "./pages/FirmOnboarding";
 import OnboardingWizardFirm from "./pages/OnboardingWizardFirm";
 import { FirmAnalytics } from "./pages/FirmAnalytics";
-import { FirmFinance } from "./pages/FirmFinance";
-import BillingEnterprise from "./pages/BillingEnterprise";
 import FirmDirectorySettings from "./pages/FirmDirectorySettings";
-import { AssignmentsPage } from "./pages/AssignmentsPage";
-import { CommunicationPage } from "./pages/CommunicationPage";
-import { OfficesPage } from "./pages/OfficesPage";
 import { AlertsCenter } from "./pages/AlertsCenter";
-import { OrganizationalStructure } from "./pages/OrganizationalStructure";
-import { DepartmentsPage } from "./pages/DepartmentsPage";
-import ExpedientesPage from "./pages/ExpedientesPage";
 import { AutomationCenterPage } from "./pages/AutomationCenterPage";
-import { WorkflowCenterPage } from "./pages/WorkflowCenterPage";
-import { WorkflowBuilderPage } from "./pages/WorkflowBuilderPage";
-import { SchedulerPage } from "./pages/SchedulerPage";
-import { IntelligenceCenterPage } from "./pages/IntelligenceCenterPage";
-import EnterpriseMissionControl from "./pages/EnterpriseMissionControl";
-import AutonomousOperationsPage from "./pages/AutonomousOperationsPage";
-import EnterpriseGovernancePage from "./pages/EnterpriseGovernancePage";
 
 // REUTILIZACIÓN: Componentes directamente de Lawyer OS (sin duplicación)
 import { DashboardHome } from "@/pages/DashboardHome";
@@ -104,27 +89,6 @@ export function FirmOSModule() {
       {/* Centro de Automatización */}
       <Route path="automation" element={<FirmOSLayout><AutomationCenterPage /></FirmOSLayout>} />
 
-      {/* Centro de Workflow */}
-      <Route path="workflows" element={<FirmOSLayout><WorkflowCenterPage /></FirmOSLayout>} />
-
-      {/* Workflow Builder */}
-      <Route path="workflow-builder" element={<FirmOSLayout><WorkflowBuilderPage /></FirmOSLayout>} />
-
-      {/* Scheduler */}
-      <Route path="scheduler" element={<FirmOSLayout><SchedulerPage /></FirmOSLayout>} />
-
-      {/* AI Intelligence Center */}
-      <Route path="intelligence" element={<FirmOSLayout><IntelligenceCenterPage /></FirmOSLayout>} />
-
-      {/* Enterprise Mission Control */}
-      <Route path="mission-control" element={<FirmOSLayout><EnterpriseMissionControl /></FirmOSLayout>} />
-
-      {/* Autonomous Operations Engine */}
-      <Route path="autonomous-operations" element={<FirmOSLayout><AutonomousOperationsPage /></FirmOSLayout>} />
-
-      {/* Enterprise Governance Layer */}
-      <Route path="governance" element={<FirmOSLayout><EnterpriseGovernancePage /></FirmOSLayout>} />
-
       {/* Equipo Jurídico */}
       <Route path="team" element={<FirmOSLayout><FirmTeam /></FirmOSLayout>} />
 
@@ -134,22 +98,8 @@ export function FirmOSModule() {
       {/* Indicadores Empresariales */}
       <Route path="analytics" element={<FirmOSLayout><FirmAnalytics /></FirmOSLayout>} />
 
-      {/* Finanzas */}
-      <Route path="finance" element={<FirmOSLayout><FirmFinance /></FirmOSLayout>} />
-
-      {/* Facturación Empresarial */}
-      <Route path="billing" element={<FirmOSLayout><BillingEnterprise /></FirmOSLayout>} />
-
       {/* Directorio Público */}
       <Route path="directory" element={<FirmOSLayout><FirmDirectorySettings /></FirmOSLayout>} />
-
-      {/* Gestión Empresarial — Nuevos Módulos */}
-      <Route path="structure" element={<FirmOSLayout><OrganizationalStructure /></FirmOSLayout>} />
-      <Route path="departments" element={<FirmOSLayout><DepartmentsPage /></FirmOSLayout>} />
-      <Route path="offices" element={<FirmOSLayout><OfficesPage /></FirmOSLayout>} />
-      <Route path="expedientes" element={<FirmOSLayout><ExpedientesPage /></FirmOSLayout>} />
-      <Route path="assignments" element={<FirmOSLayout><AssignmentsPage /></FirmOSLayout>} />
-      <Route path="communication" element={<FirmOSLayout><CommunicationPage /></FirmOSLayout>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="." replace />} />

@@ -49,14 +49,8 @@ export function FirmOSSidebar() {
   // Extensiones: solo módulos específicos de firma
   const firmItems = [
     { icon: AlertCircle, label: 'Centro de Alertas', path: '/firm-os/alerts' },
-    { icon: Building2, label: 'Estructura Organizacional', path: '/firm-os/structure' },
-    { icon: FileText, label: 'Expedientes', path: '/firm-os/expedientes' },
-    { icon: Building2, label: 'Oficinas', path: '/firm-os/offices' },
-    { icon: Briefcase, label: 'Departamentos', path: '/firm-os/departments' },
     { icon: UserCheck, label: 'Equipo Jurídico', path: '/firm-os/team' },
     { icon: Users, label: 'Control de Abogados', path: '/firm-os/lawyers' },
-    { icon: FolderKanban, label: 'Asignación de Casos', path: '/firm-os/assignments' },
-    { icon: MessageCircle, label: 'Comunicación', path: '/firm-os/communication' },
     { icon: BarChart3, label: 'Indicadores', path: '/firm-os/analytics' },
     { icon: Zap, label: 'Centro de Automatización', path: '/firm-os/automation', badge: sidebarBadge },
   ];
@@ -131,42 +125,8 @@ export function FirmOSSidebar() {
           </ul>
         </div>
 
-        {/* Enterprise Controls - Master & Autonomous */}
+        {/* Config */}
         <div className="border-t border-white/10 pt-4 space-y-1">
-          <NavLink
-            to="/firm-os/mission-control"
-            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-              isActive ? 'bg-gradient-to-r from-green-500/20 to-blue-500/20 text-white border border-green-500/30' : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <div className="relative">
-              <Activity className="w-4 h-4 flex-shrink-0" />
-              <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${isMissionHealthy ? 'bg-green-400' : 'bg-red-400'}`} />
-            </div>
-            <span>Mission Control</span>
-          </NavLink>
-
-          <NavLink
-            to="/firm-os/autonomous-operations"
-            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-              isActive ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white border border-purple-500/30' : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Cpu className="w-4 h-4 flex-shrink-0" />
-            <span>Autopilot</span>
-          </NavLink>
-
-          <NavLink
-            to="/firm-os/governance"
-            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-              isActive ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-white border border-amber-500/30' : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Shield className="w-4 h-4 flex-shrink-0" />
-            <span>Governance</span>
-          </NavLink>
-
-          {/* Config */}
           <NavLink
             to="/firm-os/settings"
             className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${

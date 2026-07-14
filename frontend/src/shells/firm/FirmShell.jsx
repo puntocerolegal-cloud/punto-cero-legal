@@ -4,14 +4,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { FirmOSLayout } from '@/modules/firm-os/FirmOSLayout';
 import { FirmOnboarding } from '@/modules/firm-os/pages/FirmOnboarding';
 import { AlertsCenter } from '@/modules/firm-os/pages/AlertsCenter';
-import { OrganizationalStructure } from '@/modules/firm-os/pages/OrganizationalStructure';
-import { ExpedientesPage } from '@/modules/firm-os/pages/ExpedientesPage';
-import { OfficesPage } from '@/modules/firm-os/pages/OfficesPage';
-import { DepartmentsPage } from '@/modules/firm-os/pages/DepartmentsPage';
 import { FirmTeam } from '@/modules/firm-os/pages/FirmTeam';
 import { FirmLawyers } from '@/modules/firm-os/pages/FirmLawyers';
-import { AssignmentsPage } from '@/modules/firm-os/pages/AssignmentsPage';
-import { CommunicationPage } from '@/modules/firm-os/pages/CommunicationPage';
 import { FirmAnalytics } from '@/modules/firm-os/pages/FirmAnalytics';
 import { firmRegistry } from './firmRegistry';
 
@@ -41,14 +35,8 @@ function FirmShellRoutes() {
       <Route path="governance" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><firmRegistry.governance /></FirmOSLayout></ProtectedRoute>} />
       <Route path="onboarding" element={<ProtectedRoute require={FIRM_ROLES}><FirmOnboarding /></ProtectedRoute>} />
       <Route path="alerts" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><AlertsCenter /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="structure" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><OrganizationalStructure /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="expedientes" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><ExpedientesPage /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="offices" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><OfficesPage /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="departments" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><DepartmentsPage /></FirmOSLayout></ProtectedRoute>} />
       <Route path="team" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmTeam /></FirmOSLayout></ProtectedRoute>} />
       <Route path="lawyers" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmLawyers /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="assignments" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><AssignmentsPage /></FirmOSLayout></ProtectedRoute>} />
-      <Route path="communication" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><CommunicationPage /></FirmOSLayout></ProtectedRoute>} />
       <Route path="analytics" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmAnalytics /></FirmOSLayout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={location.pathname.startsWith('/firm-os') ? '/firm-os' : '/'} replace />} />
     </Routes>
