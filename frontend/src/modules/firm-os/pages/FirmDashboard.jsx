@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Users, FolderKanban, TrendingUp, Calendar,
   AlertCircle, CheckCircle2, Clock, FileText,
-  Zap, ArrowRight, BarChart3, Activity
+  Zap, ArrowRight, BarChart3, Activity, Crown, ArrowUpCircle
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
@@ -25,6 +25,8 @@ import { DashboardWidget } from "../components/charts/DashboardWidget";
 import AutomationHealthCard from "../components/automation/AutomationHealthCard";
 import AutomationTimeline from "../components/automation/AutomationTimeline";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { API } from "@/config/api";
 
 const CapacityBar = ({ used, total, label, color = "#3b82f6" }) => {
   const percentage = Math.round((used / total) * 100);
@@ -74,7 +76,45 @@ export function FirmDashboard() {
   const { access } = useSubscription();
   useFirmOnboarding();
 
+  const [planInfo, setPlanInfo] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [firmData, setFirmData] = useState(null);
+
   const { loading, error, lawyers, cases, clients } = useFirmCoreData();
+
+  // Cargar información del plan y trial desde /firms/my-plan
+  useEffect(() => {
+    const loadPlan = async () => {
+      try {
+        const res = await axios.get(`${API}/firms/my-plan`);
+        setPlanInfo(res.data);
+      } catch (e) {
+        if (process.env.NODE_ENV === 'development') console.error('No plan data', e);
+      }
+    };
+    loadPlan();
+  }, []);
+
+  // Actualizar tiempo cada segundo para el contador
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Cargar datos de la firma para obtener el nombre del propietario
+  useEffect(() => {
+    const loadFirmData = async () => {
+      if (!user?.firm_id) return;
+      try {
+        const res = await axios.get(`${API}/firms/${user.firm_id}`);
+        setFirmData(res.data);
+      } catch (e) {
+        if (process.env.NODE_ENV === 'development') console.error('No firm data', e);
+      }
+    };
+    loadFirmData();
+  }, [user?.firm_id]);
+
   const { preferences } = usePreferences();
   const { automationVM, history } = useAutomation(lawyers, cases, clients);
   const { notifications, timelineVM, recommendationsCenter } = useNotifications(
@@ -88,6 +128,21 @@ export function FirmDashboard() {
 
   const vm = buildDashboardViewModel(lawyers, cases, clients, access?.plan?.name);
 
+  // Lógica del trial usando datos reales del backend
+  const trial = planInfo?.trial;
+  const trialMs = trial?.ends_at ? new Date(trial.ends_at).getTime() - currentTime.getTime() : null;
+  const trialLeft = trialMs == null ? null : {
+    expired: trialMs <= 0,
+    d: Math.max(0, Math.floor(trialMs / 86400000)),
+    h: Math.max(0, Math.floor((trialMs % 86400000) / 3600000)),
+    m: Math.max(0, Math.floor((trialMs % 3600000) / 60000)),
+    s: Math.max(0, Math.floor((trialMs % 60000) / 1000)),
+  };
+  const showTrial = planInfo?.subscription_status === "trial" && trialLeft && !trialLeft.expired;
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const activePlan = planInfo?.has_plan ? planInfo : null;
+
   const kpis = [
     { label: 'Abogados Activos', value: vm.teamSection.metrics[0]?.value || 0, status: 'Normal' },
     { label: 'Casos Abiertos', value: vm.casesSection.metrics[0]?.value || 0, status: 'Normal' },
@@ -100,11 +155,53 @@ export function FirmDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Centro de Operaciones</h1>
-        <div className="flex items-center gap-2">
-          <PreferenceButton preferencesPanel={<p className="text-xs text-white/60">Preferencias de dashboard disponibles</p>} />
-          <ExportButton exportViewModel={exportVM} />
+      {/* Encabezado institucional con banner y logo */}
+      <div 
+        className="relative rounded-2xl overflow-hidden p-6 lg:p-8"
+        style={{
+          backgroundImage: firmConfig?.cover_image_url ? `url(${firmConfig.cover_image_url})` : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        {/* Overlay oscuro para legibilidad */}
+        <div className="absolute inset-0 bg-black/50" />
+        
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Logo oficial o fallback institucional */}
+            {firmConfig?.logo_url ? (
+              <img 
+                src={firmConfig.logo_url} 
+                alt="Logo de la firma" 
+                className="h-12 w-12 object-contain"
+              />
+            ) : (
+              <img 
+                src="/logo-pd-system.png" 
+                alt="Punto Cero Legal" 
+                className="h-12 w-12 object-contain"
+              />
+            )}
+            <div>
+              <h1 
+                className="text-3xl font-bold"
+                style={{ 
+                  color: firmConfig?.primary_color || '#ffffff',
+                  textShadow: `0 0 20px ${firmConfig?.primary_color || '#ffffff'}40`
+                }}
+              >
+                {firmConfig?.commercial_name || 'Centro de Operaciones'}
+              </h1>
+              {firmConfig?.commercial_name && (
+                <p className="text-sm text-white/70 mt-1">Centro de Operaciones</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <PreferenceButton preferencesPanel={<p className="text-xs text-white/60">Preferencias de dashboard disponibles</p>} />
+            <ExportButton exportViewModel={exportVM} />
+          </div>
         </div>
       </div>
 
@@ -113,19 +210,23 @@ export function FirmDashboard() {
           <div>
             <div className="space-y-3">
               <div>
-                <p className="text-xs text-white/50 uppercase">Nombre</p>
-                <p className="text-lg font-semibold text-white">{user?.firm_id || "Firma"}</p>
+                <p className="text-xs text-white/50 uppercase">Nombre Comercial</p>
+                <p className="text-lg font-semibold text-white">
+                  {firmConfig?.commercial_name || firmData?.name || "—"}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-white/50 uppercase">Plan</p>
-                <p className="text-lg font-semibold text-white">{access?.plan?.name || "—"}</p>
+                <p className="text-xs text-white/50 uppercase">Propietario</p>
+                <p className="text-lg font-semibold text-white">
+                  {firmData?.owner_name || user?.full_name || "—"}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-white/50 uppercase">Estado</p>
                 <div className="mt-1 flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${access?.status === 'ACTIVO' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
-                  <p className={`font-semibold ${access?.status === 'ACTIVO' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {access?.status === 'ACTIVO' ? 'Activa' : 'Trial'}
+                  <div className={`h-2 w-2 rounded-full ${planInfo?.subscription_status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
+                  <p className={`font-semibold ${planInfo?.subscription_status === 'active' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {planInfo?.subscription_status === 'active' ? 'Suscripción Activa' : (showTrial ? 'Trial Activo' : (trialLeft?.expired ? 'Trial Expirado' : 'Trial'))}
                   </p>
                 </div>
               </div>
@@ -133,9 +234,17 @@ export function FirmDashboard() {
           </div>
           <div>
             <CapacityBar used={vm.capacityBar.used} total={vm.capacityBar.total} label={vm.capacityBar.label} color={vm.capacityBar.color} />
-            <button className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-              Actualizar Plan
-            </button>
+            {planInfo?.subscription_status !== 'active' && (
+              <button
+                onClick={() => navigate('/checkout')}
+                className="mt-6 w-full rounded-lg px-4 py-2 text-sm font-bold text-white transition-all"
+                style={{
+                  background: `linear-gradient(135deg, ${firmConfig?.primary_color || '#f97316'}, ${firmConfig?.secondary_color || '#fb923c'})`,
+                }}
+              >
+                {trialLeft?.expired ? 'Elegir un plan' : 'Actualizar Plan'}
+              </button>
+            )}
           </div>
         </div>
       </SectionCard>
@@ -243,6 +352,59 @@ export function FirmDashboard() {
           </SectionCard>
         )}
       </div>
+
+      {/* Trial Countdown Section */}
+      {showTrial && (
+        <SectionCard title="Prueba Gratuita">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-[#f97316]" />
+              <h3 className="text-lg font-bold text-white">Tiempo restante de tu prueba gratuita</h3>
+            </div>
+            <div className="grid grid-cols-4 gap-3 max-w-md" data-testid="trial-countdown">
+              {[
+                { v: trialLeft.d, label: 'Días' },
+                { v: trialLeft.h, label: 'Horas' },
+                { v: trialLeft.m, label: 'Min' },
+                { v: trialLeft.s, label: 'Seg' },
+              ].map((box) => (
+                <div key={box.label} className="rounded-2xl bg-white/5 border border-white/10 py-3 text-center">
+                  <div className="text-3xl font-bold tabular-nums text-[#f97316]">{pad(box.v)}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-white/50 mt-1">{box.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Trial Expired Notice */}
+      {trialLeft?.expired && planInfo?.subscription_status !== 'active' && (
+        <SectionCard title="Prueba Finalizada">
+          <div className="backdrop-blur-xl bg-gradient-to-br from-[#f97316]/10 to-[#3b82f6]/10 rounded-3xl border border-white/10 p-6 lg:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-[#f97316]/20 border border-[#f97316]/40 flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-7 h-7 text-[#f97316]" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">La prueba gratuita ha finalizado</h3>
+                  <p className="text-sm text-white/60 mt-1 max-w-xl">
+                    Para continuar utilizando Punto Cero Legal debes activar uno de nuestros planes.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/checkout')}
+                className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold px-6 py-3 rounded-lg hover:from-[#fb923c] hover:to-[#f97316] transition-all flex items-center gap-2"
+                data-testid="choose-plan-btn"
+              >
+                <Crown className="w-4 h-4" /> Elegir un plan
+              </button>
+            </div>
+          </div>
+        </SectionCard>
+      )}
 
       <div className="space-y-8">
         <h2 className="text-2xl font-bold text-white mt-12">Inteligencia de Negocios</h2>
