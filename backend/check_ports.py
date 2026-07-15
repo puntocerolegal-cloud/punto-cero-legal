@@ -40,7 +40,7 @@ def get_port_process_info(port):
             if pid:
                 task = subprocess.run(["tasklist", "/fi", f"PID eq {pid}", "/fo", "csv", "/nh"], capture_output=True, text=True)
                 output = task.stdout.strip()
-                if output and """" in output:
+                if output and '"' in output:
                     process_name = output.split(",")[0].strip('"')
                 else:
                     process_name = output.strip()
