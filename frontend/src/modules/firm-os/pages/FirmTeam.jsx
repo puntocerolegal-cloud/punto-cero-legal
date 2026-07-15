@@ -79,7 +79,7 @@ export function FirmTeam() {
     setActionLoading(true);
     try {
       await axios.patch(
-        `${API}/rbac/users/${member.id}/status`,
+        `${API}/team/${member.id}/status`,
         { status: 'suspended' },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -105,7 +105,7 @@ export function FirmTeam() {
     setActionLoading(true);
     try {
       await axios.patch(
-        `${API}/rbac/users/${member.id}/status`,
+        `${API}/team/${member.id}/status`,
         { status: 'ACTIVE' },
         {
           headers: { Authorization: `Bearer ${token}` }
