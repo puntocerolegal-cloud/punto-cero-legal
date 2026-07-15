@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { API } from '@/config/api';
@@ -8,10 +8,17 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
 // Fuente ÚNICA oficial de planes (misma que Landing/Admin/Dashboard).
 import { CURRENCIES, DEFAULT_CURRENCY_CODE } from '@/modules/plans/mockData';
 import { findCurrency, localPrice, formatMoney } from '@/modules/plans/currency';
+
+// Campos de identidad de la firma (Capa 1) + estructura White Label (Capa 8).
+// Persisten en firm_settings vía PUT /api/firm-os/settings.
+const FIRM_FIELDS = {
+  commercial_name: '', legal_name: '', tax_id: '', address: '', city: '', country: '',
+  phone: '', corporate_email: '', website: '', social_links: '', specialties: '', business_hours: '',
+  logo_url: '', avatar_url: '', cover_url: '', primary_color: '', favicon_url: '', public_name: '', domain: '',
+};
 
 const tabs = [
   { id: 'profile', label: 'Perfil', icon: User },
@@ -76,6 +83,37 @@ export const SettingsPage = () => {
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       alert(e.response?.data?.detail || 'Error al guardar el perfil');
+    }
+  };
+
+  // Identidad / configuración del despacho (Capa 1 + White Label) — persistencia real.
+  const [firm, setFirm] = useState(FIRM_FIELDS);
+  const [firmSaved, setFirmSaved] = useState(false);
+  const setFirmField = (k, v) => setFirm(prev => ({ ...prev, [k]: v }));
+
+  useEffect(() => {
+    if (!user?.firm_id) return;
+    const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+    axios.get(`${API}/firm-os/settings`, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} })
+      .then(r => {
+        const d = r.data?.data || {};
+        setFirm(prev => {
+          const next = { ...prev };
+          Object.keys(FIRM_FIELDS).forEach(k => { if (d[k] !== undefined && d[k] !== null) next[k] = d[k]; });
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, [user?.firm_id]);
+
+  const handleSaveFirm = async () => {
+    try {
+      const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+      await axios.put(`${API}/firm-os/settings`, firm, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
+      setFirmSaved(true);
+      setTimeout(() => setFirmSaved(false), 2000);
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Error al guardar la configuración del despacho');
     }
   };
 
@@ -196,13 +234,96 @@ export const SettingsPage = () => {
 
               {activeTab === 'firm' && (
                 <div className="space-y-5">
-                  <h2 className="text-xl font-bold">Datos del Despacho</h2>
-                  <Input placeholder="Nombre del bufete" className="bg-white/10 border-white/20 text-white" />
-                  <Input placeholder="NIT / RIF" className="bg-white/10 border-white/20 text-white" />
-                  <Input placeholder="Dirección" className="bg-white/10 border-white/20 text-white" />
-                  <Input placeholder="Sitio web" className="bg-white/10 border-white/20 text-white" />
-                  <Textarea placeholder="Descripción del despacho" className="bg-white/10 border-white/20 text-white" />
-                  <Button onClick={handleSave} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Guardar</Button>
+                  <h2 className="text-xl font-bold">Identidad del Despacho</h2>
+                  {!user?.firm_id && (
+                    <p className="text-sm text-amber-400">Esta sección aplica a cuentas de firma (Firm OS).</p>
+                  )}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Nombre comercial</label>
+                      <Input value={firm.commercial_name} onChange={(e) => setFirmField('commercial_name', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Razón social</label>
+                      <Input value={firm.legal_name} onChange={(e) => setFirmField('legal_name', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">NIT / RIF</label>
+                      <Input value={firm.tax_id} onChange={(e) => setFirmField('tax_id', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Correo corporativo</label>
+                      <Input type="email" value={firm.corporate_email} onChange={(e) => setFirmField('corporate_email', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Teléfono</label>
+                      <Input value={firm.phone} onChange={(e) => setFirmField('phone', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Sitio web</label>
+                      <Input value={firm.website} onChange={(e) => setFirmField('website', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Dirección</label>
+                      <Input value={firm.address} onChange={(e) => setFirmField('address', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Ciudad</label>
+                      <Input value={firm.city} onChange={(e) => setFirmField('city', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">País</label>
+                      <Input value={firm.country} onChange={(e) => setFirmField('country', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Horarios</label>
+                      <Input value={firm.business_hours} onChange={(e) => setFirmField('business_hours', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="Lun-Vie 8:00-18:00" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Especialidades</label>
+                    <Input value={firm.specialties} onChange={(e) => setFirmField('specialties', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="Civil, Laboral, Penal..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Redes sociales</label>
+                    <Input value={firm.social_links} onChange={(e) => setFirmField('social_links', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="LinkedIn, Instagram..." />
+                  </div>
+
+                  <h3 className="text-lg font-bold pt-4 border-t border-white/10">Marca (White Label)</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Nombre público</label>
+                      <Input value={firm.public_name} onChange={(e) => setFirmField('public_name', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Dominio</label>
+                      <Input value={firm.domain} onChange={(e) => setFirmField('domain', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="midespacho.com" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Logo (URL)</label>
+                      <Input value={firm.logo_url} onChange={(e) => setFirmField('logo_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Imagen de portada (URL)</label>
+                      <Input value={firm.cover_url} onChange={(e) => setFirmField('cover_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Avatar (URL)</label>
+                      <Input value={firm.avatar_url} onChange={(e) => setFirmField('avatar_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Favicon (URL)</label>
+                      <Input value={firm.favicon_url} onChange={(e) => setFirmField('favicon_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Color primario</label>
+                      <Input value={firm.primary_color} onChange={(e) => setFirmField('primary_color', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="#3b82f6" />
+                    </div>
+                  </div>
+
+                  <Button onClick={handleSaveFirm} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
+                    {firmSaved ? <><Check className="w-4 h-4 mr-2" /> Guardado</> : <><Save className="w-4 h-4 mr-2" /> Guardar Despacho</>}
+                  </Button>
                 </div>
               )}
 
