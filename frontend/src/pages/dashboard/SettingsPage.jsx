@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
+import { API } from '@/config/api';
 import { User, Lock, Bell, Building2, CreditCard, Plug, Save, Eye, EyeOff, Check, Award, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
@@ -57,6 +59,24 @@ export const SettingsPage = () => {
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  // Guarda el perfil del usuario en el backend (PATCH /users/me) — persistencia real.
+  const handleSaveProfile = async () => {
+    try {
+      const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+      await axios.patch(`${API}/users/me`, {
+        full_name: profile.full_name,
+        phone: profile.phone,
+        country: profile.country,
+        specialty: profile.specialty,
+        bar_number: profile.bar_number,
+      }, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Error al guardar el perfil');
+    }
   };
 
   return (
@@ -119,7 +139,7 @@ export const SettingsPage = () => {
                       <Input value={profile.country} onChange={(e) => setProfile({ ...profile, country: e.target.value })} className="bg-white/10 border-white/20 text-white" />
                     </div>
                   </div>
-                  <Button onClick={handleSave} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
+                  <Button onClick={handleSaveProfile} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
                     {saved ? <><Check className="w-4 h-4 mr-2" /> Guardado</> : <><Save className="w-4 h-4 mr-2" /> Guardar Cambios</>}
                   </Button>
                 </div>
