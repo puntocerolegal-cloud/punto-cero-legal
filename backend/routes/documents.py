@@ -10,6 +10,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
+from routes.auth import get_current_user
 
 router = APIRouter(prefix="/documents", tags=["Document Manager"])
 

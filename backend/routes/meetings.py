@@ -4,6 +4,7 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.meeting import MeetingCreate, Meeting, MeetingUpdate
 from bson import ObjectId
+from routes.auth import get_current_user
 
 router = APIRouter(prefix="/meetings", tags=["Conference Room"])
 
