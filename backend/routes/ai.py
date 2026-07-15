@@ -200,14 +200,26 @@ async def _generate_reply(api_key: Optional[str], system_message: str, history: 
 
 
 @router.get("/usage/{lawyer_id}", response_model=dict)
-async def get_ai_usage(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_ai_usage(
+    lawyer_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     """Consumo de consultas del mes actual (sin límites: solo informativo / banner)."""
+    # Validar que el usuario accede a sus propias métricas
+    if lawyer_id != str(current_user["_id"]):
+        raise HTTPException(403, "No autorizado")
+    
     used = await _get_usage(lawyer_id, db)
     return {"used": used, "period": _current_period(), "model": GEMINI_MODEL, "free": True}
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def chat_with_ai(
+    request: ChatRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -220,13 +232,15 @@ async def chat_with_ai(request: ChatRequest, db: AsyncIOMotorDatabase = Depends(
                 "error": "No hay ningún proveedor de IA configurado (GEMINI_API_KEY / ANTHROPIC_API_KEY)",
             })
 
+        # Usar el lawyer_id del token, NO del request
+        lawyer_id = str(current_user["_id"])
         session_id = request.session_id or str(uuid.uuid4())
 
         # País: del request o del perfil del abogado en la BD (tolerante a fallos).
         country = request.country
-        if not country and request.lawyer_id:
+        if not country:
             try:
-                u = await db.users.find_one({"_id": ObjectId(request.lawyer_id)})
+                u = await db.users.find_one({"_id": ObjectId(lawyer_id)})
                 country = (u or {}).get("country")
             except Exception:
                 country = None

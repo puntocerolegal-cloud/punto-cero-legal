@@ -96,10 +96,10 @@ export const DashboardLayout = ({ children }) => {
       {/* Sidebar (w-64 compacto) */}
       <aside className={`fixed top-0 left-0 h-full w-64 z-40 flex flex-col bg-[#0f172a] border-r border-white/10 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="p-5 border-b border-white/10 flex items-center gap-3">
-          <img src="/logo-pd-system.png" alt="PD System Multiservicios"
+          <img src="/logo-pd-system.png" alt="Logo institucional"
             className="w-12 h-12 object-contain rounded-lg flex-shrink-0" />
           <div className="leading-tight">
-            <div className="font-bold text-sm">Punto Cero</div>
+            <div className="font-bold text-sm">{user?.firm_name || "Mi Firma"}</div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Oficina Virtual</div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export const DashboardLayout = ({ children }) => {
         {/* Cabecera personalizada — saludo destacado del abogado conectado */}
         <header className="px-6 lg:px-8 pt-6 pb-4 pl-16 lg:pl-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.25em] text-white/40">Punto Cero System OS · Oficina Virtual</div>
+            <div className="text-[11px] uppercase tracking-[0.25em] text-white/40">Oficina Virtual</div>
             <h1 className="text-3xl lg:text-4xl font-extrabold mt-1.5 leading-tight">
               {greetingFor()},{' '}
               <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">

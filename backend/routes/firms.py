@@ -48,8 +48,9 @@ async def register_firm(
     # NUEVO FLUJO: NO verificar si el usuario ya existe (puede haber usuario sin firma)
     # Será verificado al aprobar
 
-    # PASO 1: Crear solicitud de firma en estado PENDING_APPROVAL (SIN firm_owner, SIN trial activo)
+    # PASO 1: Crear solicitud de firma en estado PENDING_APPROVAL (SIN firm_owner, CON trial activo)
     now = datetime.utcnow()
+    trial_ends = now + timedelta(days=7)
 
     firm_doc = {
         "name": firm_data.name,
@@ -71,12 +72,12 @@ async def register_firm(
         "approved_by": None,
         "rejection_reason": None,
         "is_verified": False,
-        # Trial INACTIVO hasta aprobación
-        "trial_status": "inactive",
-        "trial_started_at": None,
-        "trial_ends_at": None,
-        "subscription_status": None,
-        "subscription_plan": None,
+        # Trial ACTIVO desde el registro (igual que Lawyer OS)
+        "trial_status": "active",
+        "trial_started_at": now,
+        "trial_ends_at": trial_ends,
+        "subscription_status": "trial",
+        "subscription_plan": "trial",
         "created_at": now,
         "updated_at": now,
     }
@@ -557,9 +558,8 @@ async def approve_firm(
             {"$set": {"owner_id": owner_id}}
         )
 
-    # PASO 2: Activar firma y trial
+    # PASO 2: Activar firma (trial ya está activo desde el registro)
     now = datetime.utcnow()
-    trial_ends = now + timedelta(days=7)
 
     await db.firms.update_one(
         {"_id": oid},
@@ -568,11 +568,6 @@ async def approve_firm(
             "approval_status": "approved",
             "approval_date": now,
             "approved_by": str(current_user.get("_id")),
-            "trial_status": "active",
-            "trial_started_at": now,
-            "trial_ends_at": trial_ends,
-            "subscription_status": "trial",
-            "subscription_plan": "trial",
             "updated_at": now
         }}
     )
@@ -1200,6 +1195,78 @@ async def get_firm_financial(
             "active_cases": len([c for c in cases if c.get("status") in ["open", "in_progress"]]),
             "avg_revenue_per_case": round(total_revenue / max(len(cases), 1), 2),
         },
+    }
+
+# GET /firms/my-plan - Obtener plan y trial de la firma autenticada (firm_owner)
+@router.get("/my-plan", status_code=status.HTTP_200_OK)
+async def get_firm_my_plan(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Devuelve el plan y estado de trial de la firma autenticada.
+    
+    Similar a /payment/my-plan pero para Firm OS (lee de la colección firms).
+    """
+    if current_user.get("role") not in ["firm_owner", "firm_admin"]:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    firm_id = current_user.get("firm_id")
+    if not firm_id:
+        raise HTTPException(status_code=400, detail="Usuario sin firma asignada")
+    
+    firm = await db.firms.find_one({"_id": ObjectId(firm_id)})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+    
+    # País de la firma
+    country = firm.get("country", "Colombia")
+    
+    # Plan de la firma (firms usa "plan" en lugar de "plan_id")
+    plan_id = firm.get("plan")
+    has_plan = bool(plan_id)
+    
+    # Estado de suscripción
+    subscription_status = firm.get("subscription_status")
+    if not subscription_status:
+        subscription_status = "active" if has_plan else "trial"
+    
+    # Trial: calcular desde trial_started_at y trial_ends_at
+    now = datetime.utcnow()
+    trial_started_at = firm.get("trial_started_at")
+    trial_ends_at = firm.get("trial_ends_at")
+    
+    trial_active = False
+    if trial_started_at and trial_ends_at:
+        trial_status = firm.get("trial_status", "inactive")
+        if trial_status == "active" and now < trial_ends_at:
+            trial_active = True
+    
+    # Formatear fechas para el frontend
+    trial_start_iso = trial_started_at.isoformat() + "Z" if isinstance(trial_started_at, datetime) else None
+    trial_end_iso = trial_ends_at.isoformat() + "Z" if isinstance(trial_ends_at, datetime) else None
+    
+    return {
+        "has_plan": has_plan,
+        "plan_id": plan_id,
+        "subscription_status": subscription_status,
+        "locale": {
+            "country": country,
+            "term": "abogado",
+            "term_cap": "Abogado",
+            "term_plural": "abogados",
+            "honorific": "Dr.",
+            "flag": "🇨🇴",
+            "currency": "COP",
+        },
+        "plan": None,  # Firm OS no usa planes localizados por ahora
+        "catalog": [],  # Firm OS no usa catálogo de planes
+        "trial": {
+            "started_at": trial_start_iso,
+            "ends_at": trial_end_iso,
+            "active": trial_active,
+            "duration_days": 7,
+        },
+        "server_time": now.isoformat(),
     }
 
 # GET /firms/trial/summary - Resumen de trials (admin only)

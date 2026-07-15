@@ -81,7 +81,16 @@ class EncryptedUpload(BaseModel):
 
 
 @router.get("/", response_model=List[dict])
-async def list_documents(lawyer_id: str, folder: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def list_documents(
+    lawyer_id: str,
+    folder: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    # Validar que el usuario accede a sus propios documentos
+    if lawyer_id != str(current_user["_id"]):
+        raise HTTPException(403, "No autorizado")
+    
     q = {"lawyer_id": lawyer_id}
     if folder:
         q["folder"] = folder
@@ -90,7 +99,15 @@ async def list_documents(lawyer_id: str, folder: Optional[str] = None, db: Async
 
 
 @router.get("/storage/{lawyer_id}", response_model=dict)
-async def storage_summary(lawyer_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def storage_summary(
+    lawyer_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    # Validar que el usuario accede a sus propias métricas
+    if lawyer_id != str(current_user["_id"]):
+        raise HTTPException(403, "No autorizado")
+    
     pipeline = [
         {"$match": {"lawyer_id": lawyer_id}},
         {"$group": {"_id": None, "total": {"$sum": "$size_bytes"}, "count": {"$sum": 1}}},
@@ -132,7 +149,11 @@ async def create_document_meta(payload: DocumentMeta, db: AsyncIOMotorDatabase =
 
 
 @router.post("/upload", response_model=dict, status_code=201)
-async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def upload_encrypted_document(
+    payload: EncryptedUpload,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     """
     Recibe un documento YA CIFRADO en el cliente (Zero-Knowledge) y lo persiste.
     - Si Google Drive está configurado, sube el ciphertext a Drive (storage=drive).
@@ -147,8 +168,11 @@ async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDa
     except Exception:
         raise HTTPException(400, "ciphertext_b64 inválido")
 
+    # Usar el lawyer_id del token, NO del payload
+    lawyer_id = str(current_user["_id"])
+
     doc = {
-        "lawyer_id": payload.lawyer_id,
+        "lawyer_id": lawyer_id,
         "name": payload.name,
         "size_bytes": payload.size_bytes,
         "mime": payload.mime,
@@ -177,7 +201,11 @@ async def upload_encrypted_document(payload: EncryptedUpload, db: AsyncIOMotorDa
 
 
 @router.get("/{document_id}/content", response_model=dict)
-async def get_encrypted_content(document_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_encrypted_content(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     """
     Devuelve el ciphertext y los parámetros públicos (iv, salt) para que el
     navegador descifre localmente con la frase del abogado.
@@ -185,7 +213,11 @@ async def get_encrypted_content(document_id: str, db: AsyncIOMotorDatabase = Dep
     import base64
     from utils import drive_service
 
-    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
+    # Validar que el documento pertenece al usuario autenticado
+    doc = await db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "lawyer_id": str(current_user["_id"])
+    })
     if not doc:
         raise HTTPException(404, "Documento no encontrado")
     if not doc.get("encrypted"):

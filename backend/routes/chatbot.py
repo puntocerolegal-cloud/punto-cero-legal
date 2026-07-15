@@ -537,9 +537,22 @@ async def whatsapp_webhook(request: Request, db: AsyncIOMotorDatabase = Depends(
 
 
 @router.post("/chatbot/simulate")
-async def chatbot_simulate(payload: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def chatbot_simulate(
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     """Pruebas sin Twilio: envía una respuesta del cliente por case_id y devuelve la del bot."""
     case_id = payload.get("case_id")
+    
+    # Validar que el caso pertenece al usuario
+    case = await db.cases.find_one({
+        "_id": ObjectId(case_id),
+        "organization_id": current_user.get("organization_id")
+    })
+    if not case:
+        raise HTTPException(403, "No autorizado: caso no pertenece a su organización")
+    
     body = payload.get("message", "")
     reply = await process_inbound(db, case_id, body, by_case_id=True)
     return {"reply": reply}

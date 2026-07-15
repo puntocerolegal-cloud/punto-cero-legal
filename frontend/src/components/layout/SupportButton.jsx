@@ -19,7 +19,7 @@ export function SupportButton() {
   const org = user?.firm_name || user?.organization || '—';
 
   const text =
-    `Hola, necesito soporte de Punto Cero System OS.\n` +
+    `Hola, necesito soporte.\n` +
     `Abogado: ${user?.full_name || '—'}\n` +
     `Correo: ${user?.email || '—'}\n` +
     `Organización: ${org}\n` +

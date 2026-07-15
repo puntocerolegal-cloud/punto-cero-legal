@@ -10,6 +10,7 @@ import { UpgradeModal } from './components/commerce/UpgradeModal';
 import { LawyerShell } from './shells/lawyer/LawyerShell';
 import { FirmShell } from './shells/firm/FirmShell';
 import { AdminShell } from './shells/admin/AdminShell';
+import { useGoogleAdsTracking } from './hooks/useGoogleAdsTracking';
 
 // Compatibilidad: las rutas antiguas /admin/os/* ahora viven en /admin/*.
 // Redirige preservando el subpath para no romper enlaces ni marcadores previos.
@@ -45,10 +46,16 @@ import AdminPanel from './pages/AdminPanel';
 const LAWYER_ROLES = ['lawyer', 'client'];
 const ADMIN_ROLES = ['admin', 'admin_general', 'socio_comercial'];
 
+function RouteTracker() {
+  useGoogleAdsTracking();
+  return null;
+}
+
 function App() {
   return (
     <div className="App">
       <BrowserRouter>
+        <RouteTracker />
         <ContentProvider>
         <AuthProvider>
           <SubscriptionProvider>

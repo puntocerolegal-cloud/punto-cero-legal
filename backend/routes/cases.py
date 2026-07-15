@@ -255,7 +255,13 @@ async def get_cases(
 ):
     # Devolución automática (3h sin aceptar) — verificación perezosa al listar.
     await auto_return_expired(db)
-    query = {"organization_id": current_user.get("organization_id")}
+    
+    # Usar organization_id del token como fuente de verdad
+    organization_id = current_user.get("organization_id")
+    if not organization_id:
+        raise HTTPException(403, "Usuario sin organización asignada")
+    
+    query = {"organization_id": organization_id}
     if lawyer_id:
         query["lawyer_id"] = lawyer_id
     if client_id:
@@ -294,10 +300,14 @@ async def get_case(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db)
 ):
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
+    # Incluir filtro de tenant en la query inicial
+    case = await db.cases.find_one({
+        "_id": ObjectId(case_id),
+        "organization_id": current_user.get("organization_id")
+    })
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-    validate_org_ownership(case, current_user, "organization_id")
+    
     out = _serialize_case(case)
 
     activities = await db.case_activities.find({"case_id": case_id}).sort("created_at", -1).to_list(200)
@@ -315,9 +325,17 @@ async def get_case(
 
 
 @router.get("/{case_id}/timeline", response_model=dict)
-async def case_timeline(case_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def case_timeline(
+    case_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     """Línea de tiempo visual del caso: cada etapa/hito en orden cronológico."""
-    case = await db.cases.find_one({"_id": ObjectId(case_id)})
+    # Validar que el caso pertenece al tenant
+    case = await db.cases.find_one({
+        "_id": ObjectId(case_id),
+        "organization_id": current_user.get("organization_id")
+    })
     if not case:
         raise HTTPException(404, "Case not found")
     acts = await db.case_activities.find({"case_id": case_id}).sort("created_at", 1).to_list(500)
@@ -483,7 +501,20 @@ async def submit_client_form(token: str, payload: dict, db: AsyncIOMotorDatabase
 
 
 @router.patch("/{case_id}", response_model=dict)
-async def update_case(case_id: str, updates: dict, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def update_case(
+    case_id: str,
+    updates: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    # Validar que el caso pertenece al tenant antes de actualizar
+    case = await db.cases.find_one({
+        "_id": ObjectId(case_id),
+        "organization_id": current_user.get("organization_id")
+    })
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
     allowed = {"title", "legal_area", "materia", "description", "summary", "estado", "status",
                "priority", "priority_label", "deadline", "court", "assigned_to", "counterparty_name",
                "key_dates"}

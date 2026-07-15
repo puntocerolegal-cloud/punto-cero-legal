@@ -12,8 +12,20 @@ async def get_db():
     return db
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_meeting(meeting_data: MeetingCreate, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def create_meeting(
+    meeting_data: MeetingCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
     import uuid
+    
+    # Validar que el caso pertenece al usuario
+    case = await db.cases.find_one({
+        "_id": ObjectId(meeting_data.case_id),
+        "organization_id": current_user.get("organization_id")
+    })
+    if not case:
+        raise HTTPException(403, "No autorizado: caso no pertenece a su organización")
     
     meeting_dict = meeting_data.model_dump()
     meeting_dict["room_id"] = str(uuid.uuid4())
@@ -31,11 +43,22 @@ async def get_meetings(
     case_id: str = None,
     host_id: str = None,
     status: str = None,
+    current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db)
 ):
-    query = {}
+    # Siempre filtrar por organización del usuario
+    query = {"organization_id": current_user.get("organization_id")}
+    
     if case_id:
+        # Validar que el caso pertenece a la organización
+        case = await db.cases.find_one({
+            "_id": ObjectId(case_id),
+            "organization_id": current_user.get("organization_id")
+        })
+        if not case:
+            raise HTTPException(403, "No autorizado: caso no pertenece a su organización")
         query["case_id"] = case_id
+    
     if host_id:
         query["host_id"] = host_id
     if status:
@@ -47,8 +70,16 @@ async def get_meetings(
     return meetings
 
 @router.get("/{meeting_id}", response_model=dict)
-async def get_meeting(meeting_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    meeting = await db.meetings.find_one({"_id": ObjectId(meeting_id)})
+async def get_meeting(
+    meeting_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    # Validar que la reunión pertenece a la organización del usuario
+    meeting = await db.meetings.find_one({
+        "_id": ObjectId(meeting_id),
+        "organization_id": current_user.get("organization_id")
+    })
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
     meeting["_id"] = str(meeting["_id"])

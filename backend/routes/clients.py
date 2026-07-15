@@ -83,7 +83,17 @@ async def list_clients(
 ):
     # La identidad viene del token, NO de un query param manipulable.
     lawyer_id = str(current_user["_id"])
-    docs = await db.clients.find({"lawyer_id": lawyer_id}).sort("created_at", -1).to_list(1000)
+    organization_id = current_user.get("organization_id")
+    
+    # Validar que el usuario tiene organización
+    if not organization_id:
+        raise HTTPException(403, "Usuario sin organización asignada")
+    
+    # Filtrar por lawyer_id Y organization_id para aislamiento multi-tenant
+    docs = await db.clients.find({
+        "lawyer_id": lawyer_id,
+        "organization_id": organization_id
+    }).sort("created_at", -1).to_list(1000)
     return [await _serialize(d, db) for d in docs]
 
 
@@ -111,8 +121,17 @@ async def update_client(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     oid = _oid(client_id)
-    client = await db.clients.find_one({"_id": oid})
-    # 404 si no existe · 403 si el cliente no pertenece al abogado autenticado.
+    organization_id = current_user.get("organization_id")
+    
+    # Validar que el cliente pertenece a la organización del usuario
+    client = await db.clients.find_one({
+        "_id": oid,
+        "organization_id": organization_id
+    })
+    if not client:
+        raise HTTPException(404, "Cliente no encontrado")
+    
+    # 403 si el cliente no pertenece al abogado autenticado.
     require_owner(client, current_user)
     update = {k: v for k, v in payload.model_dump().items() if v is not None}
     update["updated_at"] = datetime.utcnow()
