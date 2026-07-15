@@ -29,6 +29,11 @@ async def get_current_user(
     user = await db.users.find_one({"email": payload["sub"]})
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    # Tenant estable para el scoping de datos (cases/clients exigen organization_id):
+    # organización explícita, o la firma, o el id propio (tenant personal).
+    # Mismo criterio que ya inyecta el token; no cambia orgs ya asignadas.
+    if not user.get("organization_id"):
+        user["organization_id"] = user.get("firm_id") or str(user.get("_id"))
     return user
 
 
