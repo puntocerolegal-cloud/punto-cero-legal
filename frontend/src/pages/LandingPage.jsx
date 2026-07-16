@@ -2896,15 +2896,17 @@ export const LandingPage = () => {
 
       <motion.a
 
-        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, necesito soporte de Punto Cero Legal')}`}
+        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero soporte técnico de Punto Cero Legal')}`}
+
+        onClick={() => { try { trackEvent('whatsapp_contact', { source: 'landing_floating', intent: 'soporte_tecnico' }); } catch (e) {} }}
 
         target="_blank"
 
         rel="noopener noreferrer"
 
-        aria-label="Soporte WhatsApp"
+        aria-label="Quiero soporte técnico por WhatsApp"
 
-        title="Soporte WhatsApp +57 302 832 2083"
+        title="Quiero soporte técnico"
 
         data-testid="floating-whatsapp"
 
@@ -2918,7 +2920,7 @@ export const LandingPage = () => {
 
         whileTap={{ scale: 0.95 }}
 
-        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-[#25d366] to-[#128c7e] flex items-center justify-center shadow-[0_10px_30px_rgba(37,211,102,0.45)] hover:shadow-[0_15px_45px_rgba(37,211,102,0.65)] transition-shadow"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-3 pl-4 pr-5 py-3 rounded-full bg-gradient-to-br from-[#25d366] to-[#128c7e] text-white shadow-[0_10px_30px_rgba(37,211,102,0.5)] hover:shadow-[0_16px_48px_rgba(37,211,102,0.8)] transition-shadow"
 
       >
 
@@ -2928,7 +2930,9 @@ export const LandingPage = () => {
 
         </svg>
 
-        <span className="absolute inset-0 rounded-full animate-ping bg-[#25d366]/30 pointer-events-none" />
+        <span className="text-base font-bold leading-tight whitespace-nowrap">Quiero soporte técnico</span>
+
+        <span className="absolute -inset-1 rounded-full animate-ping bg-[#25d366]/25 pointer-events-none" />
 
       </motion.a>
 
