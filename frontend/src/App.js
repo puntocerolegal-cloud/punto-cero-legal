@@ -38,6 +38,7 @@ import CookiePolicy from './pages/legal/CookiePolicy';
 import TermsConditions from './pages/legal/TermsConditions';
 import SubscriptionAgreement from './pages/legal/SubscriptionAgreement';
 import AdminPanel from './pages/AdminPanel';
+import FirmOnboardingWizard from './pages/FirmOnboardingWizard';
 
 // Partners y Analytics NO se importan aquí: son módulos nativos de Punto Cero
 // System OS y viven exclusivamente bajo /admin/* (ver modules/admin/AdminModule.jsx).
@@ -66,6 +67,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/crear-firma" element={<FirmOnboardingWizard />} />
             <Route path="/change-password-required" element={<ChangePasswordRequired />} />
             <Route path="/activate-firm" element={<ActivateFirmPage />} />
             <Route path="/activate-lawyer" element={<ActivateLawyerPage />} />

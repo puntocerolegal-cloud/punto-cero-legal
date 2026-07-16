@@ -81,13 +81,7 @@ export const DashboardLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white">
-      {/* Marca de agua institucional — fija, centrada, opacidad baja, detrás del
-          contenido (no afecta layout, scroll ni legibilidad). Para usar una foto
-          de oficina, déjala en public/ y cambia la ruta del src. */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
-        <img src="/logo-pd-system.png" alt=""
-          className="w-[62vmin] max-w-[640px] object-contain opacity-[0.035] select-none" draggable="false" />
-      </div>
+      {/* White Label: sin marca de agua institucional. Fondo neutro profesional. */}
 
       <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 w-9 h-9 rounded-lg bg-white/10 backdrop-blur flex items-center justify-center">
         {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -96,10 +90,11 @@ export const DashboardLayout = ({ children }) => {
       {/* Sidebar (w-64 compacto) */}
       <aside className={`fixed top-0 left-0 h-full w-64 z-40 flex flex-col bg-[#0f172a] border-r border-white/10 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="p-5 border-b border-white/10 flex items-center gap-3">
-          <img src="/logo-pd-system.png" alt="Logo institucional"
-            className="w-12 h-12 object-contain rounded-lg flex-shrink-0" />
+          <div className="w-12 h-12 rounded-lg flex-shrink-0 bg-gradient-to-br from-[#f97316] to-[#fb923c] flex items-center justify-center font-bold text-white">
+            {((user?.firm_name || user?.full_name || 'Mi Oficina Jurídica').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') || 'MO').toUpperCase()}
+          </div>
           <div className="leading-tight">
-            <div className="font-bold text-sm">{user?.firm_name || "Mi Firma"}</div>
+            <div className="font-bold text-sm">{user?.firm_name || "Mi Oficina Jurídica"}</div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Oficina Virtual</div>
           </div>
         </div>

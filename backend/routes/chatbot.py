@@ -23,6 +23,7 @@ import os
 import logging
 
 from utils import notifier
+from routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Chatbot Legal · WhatsApp"])

@@ -1,4 +1,6 @@
 import React from "react";
+import { EnterpriseSubscriptionPanel } from "../components/EnterpriseSubscriptionPanel";
+import { useFirmBranding } from "../context/FirmBrandingContext";
 import {
   Users, FolderKanban, TrendingUp, Calendar,
   AlertCircle, CheckCircle2, Clock, FileText,
@@ -74,6 +76,9 @@ export function FirmDashboard() {
   const { access } = useSubscription();
   useFirmOnboarding();
 
+  // Nombre real de la firma (nunca el ID interno). Fuente: contexto White Label.
+  const { name: firmName } = useFirmBranding();
+
   const { loading, error, lawyers, cases, clients } = useFirmCoreData();
   const { preferences } = usePreferences();
   const { automationVM, history } = useAutomation(lawyers, cases, clients);
@@ -114,7 +119,7 @@ export function FirmDashboard() {
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-white/50 uppercase">Nombre</p>
-                <p className="text-lg font-semibold text-white">{user?.firm_id || "Firma"}</p>
+                <p className="text-lg font-semibold text-white">{firmName}</p>
               </div>
               <div>
                 <p className="text-xs text-white/50 uppercase">Plan</p>
@@ -133,12 +138,14 @@ export function FirmDashboard() {
           </div>
           <div>
             <CapacityBar used={vm.capacityBar.used} total={vm.capacityBar.total} label={vm.capacityBar.label} color={vm.capacityBar.color} />
-            <button className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <button onClick={() => navigate('/firm-os/settings')} className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
               Actualizar Plan
             </button>
           </div>
         </div>
       </SectionCard>
+
+      <EnterpriseSubscriptionPanel />
 
       <SectionCard title={vm.teamSection.title}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
@@ -146,7 +153,7 @@ export function FirmDashboard() {
             <KPICard key={metric.key} icon={[Users, CheckCircle2, Calendar, TrendingUp, Clock][vm.teamSection.metrics.indexOf(metric)]} label={metric.label} value={metric.value} color={metric.color} />
           ))}
         </div>
-        <button className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
+        <button onClick={() => navigate('/firm-os/team')} className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
           Administrar Equipo
         </button>
       </SectionCard>

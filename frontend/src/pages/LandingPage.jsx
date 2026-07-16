@@ -35,6 +35,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
+import { AdmissionChatbot } from '../components/AdmissionChatbot';
 import { FirmRegistrationStreamlined } from '../components/FirmRegistrationStreamlined';
 import { FirmOSPreviewBlock } from '../components/FirmOSPreviewBlock';
 
@@ -2896,15 +2897,17 @@ export const LandingPage = () => {
 
       <motion.a
 
-        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, necesito soporte de Punto Cero Legal')}`}
+        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, necesito ayuda de Punto Cero Legal')}`}
+
+        onClick={() => { try { trackEvent('whatsapp_contact', { source: 'landing_floating' }); } catch (e) {} }}
 
         target="_blank"
 
         rel="noopener noreferrer"
 
-        aria-label="Soporte WhatsApp"
+        aria-label="Habla con un asesor por WhatsApp"
 
-        title="Soporte WhatsApp +57 302 832 2083"
+        title="Habla con un asesor"
 
         data-testid="floating-whatsapp"
 
@@ -2918,7 +2921,7 @@ export const LandingPage = () => {
 
         whileTap={{ scale: 0.95 }}
 
-        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-[#25d366] to-[#128c7e] flex items-center justify-center shadow-[0_10px_30px_rgba(37,211,102,0.45)] hover:shadow-[0_15px_45px_rgba(37,211,102,0.65)] transition-shadow"
+        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-[#25d366] to-[#128c7e] flex items-center justify-center text-white shadow-[0_10px_30px_rgba(37,211,102,0.45)] hover:shadow-[0_15px_45px_rgba(37,211,102,0.65)] transition-shadow"
 
       >
 
@@ -2948,6 +2951,9 @@ export const LandingPage = () => {
 
       {/* Capa visual del chatbot existente — se abre tras enviar un formulario */}
       <ChatWidget session={chat} onClose={() => setChat({ open: false })} />
+
+      {/* Asesor Inteligente de Admisión (flujo conversacional de conversión) */}
+      <AdmissionChatbot />
 
     </div>
 

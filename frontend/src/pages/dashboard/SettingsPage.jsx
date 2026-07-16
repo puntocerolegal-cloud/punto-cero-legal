@@ -1,15 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
+import { API } from '@/config/api';
+import { PhoneInput } from '@/components/PhoneInput';
+import { LANGUAGES, TIMEZONES } from '@/config/countries';
 import { User, Lock, Bell, Building2, CreditCard, Plug, Save, Eye, EyeOff, Check, Award, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
 // Fuente ÚNICA oficial de planes (misma que Landing/Admin/Dashboard).
 import { CURRENCIES, DEFAULT_CURRENCY_CODE } from '@/modules/plans/mockData';
 import { findCurrency, localPrice, formatMoney } from '@/modules/plans/currency';
+
+// Campos de identidad de la firma (Capa 1) + estructura White Label (Capa 8).
+// Persisten en firm_settings vía PUT /api/firm-os/settings.
+const FIRM_FIELDS = {
+  commercial_name: '', legal_name: '', tax_id: '', address: '', city: '', country: '',
+  phone: '', corporate_email: '', website: '', social_links: '', specialties: '', business_hours: '',
+  logo_url: '', avatar_url: '', cover_url: '', primary_color: '', favicon_url: '', public_name: '', domain: '',
+};
 
 const tabs = [
   { id: 'profile', label: 'Perfil', icon: User },
@@ -45,7 +56,24 @@ export const SettingsPage = () => {
     country: user?.country || 'Colombia',
     specialty: user?.specialty || '',
     bar_number: user?.bar_number || '',
+    title: '', bio: '', website: '', city: '', state: '', postal_code: '',
+    language: 'es', timezone: 'America/Bogota',
   });
+
+  // Carga el perfil persistido (para recuperar exactamente la config tras login/refresh).
+  useEffect(() => {
+    const t = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+    axios.get(`${API}/users/me`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      .then((r) => {
+        const d = r.data || {};
+        setProfile((prev) => {
+          const next = { ...prev };
+          Object.keys(prev).forEach((k) => { if (d[k] !== undefined && d[k] !== null) next[k] = d[k]; });
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, []);
   const [notifications, setNotifications] = useState({
     email_cases: true,
     email_meetings: true,
@@ -58,6 +86,100 @@ export const SettingsPage = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  // Guarda el perfil del usuario en el backend (PATCH /users/me) — persistencia real.
+  const handleSaveProfile = async () => {
+    try {
+      const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+      await axios.patch(`${API}/users/me`, {
+        full_name: profile.full_name,
+        phone: profile.phone,
+        country: profile.country,
+        specialty: profile.specialty,
+        bar_number: profile.bar_number,
+        title: profile.title,
+        bio: profile.bio,
+        website: profile.website,
+        city: profile.city,
+        state: profile.state,
+        postal_code: profile.postal_code,
+        language: profile.language,
+        timezone: profile.timezone,
+      }, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Error al guardar el perfil');
+    }
+  };
+
+  // Identidad / configuración del despacho (Capa 1 + White Label) — persistencia real.
+  const [firm, setFirm] = useState(FIRM_FIELDS);
+  const [firmSaved, setFirmSaved] = useState(false);
+  const setFirmField = (k, v) => setFirm(prev => ({ ...prev, [k]: v }));
+
+  // Suscripción de FIRMA (Firm OS) — nunca planes de Lawyer OS.
+  const [firmSub, setFirmSub] = useState(null);
+  useEffect(() => {
+    if (!user?.firm_id) return;
+    const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+    axios.get(`${API}/firm-os/subscription`, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} })
+      .then((r) => setFirmSub(r.data)).catch(() => {});
+  }, [user?.firm_id]);
+
+  useEffect(() => {
+    if (!user?.firm_id) return;
+    const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+    axios.get(`${API}/firm-os/settings`, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} })
+      .then(r => {
+        const d = r.data?.data || {};
+        setFirm(prev => {
+          const next = { ...prev };
+          Object.keys(FIRM_FIELDS).forEach(k => { if (d[k] !== undefined && d[k] !== null) next[k] = d[k]; });
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, [user?.firm_id]);
+
+  const handleSaveFirm = async () => {
+    try {
+      const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+      await axios.put(`${API}/firm-os/settings`, firm, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
+      setFirmSaved(true);
+      setTimeout(() => setFirmSaved(false), 2000);
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Error al guardar la configuración del despacho');
+    }
+  };
+
+  // Sube una imagen (logo/portada/avatar/favicon) leyéndola como data URL base64.
+  // Se persiste con "Guardar Despacho" (PUT /firm-os/settings). Preview inmediato.
+  const handleImageFile = (field) => (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => setFirmField(field, reader.result);
+    reader.readAsDataURL(file);
+  };
+  const ImageUpload = ({ field, label }) => (
+    <div>
+      <label className="block text-sm font-semibold mb-2">{label}</label>
+      <div className="flex items-center gap-3">
+        {firm[field] ? (
+          <img src={firm[field]} alt={label} className="w-14 h-14 rounded-lg object-cover border border-white/20" />
+        ) : (
+          <div className="w-14 h-14 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/30 text-xs">—</div>
+        )}
+        <label className="cursor-pointer px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm">
+          Subir / Reemplazar
+          <input type="file" accept="image/*" onChange={handleImageFile(field)} className="hidden" />
+        </label>
+        {firm[field] && <button type="button" onClick={() => setFirmField(field, '')} className="text-white/50 hover:text-red-400 text-sm">Quitar</button>}
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout>
@@ -104,7 +226,7 @@ export const SettingsPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">Teléfono</label>
-                      <Input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                      <PhoneInput value={profile.phone} onChange={(v) => setProfile({ ...profile, phone: v })} />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">Tarjeta Profesional</label>
@@ -118,8 +240,44 @@ export const SettingsPage = () => {
                       <label className="block text-sm font-semibold mb-2">País</label>
                       <Input value={profile.country} onChange={(e) => setProfile({ ...profile, country: e.target.value })} className="bg-white/10 border-white/20 text-white" />
                     </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Cargo</label>
+                      <Input value={profile.title} onChange={(e) => setProfile({ ...profile, title: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Sitio web</label>
+                      <Input value={profile.website} onChange={(e) => setProfile({ ...profile, website: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Ciudad</label>
+                      <Input value={profile.city} onChange={(e) => setProfile({ ...profile, city: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Estado / Departamento</label>
+                      <Input value={profile.state} onChange={(e) => setProfile({ ...profile, state: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Código postal</label>
+                      <Input value={profile.postal_code} onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Idioma</label>
+                      <select value={profile.language} onChange={(e) => setProfile({ ...profile, language: e.target.value })} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white">
+                        {LANGUAGES.map((l) => <option key={l.code} value={l.code} className="bg-slate-800">{l.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Zona horaria</label>
+                      <select value={profile.timezone} onChange={(e) => setProfile({ ...profile, timezone: e.target.value })} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white">
+                        {TIMEZONES.map((t) => <option key={t} value={t} className="bg-slate-800">{t}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <Button onClick={handleSave} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Biografía</label>
+                    <textarea value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={3} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40" />
+                  </div>
+                  <Button onClick={handleSaveProfile} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
                     {saved ? <><Check className="w-4 h-4 mr-2" /> Guardado</> : <><Save className="w-4 h-4 mr-2" /> Guardar Cambios</>}
                   </Button>
                 </div>
@@ -176,31 +334,126 @@ export const SettingsPage = () => {
 
               {activeTab === 'firm' && (
                 <div className="space-y-5">
-                  <h2 className="text-xl font-bold">Datos del Despacho</h2>
-                  <Input placeholder="Nombre del bufete" className="bg-white/10 border-white/20 text-white" />
-                  <Input placeholder="NIT / RIF" className="bg-white/10 border-white/20 text-white" />
-                  <Input placeholder="Dirección" className="bg-white/10 border-white/20 text-white" />
-                  <Input placeholder="Sitio web" className="bg-white/10 border-white/20 text-white" />
-                  <Textarea placeholder="Descripción del despacho" className="bg-white/10 border-white/20 text-white" />
-                  <Button onClick={handleSave} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">Guardar</Button>
+                  <h2 className="text-xl font-bold">Identidad del Despacho</h2>
+                  {!user?.firm_id && (
+                    <p className="text-sm text-amber-400">Esta sección aplica a cuentas de firma (Firm OS).</p>
+                  )}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Nombre comercial</label>
+                      <Input value={firm.commercial_name} onChange={(e) => setFirmField('commercial_name', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Razón social</label>
+                      <Input value={firm.legal_name} onChange={(e) => setFirmField('legal_name', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">NIT / RIF</label>
+                      <Input value={firm.tax_id} onChange={(e) => setFirmField('tax_id', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Correo corporativo</label>
+                      <Input type="email" value={firm.corporate_email} onChange={(e) => setFirmField('corporate_email', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Teléfono</label>
+                      <PhoneInput value={firm.phone} onChange={(v) => setFirmField('phone', v)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Sitio web</label>
+                      <Input value={firm.website} onChange={(e) => setFirmField('website', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Dirección</label>
+                      <Input value={firm.address} onChange={(e) => setFirmField('address', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Ciudad</label>
+                      <Input value={firm.city} onChange={(e) => setFirmField('city', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">País</label>
+                      <Input value={firm.country} onChange={(e) => setFirmField('country', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Horarios</label>
+                      <Input value={firm.business_hours} onChange={(e) => setFirmField('business_hours', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="Lun-Vie 8:00-18:00" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Especialidades</label>
+                    <Input value={firm.specialties} onChange={(e) => setFirmField('specialties', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="Civil, Laboral, Penal..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Redes sociales</label>
+                    <Input value={firm.social_links} onChange={(e) => setFirmField('social_links', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="LinkedIn, Instagram..." />
+                  </div>
+
+                  <h3 className="text-lg font-bold pt-4 border-t border-white/10">Marca (White Label)</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Nombre público</label>
+                      <Input value={firm.public_name} onChange={(e) => setFirmField('public_name', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Dominio</label>
+                      <Input value={firm.domain} onChange={(e) => setFirmField('domain', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="midespacho.com" />
+                    </div>
+                    <ImageUpload field="logo_url" label="Logo" />
+                    <ImageUpload field="cover_url" label="Imagen de portada" />
+                    <ImageUpload field="avatar_url" label="Avatar" />
+                    <ImageUpload field="favicon_url" label="Favicon" />
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Color primario</label>
+                      <Input value={firm.primary_color} onChange={(e) => setFirmField('primary_color', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="#3b82f6" />
+                    </div>
+                  </div>
+
+                  <Button onClick={handleSaveFirm} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
+                    {firmSaved ? <><Check className="w-4 h-4 mr-2" /> Guardado</> : <><Save className="w-4 h-4 mr-2" /> Guardar Despacho</>}
+                  </Button>
                 </div>
               )}
 
               {activeTab === 'subscription' && (
                 <div className="space-y-5">
                   <h2 className="text-xl font-bold">Plan y Suscripción</h2>
-                  <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-6 border border-[#f97316]/40">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Award className="w-8 h-8 text-[#f97316]" />
-                      <div>
-                        <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Actual</div>
-                        <div className="text-2xl font-bold" data-testid="settings-plan-name">{currentPlan?.name || '—'}</div>
+                  {user?.firm_id ? (
+                    // FIRM OS: plan empresarial (fuente /firm-os/subscription). Sin planes de Lawyer OS.
+                    <>
+                      <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-6 border border-[#f97316]/40">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Award className="w-8 h-8 text-[#f97316]" />
+                          <div>
+                            <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Empresarial</div>
+                            <div className="text-2xl font-bold">{firmSub?.plan?.name || '—'}</div>
+                          </div>
+                        </div>
+                        <p className="text-white/70 text-sm mb-2">Estado: <span className="font-semibold">{firmSub?.is_trial ? 'Trial' : (firmSub?.status || '—')}</span></p>
+                        <div className="grid grid-cols-3 gap-3 mt-4 text-sm">
+                          <div><div className="text-white/50">Abogados</div><div className="font-bold">{firmSub?.usage?.lawyers ?? '—'} / {firmSub?.limits?.lawyers ?? '—'}</div></div>
+                          <div><div className="text-white/50">Almacenamiento</div><div className="font-bold">{firmSub?.usage?.storage_gb ?? 0} / {firmSub?.limits?.storage_gb ?? '—'} GB</div></div>
+                          <div><div className="text-white/50">IA</div><div className="font-bold">{firmSub?.percent?.ai ?? 0}%</div></div>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-white/70 text-sm mb-4">Estado de la suscripción: <span className="font-semibold">{access?.status || '—'}</span></p>
-                    <div className="text-3xl font-bold mb-1" data-testid="settings-plan-price">{planPriceLabel} <span className="text-base font-normal text-white/60">/mes</span></div>
-                  </div>
-                  <Button className="bg-gradient-to-r from-[#10b981] to-[#059669] text-white">Cambiar Plan</Button>
+                      <p className="text-sm text-white/60">Gestiona tu suscripción desde el panel <strong>Estado de la Empresa</strong> en el Dashboard.</p>
+                    </>
+                  ) : (
+                    // LAWYER OS: plan individual del abogado.
+                    <>
+                      <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-6 border border-[#f97316]/40">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Award className="w-8 h-8 text-[#f97316]" />
+                          <div>
+                            <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Actual</div>
+                            <div className="text-2xl font-bold" data-testid="settings-plan-name">{currentPlan?.name || '—'}</div>
+                          </div>
+                        </div>
+                        <p className="text-white/70 text-sm mb-4">Estado de la suscripción: <span className="font-semibold">{access?.status || '—'}</span></p>
+                        <div className="text-3xl font-bold mb-1" data-testid="settings-plan-price">{planPriceLabel} <span className="text-base font-normal text-white/60">/mes</span></div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

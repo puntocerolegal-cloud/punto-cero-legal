@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFirmBranding } from "@/modules/firm-os/context/FirmBrandingContext";
 import { useFirmCoreData } from "@/modules/firm-os/hooks/useFirmCoreData";
 import { useAutomation } from "@/modules/firm-os/hooks/useAutomation";
 import { useNotifications } from "@/modules/firm-os/hooks/useNotifications";
@@ -21,6 +22,7 @@ export function FirmOSSidebar() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const { name: firmName } = useFirmBranding();
 
   const { lawyers = [], cases = [], clients = [], loading } = useFirmCoreData();
   const { automationVM = {}, history = [] } = useAutomation(lawyers, cases, clients);
@@ -51,6 +53,7 @@ export function FirmOSSidebar() {
     { icon: AlertCircle, label: 'Centro de Alertas', path: '/firm-os/alerts' },
     { icon: UserCheck, label: 'Equipo Jurídico', path: '/firm-os/team' },
     { icon: Users, label: 'Control de Abogados', path: '/firm-os/lawyers' },
+    { icon: MessageCircle, label: 'Comunicaciones', path: '/firm-os/communication' },
     { icon: BarChart3, label: 'Indicadores', path: '/firm-os/analytics' },
     { icon: Zap, label: 'Centro de Automatización', path: '/firm-os/automation', badge: sidebarBadge },
   ];
@@ -66,8 +69,8 @@ export function FirmOSSidebar() {
       <div className="p-5 border-b border-white/10 flex items-center gap-3">
         <Building2 className="w-6 h-6 text-[#f97316]" />
         <div className="leading-tight">
-          <div className="font-bold text-sm">Firma</div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Enterprise</div>
+          <div className="font-bold text-sm truncate max-w-[160px]">{firmName}</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Firm OS</div>
         </div>
       </div>
 

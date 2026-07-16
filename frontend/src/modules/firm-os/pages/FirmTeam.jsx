@@ -7,6 +7,7 @@ import { useFirmCoreData } from '../hooks/useFirmCoreData';
 import { calculateLawyerMetrics } from '../domain';
 import { TeamTable } from '../components/TeamTable';
 import { TeamMemberModal } from '../components/TeamMemberModal';
+import { InviteLawyerModal } from '../components/InviteLawyerModal';
 
 export function FirmTeam() {
   const { user, token } = useAuth();
@@ -19,6 +20,7 @@ export function FirmTeam() {
 
   const [selectedMember, setSelectedMember] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [practiceAreas, setPracticeAreas] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -79,7 +81,7 @@ export function FirmTeam() {
     setActionLoading(true);
     try {
       await axios.patch(
-        `${API}/rbac/users/${member.id}/status`,
+        `${API}/team/${member.id}/status`,
         { status: 'suspended' },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -105,7 +107,7 @@ export function FirmTeam() {
     setActionLoading(true);
     try {
       await axios.patch(
-        `${API}/rbac/users/${member.id}/status`,
+        `${API}/team/${member.id}/status`,
         { status: 'ACTIVE' },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -179,7 +181,7 @@ export function FirmTeam() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold text-white">Equipo ({filteredTeam.length})</h1>
-          <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors text-white font-semibold">
+          <button onClick={() => setInviteOpen(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors text-white font-semibold">
             <Plus className="w-5 h-5" />
             Invitar Miembro
           </button>
@@ -231,6 +233,13 @@ export function FirmTeam() {
         }}
         onSave={handleSaveChanges}
         practiceAreas={practiceAreas}
+      />
+
+      {/* Modal de invitación */}
+      <InviteLawyerModal
+        isOpen={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onSuccess={loadTeam}
       />
     </div>
   );

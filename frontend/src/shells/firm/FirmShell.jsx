@@ -7,6 +7,9 @@ import { AlertsCenter } from '@/modules/firm-os/pages/AlertsCenter';
 import { FirmTeam } from '@/modules/firm-os/pages/FirmTeam';
 import { FirmLawyers } from '@/modules/firm-os/pages/FirmLawyers';
 import { FirmAnalytics } from '@/modules/firm-os/pages/FirmAnalytics';
+import { CommunicationPage } from '@/modules/firm-os/pages/CommunicationPage';
+import { FirmBrandingProvider } from '@/modules/firm-os/context/FirmBrandingContext';
+import { LegalConsentGate } from '@/modules/firm-os/components/LegalConsentGate';
 import { firmRegistry } from './firmRegistry';
 
 const FIRM_ROLES = ['firm_owner', 'firm_admin', 'firm_lawyer'];
@@ -38,6 +41,7 @@ function FirmShellRoutes() {
       <Route path="team" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmTeam /></FirmOSLayout></ProtectedRoute>} />
       <Route path="lawyers" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmLawyers /></FirmOSLayout></ProtectedRoute>} />
       <Route path="analytics" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmAnalytics /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="communication" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><CommunicationPage /></FirmOSLayout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={location.pathname.startsWith('/firm-os') ? '/firm-os' : '/'} replace />} />
     </Routes>
   );
@@ -46,7 +50,11 @@ function FirmShellRoutes() {
 export function FirmShell() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center">Cargando...</div>}>
-      <FirmShellRoutes />
+      <FirmBrandingProvider>
+        <LegalConsentGate>
+          <FirmShellRoutes />
+        </LegalConsentGate>
+      </FirmBrandingProvider>
     </Suspense>
   );
 }
