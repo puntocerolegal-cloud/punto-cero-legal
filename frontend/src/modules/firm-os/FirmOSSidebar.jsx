@@ -6,9 +6,8 @@ import {
   Sparkles, UserCheck, DollarSign, TrendingUp, BarChart3, Briefcase, MessageCircle, AlertCircle, Zap, Activity, Cpu, Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { API } from "@/config/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFirmBranding } from "@/modules/firm-os/context/FirmBrandingContext";
 import { useFirmCoreData } from "@/modules/firm-os/hooks/useFirmCoreData";
 import { useAutomation } from "@/modules/firm-os/hooks/useAutomation";
 import { useNotifications } from "@/modules/firm-os/hooks/useNotifications";
@@ -23,14 +22,7 @@ export function FirmOSSidebar() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const [firmName, setFirmName] = React.useState("Mi Firma Jurídica");
-  React.useEffect(() => {
-    if (!user?.firm_id) return;
-    const t = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
-    axios.get(`${API}/firm-os/settings`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
-      .then((r) => { const d = r.data?.data || {}; setFirmName(d.commercial_name || d.legal_name || "Mi Firma Jurídica"); })
-      .catch(() => {});
-  }, [user?.firm_id]);
+  const { name: firmName } = useFirmBranding();
 
   const { lawyers = [], cases = [], clients = [], loading } = useFirmCoreData();
   const { automationVM = {}, history = [] } = useAutomation(lawyers, cases, clients);

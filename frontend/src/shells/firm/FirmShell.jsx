@@ -8,6 +8,7 @@ import { FirmTeam } from '@/modules/firm-os/pages/FirmTeam';
 import { FirmLawyers } from '@/modules/firm-os/pages/FirmLawyers';
 import { FirmAnalytics } from '@/modules/firm-os/pages/FirmAnalytics';
 import { CommunicationPage } from '@/modules/firm-os/pages/CommunicationPage';
+import { FirmBrandingProvider } from '@/modules/firm-os/context/FirmBrandingContext';
 import { firmRegistry } from './firmRegistry';
 
 const FIRM_ROLES = ['firm_owner', 'firm_admin', 'firm_lawyer'];
@@ -48,7 +49,9 @@ function FirmShellRoutes() {
 export function FirmShell() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center">Cargando...</div>}>
-      <FirmShellRoutes />
+      <FirmBrandingProvider>
+        <FirmShellRoutes />
+      </FirmBrandingProvider>
     </Suspense>
   );
 }
