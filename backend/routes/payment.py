@@ -653,12 +653,17 @@ async def upload_payment_receipt(
     }
 
 
+# Lawyer OS expone ÚNICAMENTE sus 2 planes (El Despegue, El Salto Estratégico).
+# Los planes de Firm OS viven en /firm-os/plans (catálogo separado). No mezclar.
+LAWYER_OS_PLAN_IDS = ("esencial", "profesional")
+
+
 @router.get("/catalog")
 async def get_catalog(country: Optional[str] = None):
     """Catálogo de planes localizado por país (moneda local + bandera)."""
     resolved = country if country in COUNTRY_CONFIG else DEFAULT_COUNTRY
     rates = await get_exchange_rates()
-    plans = [localize_plan(p, resolved, rates) for p in PLAN_CATALOG.values()]
+    plans = [localize_plan(p, resolved, rates) for pid, p in PLAN_CATALOG.items() if pid in LAWYER_OS_PLAN_IDS]
     return {"locale": build_locale(resolved), "plans": plans}
 
 
@@ -700,7 +705,7 @@ async def get_my_plan(request: Request, current = Depends(get_current_user)):
         "subscription_status": subscription_status,
         "locale": build_locale(country),
         "plan": plan,
-        "catalog": [localize_plan(p, country, rates) for p in PLAN_CATALOG.values()],
+        "catalog": [localize_plan(p, country, rates) for pid, p in PLAN_CATALOG.items() if pid in LAWYER_OS_PLAN_IDS],
         "trial": {
             "started_at": trial_started_at,
             "ends_at": trial_ends_at,
@@ -719,6 +724,8 @@ async def get_plans(country: str = "Colombia", billing_cycle: str = "monthly"):
     
     plans = []
     for plan_id, prices in PLAN_PRICES_COP.items():
+        if plan_id not in LAWYER_OS_PLAN_IDS:
+            continue
         cop_price = prices[billing_cycle]
         local_price = round(cop_price * rate, 2) if currency != "COP" else cop_price
         

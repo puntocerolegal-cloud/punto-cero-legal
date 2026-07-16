@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
  */
 const FirmBrandingContext = createContext(null);
 
-const DEFAULT_NAME = "Mi Firma Jurídica";
+const DEFAULT_NAME = "Mi Oficina Jurídica";
 
 export function FirmBrandingProvider({ children }) {
   const { user } = useAuth();
