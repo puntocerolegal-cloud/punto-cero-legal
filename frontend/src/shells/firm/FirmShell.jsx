@@ -7,6 +7,7 @@ import { AlertsCenter } from '@/modules/firm-os/pages/AlertsCenter';
 import { FirmTeam } from '@/modules/firm-os/pages/FirmTeam';
 import { FirmLawyers } from '@/modules/firm-os/pages/FirmLawyers';
 import { FirmAnalytics } from '@/modules/firm-os/pages/FirmAnalytics';
+import { CommunicationPage } from '@/modules/firm-os/pages/CommunicationPage';
 import { firmRegistry } from './firmRegistry';
 
 const FIRM_ROLES = ['firm_owner', 'firm_admin', 'firm_lawyer'];
@@ -38,6 +39,7 @@ function FirmShellRoutes() {
       <Route path="team" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmTeam /></FirmOSLayout></ProtectedRoute>} />
       <Route path="lawyers" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmLawyers /></FirmOSLayout></ProtectedRoute>} />
       <Route path="analytics" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><FirmAnalytics /></FirmOSLayout></ProtectedRoute>} />
+      <Route path="communication" element={<ProtectedRoute require={FIRM_ROLES}><FirmOSLayout><CommunicationPage /></FirmOSLayout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={location.pathname.startsWith('/firm-os') ? '/firm-os' : '/'} replace />} />
     </Routes>
   );

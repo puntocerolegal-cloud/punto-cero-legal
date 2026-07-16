@@ -51,6 +51,7 @@ export function FirmOSSidebar() {
     { icon: AlertCircle, label: 'Centro de Alertas', path: '/firm-os/alerts' },
     { icon: UserCheck, label: 'Equipo Jurídico', path: '/firm-os/team' },
     { icon: Users, label: 'Control de Abogados', path: '/firm-os/lawyers' },
+    { icon: MessageCircle, label: 'Comunicaciones', path: '/firm-os/communication' },
     { icon: BarChart3, label: 'Indicadores', path: '/firm-os/analytics' },
     { icon: Zap, label: 'Centro de Automatización', path: '/firm-os/automation', badge: sidebarBadge },
   ];
