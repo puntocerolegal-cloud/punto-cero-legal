@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { API } from "@/config/api";
+import { EnterpriseSubscriptionPanel } from "../components/EnterpriseSubscriptionPanel";
 import {
   Users, FolderKanban, TrendingUp, Calendar,
   AlertCircle, CheckCircle2, Clock, FileText,
@@ -74,6 +77,18 @@ export function FirmDashboard() {
   const { access } = useSubscription();
   useFirmOnboarding();
 
+  // Nombre real de la firma (nunca el ID interno). Fuente: /firm-os/settings.
+  const [firmName, setFirmName] = useState("Mi Firma Jurídica");
+  useEffect(() => {
+    const t = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
+    axios.get(`${API}/firm-os/settings`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      .then((r) => {
+        const d = r.data?.data || {};
+        setFirmName(d.commercial_name || d.legal_name || "Mi Firma Jurídica");
+      })
+      .catch(() => {});
+  }, []);
+
   const { loading, error, lawyers, cases, clients } = useFirmCoreData();
   const { preferences } = usePreferences();
   const { automationVM, history } = useAutomation(lawyers, cases, clients);
@@ -114,7 +129,7 @@ export function FirmDashboard() {
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-white/50 uppercase">Nombre</p>
-                <p className="text-lg font-semibold text-white">{user?.firm_id || "Firma"}</p>
+                <p className="text-lg font-semibold text-white">{firmName}</p>
               </div>
               <div>
                 <p className="text-xs text-white/50 uppercase">Plan</p>
@@ -139,6 +154,8 @@ export function FirmDashboard() {
           </div>
         </div>
       </SectionCard>
+
+      <EnterpriseSubscriptionPanel />
 
       <SectionCard title={vm.teamSection.title}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5">

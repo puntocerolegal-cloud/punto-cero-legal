@@ -6,6 +6,8 @@ import {
   Sparkles, UserCheck, DollarSign, TrendingUp, BarChart3, Briefcase, MessageCircle, AlertCircle, Zap, Activity, Cpu, Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { API } from "@/config/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirmCoreData } from "@/modules/firm-os/hooks/useFirmCoreData";
 import { useAutomation } from "@/modules/firm-os/hooks/useAutomation";
@@ -21,6 +23,14 @@ export function FirmOSSidebar() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [firmName, setFirmName] = React.useState("Mi Firma Jurídica");
+  React.useEffect(() => {
+    if (!user?.firm_id) return;
+    const t = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
+    axios.get(`${API}/firm-os/settings`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      .then((r) => { const d = r.data?.data || {}; setFirmName(d.commercial_name || d.legal_name || "Mi Firma Jurídica"); })
+      .catch(() => {});
+  }, [user?.firm_id]);
 
   const { lawyers = [], cases = [], clients = [], loading } = useFirmCoreData();
   const { automationVM = {}, history = [] } = useAutomation(lawyers, cases, clients);
@@ -67,8 +77,8 @@ export function FirmOSSidebar() {
       <div className="p-5 border-b border-white/10 flex items-center gap-3">
         <Building2 className="w-6 h-6 text-[#f97316]" />
         <div className="leading-tight">
-          <div className="font-bold text-sm">Firma</div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Enterprise</div>
+          <div className="font-bold text-sm truncate max-w-[160px]">{firmName}</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#f97316]">Firm OS</div>
         </div>
       </div>
 
