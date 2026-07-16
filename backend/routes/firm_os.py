@@ -228,6 +228,129 @@ async def record_consent(
     return {"success": True, "accepted": True, "version": LEGAL_VERSION, "accepted_at": consent_doc["accepted_at"].isoformat()}
 
 # ═══════════════════════════════════════════════════════════════════════════════════
+# PLANES EMPRESARIALES DE FIRM OS (FASE 4.4) — independientes de Lawyer OS
+# Solo existen 2. La capacidad base es ampliable por firma (Admin Global) sin cambiar plan.
+# ═══════════════════════════════════════════════════════════════════════════════════
+FIRM_PLANS = [
+    {
+        "id": "firma_crecimiento", "name": "Firma en Crecimiento",
+        "max_lawyers": 5, "max_storage_gb": 20, "ai_monthly": 1000,
+        "price_display": "$450.000 COP", "color": "#3b82f6",
+        "description": "Para firmas jurídicas en expansión.",
+        "features": ["Hasta 5 abogados", "20 GB de almacenamiento", "1.000 consultas IA/mes",
+                     "Casos y clientes ilimitados", "Gestión de equipo", "Comunicaciones internas"],
+    },
+    {
+        "id": "consolidacion_empresarial", "name": "Consolidación Empresarial",
+        "max_lawyers": 10, "max_storage_gb": 50, "ai_monthly": 5000,
+        "price_display": "$900.000 COP", "color": "#8b5cf6",
+        "description": "Para firmas consolidadas que operan a escala.",
+        "features": ["Hasta 10 abogados", "50 GB de almacenamiento", "5.000 consultas IA/mes",
+                     "Casos y clientes ilimitados", "Panel ejecutivo avanzado", "White Label", "Soporte prioritario"],
+    },
+]
+FIRM_PLAN_MAP = {p["id"]: p for p in FIRM_PLANS}
+DEFAULT_FIRM_PLAN = "firma_crecimiento"
+
+
+async def _find_firm(db, firm_id):
+    try:
+        f = await db.firms.find_one({"_id": ObjectId(firm_id)})
+        if f:
+            return f
+    except Exception:
+        pass
+    return await db.firms.find_one({"_id": firm_id})
+
+
+@router.get("/plans")
+async def get_firm_plans():
+    """Catálogo EXCLUSIVO de Firm OS (nunca planes de Lawyer OS)."""
+    return {"plans": FIRM_PLANS}
+
+
+@router.get("/subscription")
+async def get_firm_subscription(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Suscripción empresarial: plan, estado, límites efectivos y consumo real."""
+    if current_user.get("role") not in ["firm_owner", "firm_admin"]:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    firm_id = current_user.get("firm_id")
+    if not firm_id:
+        raise HTTPException(status_code=400, detail="Usuario sin firma asignada")
+
+    firm = await _find_firm(db, firm_id) or {}
+    plan_id = firm.get("plan") or firm.get("subscription_plan")
+    plan = FIRM_PLAN_MAP.get(plan_id) or FIRM_PLAN_MAP[DEFAULT_FIRM_PLAN]
+
+    # Límites efectivos: override por firma (Admin Global) o base del plan.
+    limit_lawyers = firm.get("max_lawyers") or plan["max_lawyers"]
+    limit_storage_gb = firm.get("max_storage_gb") or plan["max_storage_gb"]
+    limit_ai = firm.get("ai_monthly") or plan["ai_monthly"]
+
+    members = await db.users.find({"firm_id": firm_id}).to_list(None)
+    lawyer_ids = [str(u["_id"]) for u in members]
+    cases_used = await db.cases.count_documents({"organization_id": firm_id})
+    clients_used = await db.clients.count_documents({"$or": [{"organization_id": firm_id}, {"lawyer_id": {"$in": lawyer_ids}}]})
+    docs = await db.documents.find({"lawyer_id": {"$in": lawyer_ids}}).to_list(None)
+    docs_count = len(docs)
+    storage_bytes = sum((d.get("size_bytes") or d.get("size") or 0) for d in docs)
+    storage_gb_used = round(storage_bytes / (1024 ** 3), 2)
+    ai_used = 0
+    for lid in lawyer_ids:
+        u = await db.ai_usage.find_one({"lawyer_id": lid})
+        if u:
+            ai_used += u.get("used", 0)
+
+    now = datetime.utcnow()
+    renewal = firm.get("trial_ends_at") or firm.get("subscription_ends_at")
+    days_left = None
+    if renewal:
+        try:
+            days_left = max(0, (renewal - now).days)
+        except Exception:
+            days_left = None
+    pct = lambda used, lim: round(min(used / lim * 100, 100), 1) if lim else 0
+
+    return {
+        "plan": {"id": plan["id"], "name": plan["name"], "color": plan["color"], "features": plan["features"], "price_display": plan["price_display"]},
+        "status": firm.get("subscription_status", "trial"),
+        "is_trial": firm.get("subscription_status", "trial") == "trial",
+        "renewal_date": renewal.isoformat() if hasattr(renewal, "isoformat") else renewal,
+        "days_left": days_left,
+        "limits": {"lawyers": limit_lawyers, "storage_gb": limit_storage_gb, "ai_monthly": limit_ai},
+        "usage": {"lawyers": len(lawyer_ids), "cases": cases_used, "clients": clients_used,
+                  "documents": docs_count, "storage_gb": storage_gb_used, "ai": ai_used},
+        "percent": {"lawyers": pct(len(lawyer_ids), limit_lawyers),
+                    "storage": pct(storage_gb_used, limit_storage_gb),
+                    "ai": pct(ai_used, limit_ai)},
+    }
+
+
+@router.patch("/firms/{firm_id}/capacity")
+async def update_firm_capacity(
+    firm_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Ampliar cupos de una firma SIN cambiar el plan (solo Admin Global). Preparado para Admin OS."""
+    if current_user.get("role") not in ["admin", "admin_general"]:
+        raise HTTPException(status_code=403, detail="Solo el Administrador Global puede ampliar cupos")
+    allowed = {k: v for k, v in payload.items() if k in ("max_lawyers", "max_storage_gb", "ai_monthly") and isinstance(v, int) and v > 0}
+    if not allowed:
+        raise HTTPException(status_code=400, detail="Nada que actualizar (max_lawyers/max_storage_gb/ai_monthly)")
+    allowed["updated_at"] = datetime.utcnow()
+    firm = await _find_firm(db, firm_id)
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+    await db.firms.update_one({"_id": firm["_id"]}, {"$set": allowed})
+    return {"success": True, "firm_id": firm_id, "updated": {k: v for k, v in allowed.items() if k != "updated_at"}}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
 # ONBOARDING EMPRESARIAL SELF-SERVICE (FASE 4.3)
 # Crea de forma atómica: Firm + Firm Owner + Firm Settings (comercial + White Label)
 # + organization_id (tenant) + consentimiento legal, y devuelve token (auto-ingreso).

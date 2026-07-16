@@ -38,7 +38,7 @@ export default function FirmOnboardingWizard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    axios.get(`${API}/payment/catalog`).then((r) => setPlans(r.data?.plans || [])).catch(() => {});
+    axios.get(`${API}/firm-os/plans`).then((r) => setPlans(r.data?.plans || [])).catch(() => {});
   }, []);
 
   const upField = (setter) => (k, v) => setter((p) => ({ ...p, [k]: v }));
@@ -158,7 +158,7 @@ export default function FirmOnboardingWizard() {
                 {plans.map((p) => (
                   <div key={p.id} onClick={() => setPlanId(p.id)} className={`p-4 rounded-xl border-2 cursor-pointer ${planId === p.id ? "border-[#f97316] bg-[#f97316]/10" : "border-white/10 bg-white/5 hover:border-white/30"}`}>
                     <div className="flex items-center justify-between"><p className="font-bold" style={{ color: p.color }}>{p.name}</p><span className="text-sm text-white/70">{p.price_display}</span></div>
-                    <p className="text-xs text-white/50 mt-1">{p.processes}</p>
+                    <p className="text-xs text-white/50 mt-1">Hasta {p.max_lawyers} abogados · {p.max_storage_gb} GB · {p.ai_monthly} IA/mes</p>
                     <ul className="mt-2 space-y-0.5">{(p.features || []).slice(0, 5).map((f, i) => <li key={i} className="text-xs text-white/60">• {f}</li>)}</ul>
                   </div>
                 ))}

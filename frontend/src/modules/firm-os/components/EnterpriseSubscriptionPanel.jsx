@@ -1,217 +1,131 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, RefreshCw, XCircle, RotateCcw, Receipt, Settings2, Loader2, AlertTriangle } from "lucide-react";
+import { CreditCard, RefreshCw, Receipt, Settings2, Loader2, AlertTriangle, Users, FolderKanban, BookOpen, FileText, Brain, Check, X } from "lucide-react";
 import axios from "axios";
 import { API } from "@/config/api";
-import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * Panel "Estado de la Empresa" — Suscripción empresarial de Firm OS.
- * Consume SOLO endpoints existentes (sin mocks, sin datos simulados):
- *   GET  /payment/subscription-status   -> plan, estado, renovación, flags
- *   GET  /payment/my-plan               -> plan/catálogo/locale
- *   GET  /firms/{id}/lawyers|clients|cases -> consumo real (count)
- *   GET  /documents/storage/{uid}       -> almacenamiento real (used/quota)
- *   GET  /ai/usage/{uid}                -> consumo IA real
- *   POST /payment/renew|cancel|reactivate -> acciones de suscripción
+ * Panel Ejecutivo de Suscripción — Firm OS (FASE 4.4).
+ * Fuente EXCLUSIVA de Firm OS: /firm-os/subscription y /firm-os/plans.
+ * NO consume catálogos ni planes de Lawyer OS.
  */
 const authHeaders = () => {
   const t = localStorage.getItem("pcl_token") || localStorage.getItem("access_token");
   return t ? { Authorization: `Bearer ${t}` } : {};
 };
-
 const barColor = (pct) => (pct >= 95 ? "#ef4444" : pct >= 80 ? "#f97316" : pct >= 60 ? "#eab308" : "#10b981");
 
-const Meter = ({ label, usedLabel, pct }) => (
-  <div>
-    <div className="mb-1 flex items-center justify-between">
-      <span className="text-sm text-white/70">{label}</span>
-      <span className="text-sm font-semibold text-white">{usedLabel}</span>
-    </div>
-    {pct !== null && (
-      <>
-        <div className="h-2 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: barColor(pct) }} />
-        </div>
-        <p className="mt-0.5 text-xs text-white/40">{Math.round(pct)}% utilizado</p>
-      </>
+const MetricBar = ({ icon: Icon, label, value, sub, pct }) => (
+  <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4">
+    <div className="flex items-center gap-2 mb-2 text-white/60"><Icon className="w-4 h-4" /><span className="text-xs uppercase tracking-wide">{label}</span></div>
+    <div className="text-2xl font-bold text-white">{value}</div>
+    {sub && <div className="text-xs text-white/50 mt-0.5">{sub}</div>}
+    {pct !== null && pct !== undefined && (
+      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: barColor(pct) }} />
+      </div>
     )}
   </div>
 );
 
 export function EnterpriseSubscriptionPanel() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const uid = user?.id || user?._id;
-  const firmId = user?.firm_id;
-
   const [loading, setLoading] = useState(true);
-  const [sub, setSub] = useState(null);      // subscription-status
-  const [myPlan, setMyPlan] = useState(null); // my-plan
-  const [usage, setUsage] = useState({ lawyers: 0, clients: 0, cases: 0, storage: null, ai: 0, aiFree: true });
-  const [busy, setBusy] = useState("");
+  const [data, setData] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [showPlans, setShowPlans] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const H = { headers: authHeaders() };
-    const safe = (p) => axios.get(`${API}${p}`, H).then((r) => r.data).catch(() => null);
-    const [s, mp, law, cli, cas, st, ai] = await Promise.all([
-      safe("/payment/subscription-status"),
-      safe("/payment/my-plan"),
-      firmId ? safe(`/firms/${firmId}/lawyers`) : Promise.resolve(null),
-      firmId ? safe(`/firms/${firmId}/clients`) : Promise.resolve(null),
-      firmId ? safe(`/firms/${firmId}/cases`) : Promise.resolve(null),
-      uid ? safe(`/documents/storage/${uid}`) : Promise.resolve(null),
-      uid ? safe(`/ai/usage/${uid}`) : Promise.resolve(null),
+    const [sub, pl] = await Promise.all([
+      axios.get(`${API}/firm-os/subscription`, H).then((r) => r.data).catch(() => null),
+      axios.get(`${API}/firm-os/plans`, H).then((r) => r.data?.plans || []).catch(() => []),
     ]);
-    setSub(s);
-    setMyPlan(mp);
-    setUsage({
-      lawyers: law?.count ?? 0,
-      clients: cli?.count ?? 0,
-      cases: cas?.count ?? 0,
-      storage: st || null,
-      ai: ai?.used ?? 0,
-      aiFree: ai?.free ?? true,
-    });
+    setData(sub);
+    setPlans(pl);
     setLoading(false);
-  }, [firmId, uid]);
-
+  }, []);
   useEffect(() => { load(); }, [load]);
 
-  const doAction = async (path, confirmMsg) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
-    setBusy(path);
-    try {
-      await axios.post(`${API}${path}`, {}, { headers: authHeaders() });
-      await load();
-    } catch (e) {
-      alert(e.response?.data?.detail || "No se pudo completar la operación");
-    } finally {
-      setBusy("");
-    }
-  };
+  if (loading) return <div className="rounded-2xl border border-white/10 bg-white/5 p-8 flex items-center gap-2 text-white/60"><Loader2 className="w-5 h-5 animate-spin" /> Cargando suscripción empresarial…</div>;
+  if (!data) return null;
 
-  if (loading) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6 flex items-center gap-2 text-white/60">
-        <Loader2 className="w-4 h-4 animate-spin" /> Cargando estado de la empresa…
-      </div>
-    );
-  }
+  const { plan, status, is_trial, renewal_date, days_left, limits, usage, percent } = data;
+  const statusLabel = is_trial ? "Trial" : status === "active" ? "Activo" : status === "suspended" ? "Suspendido" : status === "expired" ? "Vencido" : status;
+  const statusStyle = is_trial ? "bg-amber-500/20 text-amber-300 border-amber-500/40" : status === "active" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : "bg-red-500/20 text-red-300 border-red-500/40";
 
-  const status = sub?.subscription_status || myPlan?.subscription_status || "trial";
-  const isTrial = status === "trial";
-  const planName = sub?.plan_name || myPlan?.plan?.name || (isTrial ? "Trial" : "Sin plan");
-  const renewal = sub?.renewal_date || null;
-  let daysLeft = null;
-  if (renewal) {
-    const d = Math.ceil((new Date(renewal) - new Date()) / 86400000);
-    daysLeft = isNaN(d) ? null : d;
-  }
-  // Límite de casos: derivado del texto del plan del catálogo (p.ej. "Hasta 50 casos"), si existe.
-  const planDef = (myPlan?.catalog || []).find((p) => p.id === (sub?.plan_id || myPlan?.plan_id));
-  const caseLimitMatch = planDef?.processes?.match(/(\d+)/);
-  const caseLimit = caseLimitMatch ? parseInt(caseLimitMatch[1], 10) : null;
-  const term = myPlan?.locale?.term_plural ? myPlan.locale.term_plural.charAt(0).toUpperCase() + myPlan.locale.term_plural.slice(1) : "Abogados";
-  const st = usage.storage;
-
-  const counters = [
-    { label: term, usedLabel: `${usage.lawyers}`, pct: null },
-    { label: "Clientes", usedLabel: `${usage.clients}`, pct: null },
-    { label: "Casos", usedLabel: caseLimit ? `${usage.cases} / ${caseLimit}` : `${usage.cases}`, pct: caseLimit ? (usage.cases / caseLimit) * 100 : null },
-    { label: "Documentos", usedLabel: `${st?.count ?? 0}`, pct: null },
-    { label: "Almacenamiento", usedLabel: st ? `${st.used_human} / ${st.quota_human}` : "—", pct: st ? (st.percent ?? 0) : null },
-    { label: "IA (consultas)", usedLabel: usage.aiFree ? `${usage.ai} · Gratis` : `${usage.ai}`, pct: null },
-  ];
-
-  const statusColor = isTrial ? "text-amber-400" : status === "active" || sub?.has_active_subscription ? "text-emerald-400" : "text-white/70";
-
-  // Alertas inteligentes basadas en datos reales.
   const alerts = [];
-  if (isTrial) {
-    alerts.push({ level: daysLeft !== null && daysLeft <= 7 ? "danger" : "warn", text: daysLeft !== null && daysLeft <= 7 ? `Tu periodo de prueba vence en ${daysLeft} día(s). Activa un plan.` : "Estás en periodo de prueba. Activa un plan para asegurar la continuidad." });
-  }
-  if (!isTrial && !sub?.has_active_subscription) {
-    alerts.push({ level: "danger", text: "No tienes un plan activo. Regulariza tu suscripción para evitar suspensión." });
-  }
-  if (st && (st.percent ?? 0) >= 80) {
-    alerts.push({ level: (st.percent ?? 0) >= 95 ? "danger" : "warn", text: `Almacenamiento al ${Math.round(st.percent)}% (${st.used_human} / ${st.quota_human}).` });
-  }
-  if (caseLimit && usage.cases / caseLimit >= 0.8) {
-    alerts.push({ level: usage.cases >= caseLimit ? "danger" : "warn", text: `Casos ${usage.cases}/${caseLimit}: cerca del límite de tu plan. Considera actualizar.` });
-  }
-  if (!isTrial && daysLeft !== null && daysLeft >= 0 && daysLeft <= 5) {
-    alerts.push({ level: "warn", text: `Renovación próxima: ${daysLeft} día(s) restantes.` });
-  }
-  const alertStyle = (lvl) => lvl === "danger" ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  if (is_trial) alerts.push(`Periodo de prueba${days_left != null ? ` · ${days_left} día(s) restantes` : ""}. Activa un plan.`);
+  if (percent.storage >= 80) alerts.push(`Almacenamiento al ${percent.storage}% (${usage.storage_gb} / ${limits.storage_gb} GB).`);
+  if (percent.lawyers >= 80) alerts.push(`Usuarios: ${usage.lawyers}/${limits.lawyers}. Cerca del cupo del plan.`);
+  if (percent.ai >= 80) alerts.push(`Consumo IA al ${percent.ai}%.`);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <CreditCard className="w-6 h-6 text-[#f97316]" />
-          <h2 className="text-2xl font-bold text-white">Estado de la Empresa</h2>
+    <div className="rounded-2xl border border-[#f97316]/30 bg-gradient-to-br from-[#f97316]/10 via-white/[0.03] to-white/[0.03] p-6 space-y-6">
+      {/* Encabezado ejecutivo */}
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#f97316]">Suscripción Empresarial</p>
+          <div className="flex items-center gap-3 mt-1">
+            <h2 className="text-3xl font-extrabold text-white">{plan.name}</h2>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusStyle}`}>{statusLabel}</span>
+          </div>
+          <p className="text-white/50 text-sm mt-1">{plan.price_display} · Renovación: {renewal_date ? new Date(renewal_date).toLocaleDateString() : "—"}{days_left != null ? ` · ${days_left} días` : ""}</p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-sm">
-          <RefreshCw className="w-4 h-4" /> Actualizar
-        </button>
+        <button onClick={load} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-sm"><RefreshCw className="w-4 h-4" /> Actualizar</button>
       </div>
 
-      {/* Plan */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div><p className="text-xs uppercase text-white/50">Plan</p><p className="text-lg font-bold text-white">{planName}</p></div>
-        <div><p className="text-xs uppercase text-white/50">Estado</p><p className={`text-lg font-bold ${statusColor}`}>{isTrial ? "Trial" : status}</p></div>
-        <div><p className="text-xs uppercase text-white/50">Renovación</p><p className="text-lg font-bold text-white">{renewal ? new Date(renewal).toLocaleDateString() : "—"}</p></div>
-        <div><p className="text-xs uppercase text-white/50">Días restantes</p><p className="text-lg font-bold text-white">{daysLeft !== null ? daysLeft : "—"}</p></div>
-      </div>
-
-      {/* Consumo */}
-      <div>
-        <p className="text-sm font-semibold text-white/60 uppercase mb-3">Consumo del plan</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-          {counters.map((c) => <Meter key={c.label} label={c.label} usedLabel={c.usedLabel} pct={c.pct} />)}
-        </div>
+      {/* Métricas grandes */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <MetricBar icon={Users} label="Usuarios" value={`${usage.lawyers} / ${limits.lawyers}`} sub="abogados activos" pct={percent.lawyers} />
+        <MetricBar icon={FolderKanban} label="Casos" value={usage.cases} sub="de la firma" pct={null} />
+        <MetricBar icon={BookOpen} label="Clientes" value={usage.clients} sub="de la firma" pct={null} />
+        <MetricBar icon={FileText} label="Documentos" value={usage.documents} sub={`${usage.storage_gb} / ${limits.storage_gb} GB`} pct={percent.storage} />
+        <MetricBar icon={Brain} label="Consumo IA" value={`${percent.ai}%`} sub={`${usage.ai} / ${limits.ai_monthly} consultas`} pct={percent.ai} />
+        <MetricBar icon={CreditCard} label="Almacenamiento" value={`${usage.storage_gb} GB`} sub={`de ${limits.storage_gb} GB`} pct={percent.storage} />
       </div>
 
       {alerts.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-white/60 uppercase">Alertas</p>
           {alerts.map((a, i) => (
-            <div key={i} className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${alertStyle(a.level)}`}>
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {a.text}
-            </div>
+            <div key={i} className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-300 text-sm"><AlertTriangle className="w-4 h-4 flex-shrink-0" /> {a}</div>
           ))}
         </div>
       )}
 
-      {/* Acciones */}
-      <div className="flex flex-wrap gap-3 pt-2 border-t border-white/10">
-        <button onClick={() => navigate("/checkout")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
-          <CreditCard className="w-4 h-4" /> {sub?.has_active_subscription ? "Cambiar Plan" : "Actualizar Plan"}
-        </button>
-        {sub?.has_active_subscription && (
-          <button disabled={busy === "/payment/renew"} onClick={() => doAction("/payment/renew")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-50">
-            {busy === "/payment/renew" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Renovar
-          </button>
-        )}
-        {sub?.can_cancel && (
-          <button disabled={busy === "/payment/cancel"} onClick={() => doAction("/payment/cancel", "¿Cancelar la suscripción?")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-50">
-            {busy === "/payment/cancel" ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} Cancelar
-          </button>
-        )}
-        {sub?.can_reactivate && (
-          <button disabled={busy === "/payment/reactivate"} onClick={() => doAction("/payment/reactivate")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold disabled:opacity-50">
-            {busy === "/payment/reactivate" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} Reactivar
-          </button>
-        )}
-        <button onClick={() => navigate("/firm-os/invoices")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold">
-          <Receipt className="w-4 h-4" /> Ver Facturas
-        </button>
-        <button onClick={() => navigate("/firm-os/settings")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold">
-          <Settings2 className="w-4 h-4" /> Administrar Suscripción
-        </button>
+      {/* Botones grandes */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button onClick={() => setShowPlans(true)} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"><CreditCard className="w-5 h-5" /> Actualizar Plan</button>
+        <button onClick={() => setShowPlans(true)} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"><RefreshCw className="w-5 h-5" /> Renovar</button>
+        <button onClick={() => navigate("/firm-os/settings")} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold"><Settings2 className="w-5 h-5" /> Administrar</button>
+        <button onClick={() => navigate("/firm-os/invoices")} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold"><Receipt className="w-5 h-5" /> Facturas</button>
       </div>
+
+      {/* Modal de planes (SOLO Firm OS) */}
+      {showPlans && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowPlans(false)}>
+          <div className="w-full max-w-3xl bg-[#0f172a] border border-white/15 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Planes empresariales</h3>
+              <button onClick={() => setShowPlans(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {plans.map((p) => (
+                <div key={p.id} className={`p-5 rounded-xl border-2 ${p.id === plan.id ? "border-[#f97316] bg-[#f97316]/10" : "border-white/10 bg-white/5"}`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-bold" style={{ color: p.color }}>{p.name}</p>
+                    {p.id === plan.id && <span className="text-xs bg-[#f97316]/20 text-[#f97316] px-2 py-0.5 rounded">Actual</span>}
+                  </div>
+                  <p className="text-2xl font-extrabold text-white mt-1">{p.price_display}</p>
+                  <ul className="mt-3 space-y-1">{p.features.map((f, i) => <li key={i} className="flex items-center gap-2 text-sm text-white/70"><Check className="w-4 h-4 text-emerald-400" /> {f}</li>)}</ul>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/40 mt-4">Para cambiar de plan o ampliar cupos, contacta a tu administrador.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

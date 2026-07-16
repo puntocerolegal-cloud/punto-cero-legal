@@ -91,6 +91,15 @@ export const SettingsPage = () => {
   const [firmSaved, setFirmSaved] = useState(false);
   const setFirmField = (k, v) => setFirm(prev => ({ ...prev, [k]: v }));
 
+  // Suscripción de FIRMA (Firm OS) — nunca planes de Lawyer OS.
+  const [firmSub, setFirmSub] = useState(null);
+  useEffect(() => {
+    if (!user?.firm_id) return;
+    const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+    axios.get(`${API}/firm-os/subscription`, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} })
+      .then((r) => setFirmSub(r.data)).catch(() => {});
+  }, [user?.firm_id]);
+
   useEffect(() => {
     if (!user?.firm_id) return;
     const authToken = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
@@ -346,18 +355,42 @@ export const SettingsPage = () => {
               {activeTab === 'subscription' && (
                 <div className="space-y-5">
                   <h2 className="text-xl font-bold">Plan y Suscripción</h2>
-                  <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-6 border border-[#f97316]/40">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Award className="w-8 h-8 text-[#f97316]" />
-                      <div>
-                        <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Actual</div>
-                        <div className="text-2xl font-bold" data-testid="settings-plan-name">{currentPlan?.name || '—'}</div>
+                  {user?.firm_id ? (
+                    // FIRM OS: plan empresarial (fuente /firm-os/subscription). Sin planes de Lawyer OS.
+                    <>
+                      <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-6 border border-[#f97316]/40">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Award className="w-8 h-8 text-[#f97316]" />
+                          <div>
+                            <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Empresarial</div>
+                            <div className="text-2xl font-bold">{firmSub?.plan?.name || '—'}</div>
+                          </div>
+                        </div>
+                        <p className="text-white/70 text-sm mb-2">Estado: <span className="font-semibold">{firmSub?.is_trial ? 'Trial' : (firmSub?.status || '—')}</span></p>
+                        <div className="grid grid-cols-3 gap-3 mt-4 text-sm">
+                          <div><div className="text-white/50">Abogados</div><div className="font-bold">{firmSub?.usage?.lawyers ?? '—'} / {firmSub?.limits?.lawyers ?? '—'}</div></div>
+                          <div><div className="text-white/50">Almacenamiento</div><div className="font-bold">{firmSub?.usage?.storage_gb ?? 0} / {firmSub?.limits?.storage_gb ?? '—'} GB</div></div>
+                          <div><div className="text-white/50">IA</div><div className="font-bold">{firmSub?.percent?.ai ?? 0}%</div></div>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-white/70 text-sm mb-4">Estado de la suscripción: <span className="font-semibold">{access?.status || '—'}</span></p>
-                    <div className="text-3xl font-bold mb-1" data-testid="settings-plan-price">{planPriceLabel} <span className="text-base font-normal text-white/60">/mes</span></div>
-                  </div>
-                  <Button className="bg-gradient-to-r from-[#10b981] to-[#059669] text-white">Cambiar Plan</Button>
+                      <p className="text-sm text-white/60">Gestiona tu suscripción desde el panel <strong>Estado de la Empresa</strong> en el Dashboard.</p>
+                    </>
+                  ) : (
+                    // LAWYER OS: plan individual del abogado.
+                    <>
+                      <div className="backdrop-blur-xl bg-gradient-to-r from-[#f97316]/20 to-[#fb923c]/20 rounded-2xl p-6 border border-[#f97316]/40">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Award className="w-8 h-8 text-[#f97316]" />
+                          <div>
+                            <div className="text-xs uppercase tracking-wider text-[#f97316]">Plan Actual</div>
+                            <div className="text-2xl font-bold" data-testid="settings-plan-name">{currentPlan?.name || '—'}</div>
+                          </div>
+                        </div>
+                        <p className="text-white/70 text-sm mb-4">Estado de la suscripción: <span className="font-semibold">{access?.status || '—'}</span></p>
+                        <div className="text-3xl font-bold mb-1" data-testid="settings-plan-price">{planPriceLabel} <span className="text-base font-normal text-white/60">/mes</span></div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
