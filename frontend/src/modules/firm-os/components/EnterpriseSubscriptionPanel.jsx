@@ -127,6 +127,25 @@ export function EnterpriseSubscriptionPanel() {
 
   const statusColor = isTrial ? "text-amber-400" : status === "active" || sub?.has_active_subscription ? "text-emerald-400" : "text-white/70";
 
+  // Alertas inteligentes basadas en datos reales.
+  const alerts = [];
+  if (isTrial) {
+    alerts.push({ level: daysLeft !== null && daysLeft <= 7 ? "danger" : "warn", text: daysLeft !== null && daysLeft <= 7 ? `Tu periodo de prueba vence en ${daysLeft} día(s). Activa un plan.` : "Estás en periodo de prueba. Activa un plan para asegurar la continuidad." });
+  }
+  if (!isTrial && !sub?.has_active_subscription) {
+    alerts.push({ level: "danger", text: "No tienes un plan activo. Regulariza tu suscripción para evitar suspensión." });
+  }
+  if (st && (st.percent ?? 0) >= 80) {
+    alerts.push({ level: (st.percent ?? 0) >= 95 ? "danger" : "warn", text: `Almacenamiento al ${Math.round(st.percent)}% (${st.used_human} / ${st.quota_human}).` });
+  }
+  if (caseLimit && usage.cases / caseLimit >= 0.8) {
+    alerts.push({ level: usage.cases >= caseLimit ? "danger" : "warn", text: `Casos ${usage.cases}/${caseLimit}: cerca del límite de tu plan. Considera actualizar.` });
+  }
+  if (!isTrial && daysLeft !== null && daysLeft >= 0 && daysLeft <= 5) {
+    alerts.push({ level: "warn", text: `Renovación próxima: ${daysLeft} día(s) restantes.` });
+  }
+  const alertStyle = (lvl) => lvl === "danger" ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300";
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -155,9 +174,14 @@ export function EnterpriseSubscriptionPanel() {
         </div>
       </div>
 
-      {isTrial && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-300 text-sm">
-          <AlertTriangle className="w-4 h-4" /> Estás en periodo de prueba. Activa un plan para asegurar la continuidad del servicio.
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-white/60 uppercase">Alertas</p>
+          {alerts.map((a, i) => (
+            <div key={i} className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${alertStyle(a.level)}`}>
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {a.text}
+            </div>
+          ))}
         </div>
       )}
 
