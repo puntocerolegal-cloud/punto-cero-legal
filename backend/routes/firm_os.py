@@ -7,7 +7,7 @@ Rutas para Firm OS Enterprise
 - Contactos públicos
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime
@@ -161,6 +161,71 @@ async def update_firm_settings(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# CONSENTIMIENTO LEGAL EMPRESARIAL (Términos, Privacidad, Habeas Data, SaaS, Tratamiento)
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+# Documentos legales obligatorios y su versión vigente.
+LEGAL_DOCUMENTS = ["terms", "privacy", "habeas_data", "saas_contract", "data_processing"]
+LEGAL_VERSION = "1.0"
+
+@router.get("/consent")
+async def get_consent_status(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Devuelve si el usuario ya aceptó la versión vigente de los documentos legales."""
+    email = current_user.get("email")
+    record = await db.firm_consents.find_one(
+        {"user_email": email, "version": LEGAL_VERSION},
+        sort=[("accepted_at", -1)],
+    )
+    return {
+        "accepted": bool(record),
+        "version": LEGAL_VERSION,
+        "documents": LEGAL_DOCUMENTS,
+        "accepted_at": record.get("accepted_at").isoformat() if record and record.get("accepted_at") else None,
+    }
+
+@router.post("/consent")
+async def record_consent(
+    payload: dict,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Registra la aceptación legal con auditoría (usuario, fecha, hora, IP, versión)."""
+    docs = payload.get("documents") or {}
+    missing = [d for d in LEGAL_DOCUMENTS if not docs.get(d)]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Debe aceptar todos los documentos: faltan {missing}")
+
+    ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else None)
+    consent_doc = {
+        "firm_id": current_user.get("firm_id"),
+        "organization_id": current_user.get("organization_id"),
+        "user_id": str(current_user.get("_id")),
+        "user_email": current_user.get("email"),
+        "version": LEGAL_VERSION,
+        "documents": {d: True for d in LEGAL_DOCUMENTS},
+        "ip": ip,
+        "user_agent": request.headers.get("user-agent"),
+        "accepted_at": datetime.utcnow(),
+    }
+    await db.firm_consents.insert_one(consent_doc)
+    try:
+        await db.audit_logs.insert_one({
+            "action": "legal_consent_accepted",
+            "user_email": current_user.get("email"),
+            "firm_id": current_user.get("firm_id"),
+            "ip": ip,
+            "version": LEGAL_VERSION,
+            "timestamp": datetime.utcnow(),
+        })
+    except Exception:
+        pass
+    return {"success": True, "accepted": True, "version": LEGAL_VERSION, "accepted_at": consent_doc["accepted_at"].isoformat()}
 
 # ═══════════════════════════════════════════════════════════════════════════════════
 # ONBOARDING WIZARD
