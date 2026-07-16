@@ -35,6 +35,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../lib/utils';
 
 import { ChatWidget } from '../components/ChatWidget';
+import { AdmissionChatbot } from '../components/AdmissionChatbot';
 import { FirmRegistrationStreamlined } from '../components/FirmRegistrationStreamlined';
 import { FirmOSPreviewBlock } from '../components/FirmOSPreviewBlock';
 
@@ -2952,6 +2953,9 @@ export const LandingPage = () => {
 
       {/* Capa visual del chatbot existente — se abre tras enviar un formulario */}
       <ChatWidget session={chat} onClose={() => setChat({ open: false })} />
+
+      {/* Asesor Inteligente de Admisión (flujo conversacional de conversión) */}
+      <AdmissionChatbot />
 
     </div>
 
