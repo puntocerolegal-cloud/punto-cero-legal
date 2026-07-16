@@ -64,52 +64,49 @@ async def list_users(
         for user in users
     ]
 
+# Campos de perfil editables por el propio usuario (personal + visual + i18n).
+# NO incluye email/role/status/password (no se pueden cambiar por aquí).
+PROFILE_FIELDS = [
+    # Identidad / contacto
+    "full_name", "public_name", "commercial_name", "legal_name", "title", "bio",
+    "specialty", "specialties", "bar_number", "digital_signature",
+    "phone", "phone_country_code", "email_public", "website", "social_links",
+    "address", "city", "state", "postal_code", "country", "schedule", "business_hours",
+    # i18n
+    "language", "timezone", "currency",
+    # Visual / White Label personal
+    "avatar_url", "logo_url", "cover_url", "favicon_url",
+    "primary_color", "secondary_color", "button_color", "theme", "background_url",
+]
+
+
+def _profile_view(u: dict) -> dict:
+    out = {"id": str(u.get("_id")), "email": u.get("email", ""), "role": u.get("role", "")}
+    for f in PROFILE_FIELDS:
+        out[f] = u.get(f)
+    return out
+
+
 # GET /api/users/me - Obtener perfil del usuario actual
 @router.get("/me", status_code=status.HTTP_200_OK)
 async def get_profile(current_user: dict = Depends(get_current_user)):
-    """Obtener perfil del usuario autenticado"""
-    return {
-        "id": current_user["_id"],
-        "full_name": current_user.get("full_name", ""),
-        "email": current_user.get("email", ""),
-        "role": current_user.get("role", ""),
-        "country": current_user.get("country"),
-        "phone": current_user.get("phone"),
-        "specialty": current_user.get("specialty"),
-        "bar_number": current_user.get("bar_number"),
-    }
+    """Obtener perfil completo del usuario autenticado."""
+    return _profile_view(current_user)
 
 
-class ProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    country: Optional[str] = None
-    specialty: Optional[str] = None
-    bar_number: Optional[str] = None
-
-
-# PATCH /api/users/me - Actualizar perfil propio (self-scoped, campos permitidos)
+# PATCH /api/users/me - Actualizar perfil propio (self-scoped, whitelist de campos)
 @router.patch("/me", status_code=status.HTTP_200_OK)
 async def update_profile(
-    payload: ProfileUpdate,
+    payload: dict,
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    """Actualiza el perfil del propio usuario. No permite cambiar email/rol/estado."""
+    """Actualiza el perfil del propio usuario. Whitelist: no permite email/rol/estado/password."""
     from datetime import datetime
-    updates = {k: v for k, v in payload.dict().items() if v is not None}
+    updates = {k: v for k, v in (payload or {}).items() if k in PROFILE_FIELDS}
     if not updates:
-        raise HTTPException(status_code=400, detail="Sin campos para actualizar")
+        raise HTTPException(status_code=400, detail="Sin campos válidos para actualizar")
     updates["updated_at"] = datetime.utcnow()
     await db.users.update_one({"email": current_user["email"]}, {"$set": updates})
     user = await db.users.find_one({"email": current_user["email"]})
-    return {
-        "success": True,
-        "id": str(user["_id"]),
-        "full_name": user.get("full_name", ""),
-        "email": user.get("email", ""),
-        "phone": user.get("phone"),
-        "country": user.get("country"),
-        "specialty": user.get("specialty"),
-        "bar_number": user.get("bar_number"),
-    }
+    return {"success": True, **_profile_view(user)}

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { API } from '@/config/api';
+import { PhoneInput } from '@/components/PhoneInput';
+import { LANGUAGES, TIMEZONES } from '@/config/countries';
 import { User, Lock, Bell, Building2, CreditCard, Plug, Save, Eye, EyeOff, Check, Award, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
@@ -54,7 +56,24 @@ export const SettingsPage = () => {
     country: user?.country || 'Colombia',
     specialty: user?.specialty || '',
     bar_number: user?.bar_number || '',
+    title: '', bio: '', website: '', city: '', state: '', postal_code: '',
+    language: 'es', timezone: 'America/Bogota',
   });
+
+  // Carga el perfil persistido (para recuperar exactamente la config tras login/refresh).
+  useEffect(() => {
+    const t = localStorage.getItem('pcl_token') || localStorage.getItem('access_token');
+    axios.get(`${API}/users/me`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      .then((r) => {
+        const d = r.data || {};
+        setProfile((prev) => {
+          const next = { ...prev };
+          Object.keys(prev).forEach((k) => { if (d[k] !== undefined && d[k] !== null) next[k] = d[k]; });
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, []);
   const [notifications, setNotifications] = useState({
     email_cases: true,
     email_meetings: true,
@@ -78,6 +97,14 @@ export const SettingsPage = () => {
         country: profile.country,
         specialty: profile.specialty,
         bar_number: profile.bar_number,
+        title: profile.title,
+        bio: profile.bio,
+        website: profile.website,
+        city: profile.city,
+        state: profile.state,
+        postal_code: profile.postal_code,
+        language: profile.language,
+        timezone: profile.timezone,
       }, { headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -199,7 +226,7 @@ export const SettingsPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">Teléfono</label>
-                      <Input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                      <PhoneInput value={profile.phone} onChange={(v) => setProfile({ ...profile, phone: v })} />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">Tarjeta Profesional</label>
@@ -213,6 +240,42 @@ export const SettingsPage = () => {
                       <label className="block text-sm font-semibold mb-2">País</label>
                       <Input value={profile.country} onChange={(e) => setProfile({ ...profile, country: e.target.value })} className="bg-white/10 border-white/20 text-white" />
                     </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Cargo</label>
+                      <Input value={profile.title} onChange={(e) => setProfile({ ...profile, title: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Sitio web</label>
+                      <Input value={profile.website} onChange={(e) => setProfile({ ...profile, website: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Ciudad</label>
+                      <Input value={profile.city} onChange={(e) => setProfile({ ...profile, city: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Estado / Departamento</label>
+                      <Input value={profile.state} onChange={(e) => setProfile({ ...profile, state: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Código postal</label>
+                      <Input value={profile.postal_code} onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })} className="bg-white/10 border-white/20 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Idioma</label>
+                      <select value={profile.language} onChange={(e) => setProfile({ ...profile, language: e.target.value })} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white">
+                        {LANGUAGES.map((l) => <option key={l.code} value={l.code} className="bg-slate-800">{l.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Zona horaria</label>
+                      <select value={profile.timezone} onChange={(e) => setProfile({ ...profile, timezone: e.target.value })} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white">
+                        {TIMEZONES.map((t) => <option key={t} value={t} className="bg-slate-800">{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Biografía</label>
+                    <textarea value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={3} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40" />
                   </div>
                   <Button onClick={handleSaveProfile} className="bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-bold">
                     {saved ? <><Check className="w-4 h-4 mr-2" /> Guardado</> : <><Save className="w-4 h-4 mr-2" /> Guardar Cambios</>}
@@ -294,7 +357,7 @@ export const SettingsPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">Teléfono</label>
-                      <Input value={firm.phone} onChange={(e) => setFirmField('phone', e.target.value)} className="bg-white/10 border-white/20 text-white" />
+                      <PhoneInput value={firm.phone} onChange={(v) => setFirmField('phone', v)} />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">Sitio web</label>

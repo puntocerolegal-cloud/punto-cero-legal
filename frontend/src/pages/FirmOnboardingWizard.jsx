@@ -5,6 +5,7 @@ import { Building2, ArrowRight, ArrowLeft, Check, Loader2, ShieldCheck, Upload }
 import axios from "axios";
 import { API } from "@/config/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { PhoneInput } from "@/components/PhoneInput";
 
 const STEPS = [
   "Fundador", "Datos comerciales", "Identidad", "Plan", "Aceptación legal", "Crear", "Ingreso",
@@ -108,7 +109,10 @@ export default function FirmOnboardingWizard() {
                 <Field label="Contraseña" type="password" value={founder.password} onChange={(e) => upFounder("password", e.target.value)} />
                 <Field label="Confirmar contraseña" type="password" value={founder.confirm} onChange={(e) => upFounder("confirm", e.target.value)} />
               </div>
-              <Field label="Teléfono" value={founder.phone} onChange={(e) => upFounder("phone", e.target.value)} />
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-white/80">Teléfono</label>
+                <PhoneInput value={founder.phone} onChange={(v) => upFounder("phone", v)} />
+              </div>
               {founder.password && founder.confirm && founder.password !== founder.confirm && <p className="text-red-400 text-sm">Las contraseñas no coinciden</p>}
             </>
           )}
@@ -119,7 +123,10 @@ export default function FirmOnboardingWizard() {
                 <Field label="Nombre comercial" value={commercial.commercial_name} onChange={(e) => upComm("commercial_name", e.target.value)} />
                 <Field label="Razón social" value={commercial.legal_name} onChange={(e) => upComm("legal_name", e.target.value)} />
                 <Field label="NIT / RIF" value={commercial.nit} onChange={(e) => upComm("nit", e.target.value)} />
-                <Field label="Teléfono" value={commercial.phone} onChange={(e) => upComm("phone", e.target.value)} />
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-white/80">Teléfono</label>
+                  <PhoneInput value={commercial.phone} onChange={(v) => upComm("phone", v)} />
+                </div>
                 <Field label="Dirección" value={commercial.address} onChange={(e) => upComm("address", e.target.value)} />
                 <Field label="Ciudad" value={commercial.city} onChange={(e) => upComm("city", e.target.value)} />
                 <Field label="País" value={commercial.country} onChange={(e) => upComm("country", e.target.value)} />
