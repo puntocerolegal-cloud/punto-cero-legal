@@ -10,7 +10,7 @@ Rutas para Firm OS Enterprise
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 import re
 
@@ -226,6 +226,129 @@ async def record_consent(
     except Exception:
         pass
     return {"success": True, "accepted": True, "version": LEGAL_VERSION, "accepted_at": consent_doc["accepted_at"].isoformat()}
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# ONBOARDING EMPRESARIAL SELF-SERVICE (FASE 4.3)
+# Crea de forma atómica: Firm + Firm Owner + Firm Settings (comercial + White Label)
+# + organization_id (tenant) + consentimiento legal, y devuelve token (auto-ingreso).
+# Reutiliza las mismas colecciones/patrones que register+approve; no crea arquitectura nueva.
+# ═══════════════════════════════════════════════════════════════════════════════════
+@router.post("/onboarding", status_code=status.HTTP_201_CREATED)
+async def firm_onboarding(payload: dict, request: Request, db: AsyncIOMotorDatabase = Depends(get_db)):
+    from utils.auth import get_password_hash, create_access_token
+
+    founder = payload.get("founder") or {}
+    commercial = payload.get("commercial") or {}
+    branding = payload.get("branding") or {}
+    plan_id = payload.get("plan_id")
+    consent = (payload.get("consent") or {}).get("documents") or {}
+
+    email = (founder.get("email") or "").strip().lower()
+    password = founder.get("password")
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Correo y contraseña del fundador son obligatorios")
+    if not commercial.get("commercial_name"):
+        raise HTTPException(status_code=400, detail="El nombre comercial es obligatorio")
+    missing = [d for d in LEGAL_DOCUMENTS if not consent.get(d)]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Debe aceptar todos los documentos legales: faltan {missing}")
+
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Ya existe un usuario con este correo")
+
+    now = datetime.utcnow()
+    trial_ends = now + timedelta(days=7)
+
+    # 1) Firm
+    firm_doc = {
+        "name": commercial.get("commercial_name"),
+        "legal_name": commercial.get("legal_name"),
+        "nit": commercial.get("nit"),
+        "email": commercial.get("corporate_email") or email,
+        "phone": commercial.get("phone"),
+        "address": commercial.get("address"),
+        "city": commercial.get("city"),
+        "country": commercial.get("country") or "Colombia",
+        "plan": plan_id,
+        "owner_email": email,
+        "owner_name": founder.get("full_name"),
+        "status": "ACTIVE",
+        "approval_status": "approved",
+        "is_verified": True,
+        "trial_status": "active",
+        "trial_started_at": now,
+        "trial_ends_at": trial_ends,
+        "subscription_status": "trial",
+        "subscription_plan": plan_id or "trial",
+        "created_at": now,
+        "updated_at": now,
+    }
+    firm_result = await db.firms.insert_one(firm_doc)
+    firm_id = str(firm_result.inserted_id)
+
+    # 2) Firm Owner (tenant = firm_id)
+    owner_doc = {
+        "email": email,
+        "full_name": founder.get("full_name"),
+        "password_hash": get_password_hash(password),
+        "phone": founder.get("phone") or commercial.get("phone"),
+        "role": "firm_owner",
+        "firm_id": firm_id,
+        "organization_id": firm_id,
+        "status": "ACTIVE",
+        "is_verified": True,
+        "requires_password_change": False,
+        "country": commercial.get("country") or "Colombia",
+        "created_at": now,
+        "updated_at": now,
+    }
+    owner_result = await db.users.insert_one(owner_doc)
+    owner_id = str(owner_result.inserted_id)
+    await db.firms.update_one({"_id": firm_result.inserted_id}, {"$set": {"owner_id": owner_id}})
+
+    # 3) Firm Settings (comercial + White Label) — sin datos huérfanos
+    settings_doc = {
+        "firm_id": firm_id,
+        "commercial_name": commercial.get("commercial_name"),
+        "legal_name": commercial.get("legal_name"),
+        "tax_id": commercial.get("nit"),
+        "address": commercial.get("address"),
+        "city": commercial.get("city"),
+        "country": commercial.get("country") or "Colombia",
+        "phone": commercial.get("phone"),
+        "corporate_email": commercial.get("corporate_email"),
+        "website": commercial.get("website"),
+        "specialties": commercial.get("specialties"),
+        "social_links": commercial.get("social_links"),
+        "logo_url": branding.get("logo_url"),
+        "avatar_url": branding.get("avatar_url"),
+        "cover_url": branding.get("cover_url"),
+        "favicon_url": branding.get("favicon_url"),
+        "primary_color": branding.get("primary_color"),
+        "secondary_color": branding.get("secondary_color"),
+        "public_name": branding.get("public_name") or commercial.get("commercial_name"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.firm_settings.insert_one(settings_doc)
+
+    # 4) Consentimiento legal con auditoría
+    ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else None)
+    await db.firm_consents.insert_one({
+        "firm_id": firm_id, "organization_id": firm_id, "user_id": owner_id, "user_email": email,
+        "version": LEGAL_VERSION, "documents": {d: True for d in LEGAL_DOCUMENTS},
+        "ip": ip, "user_agent": request.headers.get("user-agent"), "accepted_at": now,
+    })
+
+    # 5) Token de acceso (auto-ingreso, sin volver al login)
+    token = create_access_token(data={"sub": email, "role": "firm_owner"})
+    return {
+        "success": True,
+        "access_token": token,
+        "token_type": "bearer",
+        "firm_id": firm_id,
+        "user": {"id": owner_id, "email": email, "full_name": founder.get("full_name"), "role": "firm_owner", "firm_id": firm_id},
+    }
 
 # ═══════════════════════════════════════════════════════════════════════════════════
 # ONBOARDING WIZARD
