@@ -117,6 +117,34 @@ export const SettingsPage = () => {
     }
   };
 
+  // Sube una imagen (logo/portada/avatar/favicon) leyéndola como data URL base64.
+  // Se persiste con "Guardar Despacho" (PUT /firm-os/settings). Preview inmediato.
+  const handleImageFile = (field) => (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => setFirmField(field, reader.result);
+    reader.readAsDataURL(file);
+  };
+  const ImageUpload = ({ field, label }) => (
+    <div>
+      <label className="block text-sm font-semibold mb-2">{label}</label>
+      <div className="flex items-center gap-3">
+        {firm[field] ? (
+          <img src={firm[field]} alt={label} className="w-14 h-14 rounded-lg object-cover border border-white/20" />
+        ) : (
+          <div className="w-14 h-14 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/30 text-xs">—</div>
+        )}
+        <label className="cursor-pointer px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm">
+          Subir / Reemplazar
+          <input type="file" accept="image/*" onChange={handleImageFile(field)} className="hidden" />
+        </label>
+        {firm[field] && <button type="button" onClick={() => setFirmField(field, '')} className="text-white/50 hover:text-red-400 text-sm">Quitar</button>}
+      </div>
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pt-12 lg:pt-0">
@@ -299,22 +327,10 @@ export const SettingsPage = () => {
                       <label className="block text-sm font-semibold mb-2">Dominio</label>
                       <Input value={firm.domain} onChange={(e) => setFirmField('domain', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="midespacho.com" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">Logo (URL)</label>
-                      <Input value={firm.logo_url} onChange={(e) => setFirmField('logo_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">Imagen de portada (URL)</label>
-                      <Input value={firm.cover_url} onChange={(e) => setFirmField('cover_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">Avatar (URL)</label>
-                      <Input value={firm.avatar_url} onChange={(e) => setFirmField('avatar_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">Favicon (URL)</label>
-                      <Input value={firm.favicon_url} onChange={(e) => setFirmField('favicon_url', e.target.value)} className="bg-white/10 border-white/20 text-white" />
-                    </div>
+                    <ImageUpload field="logo_url" label="Logo" />
+                    <ImageUpload field="cover_url" label="Imagen de portada" />
+                    <ImageUpload field="avatar_url" label="Avatar" />
+                    <ImageUpload field="favicon_url" label="Favicon" />
                     <div>
                       <label className="block text-sm font-semibold mb-2">Color primario</label>
                       <Input value={firm.primary_color} onChange={(e) => setFirmField('primary_color', e.target.value)} className="bg-white/10 border-white/20 text-white" placeholder="#3b82f6" />
