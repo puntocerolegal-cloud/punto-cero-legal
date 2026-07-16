@@ -106,6 +106,8 @@ async def create_client(
     doc = payload.model_dump()
     # El dueño se asigna automáticamente desde el usuario autenticado.
     doc["lawyer_id"] = str(current_user["_id"])
+    # Tenant: sellar organization_id para que list_clients (que filtra por él) lo encuentre.
+    doc["organization_id"] = current_user.get("organization_id")
     doc["created_at"] = datetime.utcnow()
     doc["updated_at"] = datetime.utcnow()
     res = await db.clients.insert_one(doc)
