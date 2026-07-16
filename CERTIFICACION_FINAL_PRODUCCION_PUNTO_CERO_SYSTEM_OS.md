@@ -8,6 +8,21 @@
 
 ---
 
+## 🚀 SELLO DE RELEASE v1.0.0
+
+- **Versión:** Punto Cero System OS v1.0.0 (primera versión oficial)
+- **Fecha de cierre:** 2026-07-16
+- **Tag:** `v1.0.0`
+- **Rama definitiva:** `main` (merge desde `sprint-cierre-firm-os`)
+- **Commit final:** commit de release etiquetado `v1.0.0` (ver `git log`)
+- **Estado del repositorio:** limpio, sin cambios pendientes (venv/node_modules/.env ignorados)
+- **Estado del build:** Backend compila (py OK) · Frontend `craco build` → Compiled successfully
+- **Estado de servicios (local RC):** Backend `:8010` 200 · Frontend `:3000` 200 · Swagger `/docs` 200 · MongoDB conectado
+- **Planes:** Lawyer OS = El Despegue / El Salto Estratégico · Firm OS = Firma en Crecimiento / Consolidación Empresarial (catálogos separados, sin referencias cruzadas)
+- **Go-live:** condicionado únicamente a cargar credenciales de producción (ver "CONFIGURACIONES PENDIENTES DE PRODUCCIÓN").
+
+---
+
 ## DICTAMEN EJECUTIVO
 
 ### 🟢 SOFTWARE APTO PARA PRODUCCIÓN — requiere únicamente configuración final del entorno
