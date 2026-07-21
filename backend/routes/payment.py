@@ -698,6 +698,23 @@ async def get_my_plan(request: Request, current = Depends(get_current_user)):
         ends = created + timedelta(days=7)
         trial_ends_at = ends.isoformat() + "Z"
         trial_active = (not plan) and (now < ends)
+        
+        # Integrar con CRM - Registrar trial activado (solo una vez)
+        if trial_active:
+            try:
+                from services.crm_integration_service import CRMIntegrationService
+                
+                await CRMIntegrationService.register_trial_activated(
+                    db=db,
+                    email=current["email"],
+                    plan_id="trial",
+                    trial_days=7,
+                    user_id=str(current["_id"]),
+                    trial_started_at=trial_started_at,
+                    trial_ends_at=trial_ends_at
+                )
+            except Exception:
+                pass
 
     return {
         "has_plan": bool(plan),
@@ -811,6 +828,22 @@ async def init_payment(request: PaymentInitRequest, db: AsyncIOMotorDatabase = D
     }
 
     await db.transactions.insert_one(transaction)
+    
+    # Integrar con CRM - Registrar inicio de pago
+    try:
+        from services.crm_integration_service import CRMIntegrationService
+        
+        await CRMIntegrationService.register_payment_initiated(
+            db=db,
+            email=request.user_email,
+            payment_id=payment_id,
+            plan_id=request.plan_id,
+            amount=cop_amount,
+            currency=currency,
+            provider=gateway
+        )
+    except Exception:
+        pass
     
     return PaymentInitResponse(
         gateway=gateway,
@@ -1374,6 +1407,22 @@ async def change_plan(
         {"$set": {"plan_id": payload.new_plan_id}}
     )
 
+    # Integrar con CRM - Registrar cambio de plan
+    try:
+        from services.crm_integration_service import CRMIntegrationService
+        
+        await CRMIntegrationService.register_plan_changed(
+            db=db,
+            email=current["email"],
+            old_plan_id=current_plan_id,
+            new_plan_id=payload.new_plan_id,
+            old_price=old_plan_price,
+            new_price=new_plan_price,
+            proration_amount=0
+        )
+    except Exception:
+        pass
+
     return {
         "message": "Plan cambiado exitosamente sin costo adicional",
         "new_plan_id": payload.new_plan_id,
@@ -1418,6 +1467,21 @@ async def cancel_subscription(
             "cancelled_at": datetime.utcnow()
         }}
     )
+
+    # Integrar con CRM - Registrar cancelación de suscripción
+    try:
+        from services.crm_integration_service import CRMIntegrationService
+        
+        await CRMIntegrationService.register_subscription_cancelled(
+            db=db,
+            email=current["email"],
+            plan_id=plan_id,
+            user_id=str(current["_id"]),
+            reason="user_cancelled",
+            cancelled_at=datetime.utcnow().isoformat()
+        )
+    except Exception:
+        pass
 
     # Notificar admin
     try:

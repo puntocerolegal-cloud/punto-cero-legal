@@ -189,12 +189,26 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     const response = await axios.post(`${API}/auth/register`, userData);
-    const { access_token, user: newUser } = response.data;
-    await setStoredToken(access_token);
-    await setStoredUser(newUser);
-    setToken(access_token);
-    setUser(newUser);
-    return newUser;
+    
+    // FLUJO OFICIAL DE ACTIVACIÓN:
+    // - Admin: recibe access_token → login inmediato
+    // - Abogados/Firmas: NO reciben access_token → deben esperar email
+    const { access_token, user: newUser, activation } = response.data;
+    
+    if (access_token) {
+      // FLUJO ADMIN: activación inmediata
+      await setStoredToken(access_token);
+      await setStoredUser(newUser);
+      setToken(access_token);
+      setUser(newUser);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    } else {
+      // FLUJO ACTIVACIÓN: no hay token, usuario debe esperar
+      // No guardar sesión - el usuario debe hacer login después de cambiar contraseña
+      console.log('[AUTH] Registro en flujo de activación - sin token:', newUser);
+    }
+    
+    return { user: newUser, activation };
   };
 
   const logout = () => {

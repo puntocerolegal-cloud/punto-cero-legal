@@ -243,6 +243,26 @@ async def process_payment_event(
         elif status in ("rejected", "cancelled"):
             update_data["status"] = status
             
+            # Integrar con CRM - Registrar pago fallido
+            try:
+                from services.crm_integration_service import CRMIntegrationService
+                
+                # Buscar transacción para obtener detalles
+                tx = await db.transactions.find_one({"mp_payment_id": payment_id})
+                if tx:
+                    await CRMIntegrationService.register_payment_failed(
+                        db=db,
+                        email=tx.get("user_email", ""),
+                        payment_id=payment_id,
+                        reason=status,
+                        provider="mercado_pago",
+                        amount=tx.get("amount_local", 0),
+                        currency=tx.get("currency", "USD"),
+                        error_code=f"payment_{status}"
+                    )
+            except Exception:
+                pass
+            
             # Notificar admin
             await _notify_payment_failure(db, payment_id, status)
         
@@ -518,6 +538,25 @@ async def _apply_payment_success(db: AsyncIOMotorDatabase, transaction: dict) ->
                     },
                     "$set": {"last_referral_at": datetime.utcnow()}}
                 )
+        
+        # Integrar con CRM - Registrar pago completado
+        try:
+            from services.crm_integration_service import CRMIntegrationService
+            
+            await CRMIntegrationService.register_payment_completed(
+                db=db,
+                email=transaction["user_email"],
+                payment_id=transaction["payment_id"],
+                transaction_id=str(transaction["_id"]),
+                amount=transaction.get("amount_local", 0),
+                currency=transaction.get("currency", "USD"),
+                provider=transaction.get("gateway", "unknown"),
+                plan_id=transaction.get("plan_id", ""),
+                country=transaction.get("country"),
+                user_id=user_id
+            )
+        except Exception:
+            pass
         
         return True
     

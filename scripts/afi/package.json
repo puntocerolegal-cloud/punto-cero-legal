@@ -1,0 +1,30 @@
+{
+  "name": "afi-auditor-funcional-inteligente",
+  "version": "1.0.0",
+  "description": "A.F.I. - Auditor Funcional Inteligente: Sistema de certificación automática para Dashboard Administrativo",
+  "main": "core/AFIEngine.js",
+  "scripts": {
+    "audit": "node core/AFIEngine.js",
+    "audit:headless": "node core/AFIEngine.js --headless",
+    "audit:module": "node core/AFIEngine.js --modulo=usuarios",
+    "report": "node reporters/HTMLReporter.js"
+  },
+  "keywords": [
+    "auditor",
+    "qa",
+    "automation",
+    "playwright",
+    "testing",
+    "dashboard",
+    "certificacion"
+  ],
+  "author": "Sistema AFI - Punto Cero Legal",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

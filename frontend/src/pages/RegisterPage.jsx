@@ -22,7 +22,7 @@ export const RegisterPage = () => {
   const [referrerName, setReferrerName] = useState('');
   const [formData, setFormData] = useState({
     email: '', password: '', full_name: '', phone: '',
-    country: 'Colombia', specialty: 'Derecho Civil', 
+    country: 'Colombia', specialty: 'Derecho Civil',
     bar_number: '', id_document: '', firm_name: '',
     role: 'lawyer'
   });
@@ -49,11 +49,27 @@ export const RegisterPage = () => {
     setLoading(true);
     try {
       // Campos de aceptación legal (aditivos; no alteran la autenticación).
-      const newUser = await register({ ...formData, accepted_legal: true, accepted_at: new Date().toISOString() });
+      const response = await register({ ...formData, accepted_legal: true, accepted_at: new Date().toISOString() });
+      
       // Evento base Google Ads (registro completado) — reutilizable como conversión.
       trackEvent('sign_up', { method: 'platform', plan: planFromUrl || undefined });
-      // Si requiere verificación → /verificacion-pendiente
-      if (newUser?.is_verified === false || newUser?.status === 'PENDING_VERIFICATION') {
+      
+      // FLUJO OFICIAL DE ACTIVACIÓN:
+      // Si el usuario requiere activación (no es admin), mostrar mensaje de espera
+      const userData = response?.user || response;
+      const activationData = response?.activation;
+      
+      if (activationData?.email_sent || userData?.status === 'PENDING_VERIFICATION') {
+        // FLUJO ACTIVACIÓN: usuario debe esperar email y cambiar contraseña
+        navigate('/verificacion-pendiente', {
+          state: {
+            email: userData.email,
+            message: 'Hemos enviado tus credenciales de acceso. Revisa tu correo para continuar.',
+            activation_note: activationData?.note
+          }
+        });
+      } else if (userData?.is_verified === false || userData?.status === 'PENDING_VERIFICATION') {
+        // Compatibilidad con flujo anterior
         navigate('/verificacion-pendiente');
       } else if (planFromUrl) {
         navigate(`/checkout?plan=${planFromUrl}&cycle=${cycleFromUrl || 'monthly'}${refFromUrl ? `&ref=${refFromUrl}` : ''}`);
@@ -142,13 +158,13 @@ export const RegisterPage = () => {
                 <Input type="text" value={formData.id_document} onChange={(e) => setFormData({ ...formData, id_document: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="CC 1.234.567.890" required data-testid="register-id-document" />
               </div>
             </div>
-            <div>
+            <div className="hidden">
               <label className="block text-sm font-semibold text-white/80 mb-2">Nombre del Bufete / Firma *</label>
-              <Input type="text" value={formData.firm_name} onChange={(e) => setFormData({ ...formData, firm_name: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Despacho Pérez & Asociados" required data-testid="register-firm-name" />
+              <Input type="text" value={formData.firm_name} onChange={(e) => setFormData({ ...formData, firm_name: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Despacho Pérez & Asociados" data-testid="register-firm-name" />
             </div>
-            <div>
+            <div className="hidden">
               <label className="block text-sm font-semibold text-white/80 mb-2">Contraseña</label>
-              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Mínimo 8 caracteres" minLength={8} required data-testid="register-password" />
+              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="bg-white/10 border-white/20 text-white" placeholder="Mínimo 8 caracteres" minLength={8} data-testid="register-password" />
             </div>
 
             <label className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer">

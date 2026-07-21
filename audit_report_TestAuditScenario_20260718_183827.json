@@ -1,0 +1,271 @@
+{
+  "audit_metadata": {
+    "file": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+    "file_name": "TestAuditScenario.jsx",
+    "module": "pages",
+    "audit_date": "2026-07-18T18:38:27.581115",
+    "total_lines": 375,
+    "total_findings": 14
+  },
+  "summary": {
+    "critical": 0,
+    "high": 3,
+    "medium": 9,
+    "low": 2
+  },
+  "findings": [
+    {
+      "id": 1,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Llamada a API inexistente",
+      "severity": "MEDIA",
+      "description": "Petición a endpoint que no existe: /api/endpoint-que-no-existe-404",
+      "steps_to_reproduce": [
+        "1. Abrir la consola de red (F12 > Network)",
+        "2. Ejecutar la función que hace la llamada API",
+        "3. Observar respuesta 404 Not Found"
+      ],
+      "expected_result": "La API debe responder con 200 OK y datos válidos",
+      "actual_result": "La API /api/endpoint-que-no-existe-404 no existe, retorna 404",
+      "line_number": 36,
+      "code_snippet": "const response = await fetch('/api/endpoint-que-no-existe-404');",
+      "recommendation": "Verificar que la ruta existe en el backend o corregir la URL"
+    },
+    {
+      "id": 2,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Formulario sin validación",
+      "severity": "MEDIA",
+      "description": "Formulario sin validación de campos requeridos",
+      "steps_to_reproduce": [
+        "1. Abrir el formulario",
+        "2. Dejar todos los campos vacíos",
+        "3. Hacer clic en enviar",
+        "4. Observar que el formulario se envía sin validación"
+      ],
+      "expected_result": "El formulario debe validar campos antes de enviar",
+      "actual_result": "El formulario se envía con campos vacíos",
+      "line_number": 218,
+      "code_snippet": "<form> (línea 218)",
+      "recommendation": "Agregar validación: required, patrones regex, o validación JS"
+    },
+    {
+      "id": 3,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Enlace roto",
+      "severity": "MEDIA",
+      "description": "Enlace a ruta que no existe: /pagina-que-no-existe-404",
+      "steps_to_reproduce": [
+        "1. Hacer clic en el enlace",
+        "2. Observar página 404 Not Found"
+      ],
+      "expected_result": "La ruta debe existir y cargar la página correspondiente",
+      "actual_result": "La ruta /pagina-que-no-existe-404 no está definida en el router",
+      "line_number": 124,
+      "code_snippet": "window.location.href = '/pagina-que-no-existe-404';",
+      "recommendation": "Crear la ruta en el router o corregir el enlace"
+    },
+    {
+      "id": 4,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Warning de React - Key inválido",
+      "severity": "BAJA",
+      "description": "Uso de índice de array como key en lista",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador (F12)",
+        "2. Observar warning de React sobre keys"
+      ],
+      "expected_result": "Usar un identificador único como key",
+      "actual_result": "Uso de index como key causa warning y problemas de rendimiento",
+      "line_number": 27,
+      "code_snippet": "<li key={index}>{item}</li>",
+      "recommendation": "Usar key={item.id} en lugar de key={index}"
+    },
+    {
+      "id": 5,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Estado vacío no manejado",
+      "severity": "BAJA",
+      "description": "Array vacío sin componente de estado vacío",
+      "steps_to_reproduce": [
+        "1. Navegar al módulo sin datos",
+        "2. Observar que no hay mensaje de 'Sin datos'"
+      ],
+      "expected_result": "Mostrar mensaje amigable cuando no hay datos",
+      "actual_result": "El array vacío se muestra sin mensaje informativo",
+      "line_number": 94,
+      "code_snippet": "usuarios: [],",
+      "recommendation": "Agregar componente EmptyState o mensaje 'Sin datos disponibles'"
+    },
+    {
+      "id": 6,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Uso de console.error/log",
+      "severity": "MEDIA",
+      "description": "Uso de console.error en lugar de sistema de logging",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador",
+        "2. Ejecutar el código que genera el error",
+        "3. Observar el log en consola"
+      ],
+      "expected_result": "Usar sistema de logging estructurado (logger, Sentry, etc.)",
+      "actual_result": "Uso de console.error que no se captura en producción",
+      "line_number": 42,
+      "code_snippet": "console.error('Error en API inexistente:', error);",
+      "recommendation": "Reemplazar console.error por logger.error() o sistema de logging"
+    },
+    {
+      "id": 7,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Uso de console.error/log",
+      "severity": "MEDIA",
+      "description": "Uso de console.error en lugar de sistema de logging",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador",
+        "2. Ejecutar el código que genera el error",
+        "3. Observar el log en consola"
+      ],
+      "expected_result": "Usar sistema de logging estructurado (logger, Sentry, etc.)",
+      "actual_result": "Uso de console.error que no se captura en producción",
+      "line_number": 49,
+      "code_snippet": "console.error('ERROR INTENCIONAL: Esta función debería manejar este error');",
+      "recommendation": "Reemplazar console.error por logger.error() o sistema de logging"
+    },
+    {
+      "id": 8,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Uso de console.error/log",
+      "severity": "MEDIA",
+      "description": "Uso de console.error en lugar de sistema de logging",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador",
+        "2. Ejecutar el código que genera el error",
+        "3. Observar el log en consola"
+      ],
+      "expected_result": "Usar sistema de logging estructurado (logger, Sentry, etc.)",
+      "actual_result": "Uso de console.error que no se captura en producción",
+      "line_number": 105,
+      "code_snippet": "console.log('Formulario enviado sin validación:', formData);",
+      "recommendation": "Reemplazar console.error por logger.error() o sistema de logging"
+    },
+    {
+      "id": 9,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Uso de console.error/log",
+      "severity": "MEDIA",
+      "description": "Uso de console.error en lugar de sistema de logging",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador",
+        "2. Ejecutar el código que genera el error",
+        "3. Observar el log en consola"
+      ],
+      "expected_result": "Usar sistema de logging estructurado (logger, Sentry, etc.)",
+      "actual_result": "Uso de console.error que no se captura en producción",
+      "line_number": 130,
+      "code_snippet": "console.error('ERROR INTENCIONAL PARA AUDITORÍA: Este error debe ser detectado');",
+      "recommendation": "Reemplazar console.error por logger.error() o sistema de logging"
+    },
+    {
+      "id": 10,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Uso de console.error/log",
+      "severity": "MEDIA",
+      "description": "Uso de console.error en lugar de sistema de logging",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador",
+        "2. Ejecutar el código que genera el error",
+        "3. Observar el log en consola"
+      ],
+      "expected_result": "Usar sistema de logging estructurado (logger, Sentry, etc.)",
+      "actual_result": "Uso de console.error que no se captura en producción",
+      "line_number": 131,
+      "code_snippet": "console.error('Stack trace simulado:', new Error('Error de prueba para auditoría').stack);",
+      "recommendation": "Reemplazar console.error por logger.error() o sistema de logging"
+    },
+    {
+      "id": 11,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Uso de console.error/log",
+      "severity": "MEDIA",
+      "description": "Uso de console.error en lugar de sistema de logging",
+      "steps_to_reproduce": [
+        "1. Abrir la consola del navegador",
+        "2. Ejecutar el código que genera el error",
+        "3. Observar el log en consola"
+      ],
+      "expected_result": "Usar sistema de logging estructurado (logger, Sentry, etc.)",
+      "actual_result": "Uso de console.error que no se captura en producción",
+      "line_number": 148,
+      "code_snippet": "console.error('Error en función:', error);",
+      "recommendation": "Reemplazar console.error por logger.error() o sistema de logging"
+    },
+    {
+      "id": 12,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Campo obligatorio sin validación",
+      "severity": "ALTA",
+      "description": "Campo de formulario sin atributo required",
+      "steps_to_reproduce": [
+        "1. Abrir el formulario",
+        "2. Dejar el campo vacío",
+        "3. Enviar el formulario",
+        "4. Observar que se envía sin validación"
+      ],
+      "expected_result": "El campo debe tener validación required",
+      "actual_result": "El campo se envía vacío sin validación",
+      "line_number": 223,
+      "code_snippet": "<input",
+      "recommendation": "Agregar atributo required o validación personalizada"
+    },
+    {
+      "id": 13,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Campo obligatorio sin validación",
+      "severity": "ALTA",
+      "description": "Campo de formulario sin atributo required",
+      "steps_to_reproduce": [
+        "1. Abrir el formulario",
+        "2. Dejar el campo vacío",
+        "3. Enviar el formulario",
+        "4. Observar que se envía sin validación"
+      ],
+      "expected_result": "El campo debe tener validación required",
+      "actual_result": "El campo se envía vacío sin validación",
+      "line_number": 236,
+      "code_snippet": "<input",
+      "recommendation": "Agregar atributo required o validación personalizada"
+    },
+    {
+      "id": 14,
+      "module": "pages",
+      "path": "frontend/src/modules/admin/pages/TestAuditScenario.jsx",
+      "error_type": "Campo obligatorio sin validación",
+      "severity": "ALTA",
+      "description": "Campo de formulario sin atributo required",
+      "steps_to_reproduce": [
+        "1. Abrir el formulario",
+        "2. Dejar el campo vacío",
+        "3. Enviar el formulario",
+        "4. Observar que se envía sin validación"
+      ],
+      "expected_result": "El campo debe tener validación required",
+      "actual_result": "El campo se envía vacío sin validación",
+      "line_number": 249,
+      "code_snippet": "<input",
+      "recommendation": "Agregar atributo required o validación personalizada"
+    }
+  ]
+}

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
 from datetime import datetime, timedelta
 import secrets
@@ -7,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.firm import Firm, FirmCreate, FirmUpdate, FirmResponse, FirmRejectRequest
 from models.user import UserActivateAccount
 from routes.auth import get_current_user
+from services.activation_service import ActivationService
 from bson import ObjectId
 
 router = APIRouter(prefix="/firms", tags=["Firm OS"])
@@ -200,27 +200,49 @@ async def register_firm_lead(
             metadata={"lead_id": lead_id, "contact_email": contact_email},
         )
 
-        # PASO 3: Enviar correo de bienvenida al contacto
+        # PASO 3: Actualizar CRM - Marcar lead como pendiente de aprobación
         try:
-            await notifier.send_email(
-                contact_email,
-                subject="Bienvenido a Punto Cero Legal",
-                body=f"""
-                Hola {contact_name},
+            from services.crm_integration_service import CRMIntegrationService
+            
+            await CRMIntegrationService.update_lead_status(
+                db=db,
+                email=contact_email,
+                status="PENDING_APPROVAL",
+                metadata={
+                    "firm_name": firm_name,
+                    "contact_phone": contact_phone,
+                    "contact_country": contact_country,
+                    "firm_size": firm_size,
+                    "registration_source": "landing_firm_registration"
+                }
+            )
+            
+            await CRMIntegrationService.create_timeline_event(
+                db=db,
+                event_type="FIRM_REGISTRATION_RECEIVED",
+                description=f"Solicitud de registro recibida para firma: {firm_name}",
+                lead_id=lead_id,
+                metadata={
+                    "firm_name": firm_name,
+                    "contact_email": contact_email,
+                    "contact_country": contact_country,
+                    "firm_size": firm_size
+                }
+            )
+        except Exception as e:
+            # No fallar si la integración CRM falla
+            pass
 
-                ¡Gracias por registrar tu firma en Punto Cero Legal!
-
-                Tu espacio está casi listo. En los próximos pasos te pediremos:
-                - Logo y descripción de tu firma
-                - Áreas de práctica
-                - Invitar a tus abogados
-
-                Un especialista de nuestro equipo se pondrá en contacto contigo pronto por WhatsApp
-                para ayudarte en el proceso.
-
-                Saludos,
-                Punto Cero Legal
-                """
+        # PASO 4: Enviar correo de bienvenida al contacto (solicitud recibida)
+        try:
+            await notifier.send_email_request_received(
+                to_email=contact_email,
+                full_name=contact_name,
+                firm_name=firm_name,
+                contact_email=contact_email,
+                contact_phone=contact_phone,
+                contact_country=contact_country,
+                firm_size=firm_size
             )
         except Exception as e:
             # No fallar si el email falla
@@ -516,7 +538,7 @@ async def approve_firm(
     if firm.get("status") != "PENDING_APPROVAL":
         raise HTTPException(status_code=400, detail=f"Firma no está en estado PENDING_APPROVAL (estado actual: {firm.get('status')})")
 
-    # PASO 1: Crear firm_owner si no existe
+    # PASO 1: Crear firm_owner usando ActivationService (contraseña temporal + configuración automática)
     existing_owner = await db.users.find_one({"email": firm.get("owner_email"), "role": "firm_owner"})
     temp_password_for_display = None
 
@@ -528,29 +550,36 @@ async def approve_firm(
                 {"_id": oid},
                 {"$set": {"owner_id": owner_id}}
             )
-    else:
-        # Generar contraseña temporal segura (16 caracteres)
-        temp_password = secrets.token_urlsafe(16)
-        password_hash = get_password_hash(temp_password)
-
-        owner_doc = {
-            "email": firm.get("owner_email"),
-            "full_name": firm.get("owner_name"),
-            "password_hash": password_hash,
-            "phone": firm.get("phone"),
-            "role": "firm_owner",
-            "firm_id": firm_id,
-            "status": "ACTIVE",
-            "is_verified": True,
-            "requires_password_change": True,  # Forzar cambio en primer login
-            "country": firm.get("country", "Colombia"),
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-        }
-
-        owner_result = await db.users.insert_one(owner_doc)
-        owner_id = str(owner_result.inserted_id)
+        # Si ya existe, generar nuevas credenciales temporales
+        temp_password = ActivationService.generate_temp_password()
+        password_hash = ActivationService.hash_password(temp_password)
+        expires_at = ActivationService.calculate_expiry()
+        
+        await db.users.update_one(
+            {"_id": ObjectId(owner_id)},
+            {"$set": {
+                "password_hash": password_hash,
+                "requires_password_change": True,
+                "activation_expires_at": expires_at,
+                "status": ActivationService.STATUS_PENDING,
+                "updated_at": datetime.utcnow()
+            }}
+        )
         temp_password_for_display = temp_password
+    else:
+        # Crear usuario con contraseña temporal usando ActivationService
+        user_data = await ActivationService.create_user_with_temp_password(
+            db=db,
+            email=firm.get("owner_email"),
+            full_name=firm.get("owner_name"),
+            role="firm_owner",
+            firm_id=firm_id,
+            phone=firm.get("phone"),
+            country=firm.get("country", "Colombia")
+        )
+        owner_id = user_data["user_id"]
+        temp_password_for_display = user_data["temp_password"]
+        expires_at = user_data["expires_at"]
 
         # Actualizar firma con owner_id
         await db.firms.update_one(
@@ -572,59 +601,57 @@ async def approve_firm(
         }}
     )
 
-    # PASO 3: Intentar enviar email (pero no bloquear si falla)
-    email_html = f"""
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-            .header {{ text-align: center; margin-bottom: 30px; }}
-            .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
-            .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
-            .section {{ margin: 20px 0; padding: 15px; background: #ecfdf5; border-left: 4px solid #10b981; }}
-            .credentials {{ background: #f3f4f6; padding: 15px; border-radius: 6px; font-family: monospace; }}
-            .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <div class="logo">PUNTO CERO</div>
-            </div>
-
-            <div class="title">¡Tu Firma Fue Aprobada!</div>
-            <p>Hola <strong>{firm.get('owner_name')}</strong>,</p>
-
-            <p>Nos complace informarte que tu firma <strong>{firm.get('name')}</strong> ha sido aprobada por nuestro equipo y ya puedes acceder a Punto Cero Legal.</p>
-
-            <div class="section">
-                <p><strong>✓ Firma Activada</strong></p>
-                <p>Plan: {firm.get('plan', 'firm_growth')}</p>
-                <p>Trial: 7 días</p>
-            </div>
-
-            <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
-                Tus credenciales de acceso se te han proporcionado por separado.<br>
-                Al ingresar por primera vez, deberás cambiar tu contraseña.
-            </p>
-
-            <div class="footer">
-                <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
-                <p>¿Preguntas? Escribe a <strong>soporte@puntocerolegal.com</strong></p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
-    # Intentar envío sin bloquear
+    # PASO 3: Actualizar CRM - Marcar lead como aprobado
     try:
-        email_result = send_email(
-            to_email=firm.get("owner_email"),
-            subject=f"¡Bienvenido a Punto Cero Legal! {firm.get('name')}",
-            body_html=email_html
+        from services.crm_integration_service import CRMIntegrationService
+        
+        # Buscar lead asociado a la firma
+        lead = await CRMIntegrationService.find_lead_by_email(
+            db=db,
+            email=firm.get("owner_email")
+        )
+        
+        if lead:
+            lead_id = str(lead["_id"])
+            
+            # Actualizar estado del lead
+            await CRMIntegrationService.update_lead_status(
+                db=db,
+                email=firm.get("owner_email"),
+                status="APPROVED",
+                metadata={
+                    "firm_name": firm.get("name"),
+                    "approved_date": now.isoformat(),
+                    "approved_by": str(current_user.get("_id")),
+                    "plan_interest": firm.get("plan")
+                }
+            )
+            
+            # Crear timeline event
+            await CRMIntegrationService.create_timeline_event(
+                db=db,
+                event_type="FIRM_APPROVED",
+                description=f"Solicitud aprobada para firma: {firm.get('name')}",
+                lead_id=lead_id,
+                metadata={
+                    "firm_name": firm.get("name"),
+                    "plan_interest": firm.get("plan"),
+                    "approved_by": str(current_user.get("_id"))
+                }
+            )
+    except Exception as e:
+        # No fallar si la integración CRM falla
+        pass
+
+    # PASO 4: Enviar correo de bienvenida usando ActivationService
+    try:
+        email_result = await ActivationService.send_welcome_email(
+            email=firm.get("owner_email"),
+            full_name=firm.get("owner_name"),
+            temp_password=temp_password_for_display,
+            expires_at=expires_at,
+            firm_name=firm.get("name"),
+            plan_interest=firm.get("plan")
         )
         email_sent = email_result.get("sent", False)
         email_trace = email_result.get("email_trace_id", "unknown")
@@ -644,6 +671,7 @@ async def approve_firm(
         "credentials": {
             "email": firm.get("owner_email"),
             "temp_password": temp_password_for_display,
+            "expires_at": expires_at.isoformat() if expires_at else None,
             "note": "Contraseña temporal válida para primer acceso. Usuario debe cambiarla al ingresar." if temp_password_for_display else "Propietario ya tiene acceso configurado."
         },
         "trial": {
@@ -655,7 +683,7 @@ async def approve_firm(
         "email_notification": {
             "sent": email_sent,
             "trace_id": email_trace,
-            "note": "Email de bienvenida enviado (si SMTP está disponible). Admin debe comunicar credenciales manualmente."
+            "note": "Email de bienvenida enviado automáticamente (si SMTP está disponible)."
         }
     }
 
@@ -732,62 +760,53 @@ async def reject_firm(
     # Logging de auditoría
     logger.info(f"[REJECT_FIRM] firm_id={firm_id} | firm_name={firm.get('name')} | rejected_by={str(current_user.get('_id'))} | reason={rejection_reason[:50]}...")
 
-    # PASO 2: Intentar enviar correo de notificación (no bloquear si falla)
-    email_html = f"""
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-            .header {{ text-align: center; margin-bottom: 30px; }}
-            .logo {{ color: #f97316; font-size: 28px; font-weight: bold; }}
-            .title {{ color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0; }}
-            .section {{ margin: 20px 0; padding: 15px; background: #fef2f2; border-left: 4px solid #ef4444; }}
-            .reason {{ background: #f3f4f6; padding: 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #374151; }}
-            .footer {{ color: #9ca3af; font-size: 12px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <div class="logo">PUNTO CERO</div>
-            </div>
+    # PASO 2: Actualizar CRM - Marcar lead como rechazado
+    try:
+        from services.crm_integration_service import CRMIntegrationService
+        
+        # Buscar lead asociado a la firma
+        lead = await CRMIntegrationService.find_lead_by_email(
+            db=db,
+            email=firm.get("owner_email")
+        )
+        
+        if lead:
+            lead_id = str(lead["_id"])
+            
+            # Actualizar estado del lead
+            await CRMIntegrationService.update_lead_status(
+                db=db,
+                email=firm.get("owner_email"),
+                status="REJECTED",
+                rejection_reason=rejection_reason
+            )
+            
+            # Crear timeline event
+            await CRMIntegrationService.create_timeline_event(
+                db=db,
+                event_type="FIRM_REJECTED",
+                description=f"Solicitud rechazada para firma: {firm.get('name')}",
+                lead_id=lead_id,
+                metadata={
+                    "firm_name": firm.get("name"),
+                    "rejection_reason": rejection_reason,
+                    "rejected_by": str(current_user.get("_id"))
+                }
+            )
+    except Exception as e:
+        # No fallar si la integración CRM falla
+        pass
 
-            <div class="title">Revisión de Solicitud Completada</div>
-            <p>Hola <strong>{firm.get('owner_name')}</strong>,</p>
-
-            <p>Hemos revisado tu solicitud de registro para la firma <strong>{firm.get('name')}</strong>.</p>
-
-            <div class="section">
-                <p><strong>⚠️ Estatus: No Aprobado</strong></p>
-                <div class="reason">
-                    <strong>Motivo:</strong><br>
-                    {rejection_reason}
-                </div>
-            </div>
-
-            <p style="margin-top: 30px; color: #6b7280;">
-                Si tienes dudas o deseas apelar esta decisión, por favor contacta a nuestro equipo de soporte en <strong>soporte@puntocerolegal.com</strong>
-            </p>
-
-            <div class="footer">
-                <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
-                <p>Contáctanos: soporte@puntocerolegal.com | +57 1 XXXX-XXXX</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
+    # PASO 3: Intentar enviar correo de notificación de rechazo (no bloquear si falla)
     email_sent = False
     email_trace = "skipped"
 
     try:
-        email_result = send_email(
+        email_result = notifier.send_email_request_rejected(
             to_email=firm.get("owner_email"),
-            subject=f"Resultado de Revisión - {firm.get('name')}",
-            body_html=email_html
+            full_name=firm.get("owner_name"),
+            firm_name=firm.get("name"),
+            rejection_reason=rejection_reason
         )
         email_sent = email_result.get("sent", False)
         email_trace = email_result.get("email_trace_id", "unknown")

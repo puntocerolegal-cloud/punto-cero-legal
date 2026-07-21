@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master, commissions, timeline, firm_management, sales_analytics, ai_operations, financial, ai_autopilot, autonomous, global_network, legal_os, firms, firm_config, rbac, team, users, firm_os, billing_admin
+from routes import auth, leads, cases, meetings, appointments, messages, dashboard, ai, admin, payment, referrals, admin_ops, public_intake, accounting, clients, invoices, documents, portal, backup, chatbot, organizations, partners, implementations, subscriptions, billing, analytics, integration, admin_master, commissions, timeline, firm_management, sales_analytics, ai_operations, financial, ai_autopilot, autonomous, global_network, legal_os, firms, firm_config, rbac, team, users, firm_os, billing_admin, onboarding
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -214,6 +214,7 @@ api_router.include_router(rbac.router)            # FASE 16 — Firm OS RBAC (ro
 api_router.include_router(team.router)            # FASE 16 — Firm OS Team (gestión de equipo)
 api_router.include_router(firm_os.router)         # FASE 16 — Firm OS Enterprise (dashboard, settings, onboarding, directorio)
 api_router.include_router(users.router)           # Users — Listar usuarios para admin
+api_router.include_router(onboarding.router)      # Onboarding — Asistente de activación post-login
 
 # Inicializar cron jobs
 @app.on_event("startup")

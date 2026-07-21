@@ -30,6 +30,455 @@ ADMIN_WHATSAPP = (os.environ.get("ADMIN_WHATSAPP_NUMBER")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL") or "puntocerolegal@gmail.com"
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════
+# PLANTILLAS HTML TRANSACCIONALES
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+def _get_base_template(content: str, title: str = "") -> str:
+    """Layout base común para todos los correos transaccionales.
+    
+    Args:
+        content: HTML del contenido específico del email
+        title: Título de la página (opcional)
+    
+    Returns:
+        HTML completo con layout común
+    """
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+            background: #f5f5f5; 
+            margin: 0; 
+            padding: 20px; 
+        }}
+        .container {{ 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }}
+        .header {{ 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }}
+        .logo {{ 
+            color: #f97316; 
+            font-size: 28px; 
+            font-weight: bold; 
+        }}
+        .title {{ 
+            color: #1f2937; 
+            font-size: 24px; 
+            font-weight: bold; 
+            margin: 20px 0; 
+        }}
+        .section {{ 
+            margin: 20px 0; 
+            padding: 15px; 
+            background: #ecfdf5; 
+            border-left: 4px solid #10b981; 
+        }}
+        .credentials {{ 
+            background: #f3f4f6; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-family: monospace; 
+        }}
+        .warning {{ 
+            background: #fef3c7; 
+            padding: 15px; 
+            border-left: 4px solid #f59e0b; 
+            margin: 20px 0; 
+        }}
+        .error {{ 
+            background: #fef2f2; 
+            padding: 15px; 
+            border-left: 4px solid #ef4444; 
+            margin: 20px 0; 
+        }}
+        .reason {{ 
+            background: #f3f4f6; 
+            padding: 12px; 
+            border-radius: 6px; 
+            margin: 10px 0; 
+            font-size: 14px; 
+            color: #374151; 
+        }}
+        .footer {{ 
+            color: #9ca3af; 
+            font-size: 12px; 
+            text-align: center; 
+            margin-top: 40px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e5e7eb; 
+        }}
+        .button {{ 
+            display: inline-block; 
+            background: #3b82f6; 
+            color: white; 
+            padding: 12px 30px; 
+            border-radius: 6px; 
+            text-decoration: none; 
+            font-weight: 600; 
+            margin: 20px 0; 
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {content}
+        <div class="footer">
+            <p>Punto Cero Legal © 2025 — Todos los derechos reservados</p>
+            <p>¿Preguntas? Escribe a <strong>soporte@puntocerolegal.com</strong></p>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+def _get_header(title: str) -> str:
+    """Header común con logo PUNTO CERO"""
+    return f"""
+        <div class="header">
+            <div class="logo">PUNTO CERO</div>
+        </div>
+
+        <div class="title">{title}</div>"""
+
+
+def send_email_request_received(
+    to_email: str,
+    full_name: str,
+    firm_name: str,
+    contact_email: str,
+    contact_phone: str,
+    contact_country: str,
+    firm_size: str
+) -> dict:
+    """Envía correo de confirmación de solicitud recibida.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del contacto
+        firm_name: Nombre de la firma
+        contact_email: Email de contacto
+        contact_phone: Teléfono de contacto
+        contact_country: País
+        firm_size: Tamaño de la firma
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    content = f"""{_get_header("Solicitud Recibida")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>Hemos recibido tu solicitud de registro para la firma <strong>{firm_name}</strong>.</p>
+
+        <div class="section">
+            <p><strong>✅ Próximos pasos:</strong></p>
+            <p>1. Nuestro equipo revisará tu información en un plazo de 24-48 horas.</p>
+            <p>2. Recibirás un correo con el resultado de la revisión.</p>
+            <p>3. Si es aprobada, recibirás tus credenciales de acceso.</p>
+        </div>
+
+        <div class="credentials">
+            <p><strong>Datos registrados:</strong></p>
+            <p>• Firma: {firm_name}</p>
+            <p>• Email: {contact_email}</p>
+            <p>• Teléfono: {contact_phone}</p>
+            <p>• País: {contact_country}</p>
+            <p>• Tamaño: {firm_size}</p>
+        </div>
+
+        <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+            Un especialista de nuestro equipo se pondrá en contacto contigo pronto por WhatsApp para ayudarte en el proceso.
+        </p>"""
+
+    body_html = _get_base_template(content, "Solicitud Recibida - Punto Cero Legal")
+    
+    return send_email(
+        to_email=to_email,
+        subject=f"Solicitud Recibida - {firm_name}",
+        body_html=body_html
+    )
+
+
+def send_email_request_approved(
+    to_email: str,
+    full_name: str,
+    temp_password: str,
+    expires_at: datetime,
+    firm_name: str,
+    plan_interest: str = None
+) -> dict:
+    """Envía correo de aprobación de solicitud con credenciales.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del destinatario
+        temp_password: Contraseña temporal
+        expires_at: Fecha de expiración
+        firm_name: Nombre de la firma
+        plan_interest: Plan de interés (opcional)
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    hours_remaining = int((expires_at - datetime.utcnow()).total_seconds() / 3600)
+    
+    # Construir mensaje de plan de interés
+    plan_message = ""
+    if plan_interest:
+        plan_display = {
+            "firm_growth": "Firm Growth",
+            "firm_enterprise": "Firm Enterprise",
+            "lawyer_growth": "Lawyer Growth",
+            "lawyer_enterprise": "Lawyer Enterprise"
+        }.get(plan_interest, plan_interest)
+        
+        plan_message = f"""
+        <div class="section">
+            <p><strong>📋 Plan de Interés</strong></p>
+            <p>Durante tu registro manifestaste interés en el Plan <strong>{plan_display}</strong>.</p>
+            <p>Puedes confirmarlo o elegir otro durante el proceso de activación.</p>
+        </div>
+        """
+    
+    content = f"""{_get_header("¡Solicitud Aprobada!")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>¡Buenas noticias! Tu solicitud de registro para <strong>{firm_name}</strong> ha sido aprobada.</p>
+        <p>A continuación encontrarás tus credenciales de acceso:</p>
+
+        <div class="credentials">
+            <p><strong>Correo:</strong> {to_email}</p>
+            <p><strong>Contraseña temporal:</strong> {temp_password}</p>
+            <p><strong>Vigencia:</strong> {hours_remaining} horas ({expires_at.strftime('%Y-%m-%d %H:%M')})</p>
+        </div>
+
+        {plan_message}
+
+        <div class="warning">
+            <p><strong>⚠️ Importante:</strong></p>
+            <p>1. Esta contraseña es temporal y expirará en {hours_remaining} horas.</p>
+            <p>2. Debes cambiarla en tu primer inicio de sesión.</p>
+            <p>3. Si no activas tu cuenta en 72 horas, deberás solicitar un reenvío.</p>
+        </div>
+
+        <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+            Para acceder, visita el enlace de inicio de sesión e ingresa con tu correo y la contraseña temporal.
+        </p>"""
+
+    body_html = _get_base_template(content, "Solicitud Aprobada - Punto Cero Legal")
+    
+    return send_email(
+        to_email=to_email,
+        subject=f"¡Solicitud Aprobada! - {firm_name}",
+        body_html=body_html
+    )
+
+
+def send_email_request_rejected(
+    to_email: str,
+    full_name: str,
+    firm_name: str,
+    rejection_reason: str
+) -> dict:
+    """Envía correo de notificación de rechazo de solicitud.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del destinatario
+        firm_name: Nombre de la firma
+        rejection_reason: Motivo del rechazo
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    content = f"""{_get_header("Revisión de Solicitud Completada")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>Hemos revisado tu solicitud de registro para la firma <strong>{firm_name}</strong>.</p>
+
+        <div class="error">
+            <p><strong>⚠️ Estatus: No Aprobado</strong></p>
+            <div class="reason">
+                <strong>Motivo:</strong><br>
+                {rejection_reason}
+            </div>
+        </div>
+
+        <p style="margin-top: 30px; color: #6b7280;">
+            Si tienes dudas o deseas apelar esta decisión, por favor contacta a nuestro equipo de soporte en <strong>soporte@puntocerolegal.com</strong>
+        </p>"""
+
+    body_html = _get_base_template(content, "Resultado de Revisión - Punto Cero Legal")
+    
+    return send_email(
+        to_email=to_email,
+        subject=f"Resultado de Revisión - {firm_name}",
+        body_html=body_html
+    )
+
+
+def send_email_account_created(
+    to_email: str,
+    full_name: str,
+    temp_password: str,
+    expires_at: datetime,
+    firm_name: str = None
+) -> dict:
+    """Envía correo de cuenta creada con credenciales temporales.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del destinatario
+        temp_password: Contraseña temporal
+        expires_at: Fecha de expiración
+        firm_name: Nombre de la firma (opcional)
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    hours_remaining = int((expires_at - datetime.utcnow()).total_seconds() / 3600)
+    
+    firm_message = ""
+    if firm_name:
+        firm_message = f"""
+        <div class="section">
+            <p><strong>📋 Firma:</strong> {firm_name}</p>
+        </div>
+        """
+    
+    content = f"""{_get_header("¡Bienvenido a Punto Cero Legal!")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>Tu cuenta ha sido creada exitosamente. A continuación encontrarás tus credenciales de acceso:</p>
+
+        {firm_message}
+
+        <div class="credentials">
+            <p><strong>Correo:</strong> {to_email}</p>
+            <p><strong>Contraseña temporal:</strong> {temp_password}</p>
+            <p><strong>Vigencia:</strong> {hours_remaining} horas ({expires_at.strftime('%Y-%m-%d %H:%M')})</p>
+        </div>
+
+        <div class="warning">
+            <p><strong>⚠️ Importante:</strong></p>
+            <p>1. Esta contraseña es temporal y expirará en {hours_remaining} horas.</p>
+            <p>2. Debes cambiarla en tu primer inicio de sesión.</p>
+            <p>3. Si no activas tu cuenta en 72 horas, deberás solicitar un reenvío.</p>
+        </div>
+
+        <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+            Para acceder, visita el enlace de inicio de sesión e ingresa con tu correo y la contraseña temporal.
+        </p>"""
+
+    body_html = _get_base_template(content, "Bienvenido a Punto Cero Legal - Tus credenciales")
+    
+    return send_email(
+        to_email=to_email,
+        subject=f"Bienvenido a Punto Cero Legal - Tus credenciales de acceso",
+        body_html=body_html
+    )
+
+
+def send_email_credentials_expired(
+    to_email: str,
+    full_name: str
+) -> dict:
+    """Envía correo notificando expiración de contraseña temporal.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del destinatario
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    content = f"""{_get_header("Tu contraseña temporal ha expirado")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>Tu contraseña temporal ha expirado después de 72 horas.</p>
+
+        <div class="warning">
+            <p><strong>¿Qué debes hacer?</strong></p>
+            <p>Contacta a nuestro equipo de soporte para solicitar un reenvío de tu correo de activación.</p>
+            <p>Email: <strong>soporte@puntocerolegal.com</strong></p>
+        </div>"""
+
+    body_html = _get_base_template(content, "Tu contraseña temporal ha expirado - Punto Cero Legal")
+    
+    return send_email(
+        to_email=to_email,
+        subject="Tu contraseña temporal ha expirado - Punto Cero Legal",
+        body_html=body_html
+    )
+
+
+def send_email_credentials_resent(
+    to_email: str,
+    full_name: str,
+    temp_password: str,
+    expires_at: datetime
+) -> dict:
+    """Envía correo de reenvío de activación con nuevas credenciales.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del destinatario
+        temp_password: Nueva contraseña temporal
+        expires_at: Nueva fecha de expiración
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    hours_remaining = int((expires_at - datetime.utcnow()).total_seconds() / 3600)
+    
+    content = f"""{_get_header("Nuevas credenciales de acceso")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>Se han generado nuevas credenciales de acceso para tu cuenta:</p>
+
+        <div class="credentials">
+            <p><strong>Correo:</strong> {to_email}</p>
+            <p><strong>Nueva contraseña temporal:</strong> {temp_password}</p>
+            <p><strong>Vigencia:</strong> {hours_remaining} horas ({expires_at.strftime('%Y-%m-%d %H:%M')})</p>
+        </div>
+
+        <div class="warning">
+            <p><strong>⚠️ Importante:</strong></p>
+            <p>1. Esta contraseña es temporal y expirará en {hours_remaining} horas.</p>
+            <p>2. Debes cambiarla en tu primer inicio de sesión.</p>
+        </div>"""
+
+    body_html = _get_base_template(content, "Reenvío de activación - Nuevas credenciales")
+    
+    return send_email(
+        to_email=to_email,
+        subject="Reenvío de activación - Nuevas credenciales Punto Cero Legal",
+        body_html=body_html
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# FUNCIONES DE ALERTA Y NOTIFICACIÓN
+# ═══════════════════════════════════════════════════════════════════════════════════
+
 async def _alert_admin_external(title: str, message: str) -> None:
     """Envía la alerta al administrador por WhatsApp + correo SIN bloquear el
     flujo (fire-and-forget en hilos). Tolerante a fallos: nunca rompe el evento."""

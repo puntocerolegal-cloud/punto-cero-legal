@@ -27,7 +27,8 @@ import RegisterPage from './pages/RegisterPage';
 import ChangePasswordRequired from './pages/ChangePasswordRequired';
 import ActivateFirmPage from './pages/ActivateFirmPage';
 import ActivateLawyerPage from './pages/ActivateLawyerPage';
-import VerificacionPendiente from './pages/VerificacionPendiente';
+import ActivationPendingPage from './pages/ActivationPendingPage';
+import ActivationWizard from './pages/ActivationWizard';
 import CheckoutPage from './pages/CheckoutPage';
 import DashboardHome from './pages/DashboardHome';
 import PortalPage from './pages/PortalPage';
@@ -76,7 +77,10 @@ function App() {
             <Route path="/firms" element={<FirmsDirectory />} />
             <Route path="/firms/:slug" element={<PublicFirmProfile />} />
 
-            <Route path="/verificacion-pendiente" element={<ProtectedRoute allowUnverified={true}><VerificacionPendiente /></ProtectedRoute>} />
+            {/* Pública: se alcanza justo tras el registro (flujo de activación SIN token). */}
+            <Route path="/verificacion-pendiente" element={<ActivationPendingPage />} />
+            {/* Asistente de Activación (paso 3 del flujo): usuario logueado, aún sin verificar. */}
+            <Route path="/activation-wizard" element={<ProtectedRoute allowUnverified={true}><ActivationWizard /></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute allowUnverified={true}><CheckoutPage /></ProtectedRoute>} />
 
             <Route path="/dashboard/*" element={<LawyerShell />} />
