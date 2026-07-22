@@ -613,6 +613,9 @@ def _send_email_resend(to_email: str, subject: str, body_html: str, email_trace_
     import httpx
     # Limpiar y normalizar el remitente
     raw_sender = os.environ.get("RESEND_FROM") or os.environ.get("SMTP_FROM") or "onboarding@resend.dev"
+    # Si el valor incluye el nombre de la variable (RESEND_FROM=...), extraer solo el valor
+    if '=' in raw_sender:
+        raw_sender = raw_sender.split('=', 1)[1].strip()
     # Eliminar saltos de línea y contenido adicional
     sender = raw_sender.split('\n')[0].strip()
     # Si tiene formato "Name <email@example.com>", extraer solo el email para Resend
