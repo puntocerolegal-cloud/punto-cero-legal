@@ -8,7 +8,6 @@ import logging
 import os
 
 from utils.notifier import send_email_account_created
-from server import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/debug", tags=["Debug"])
