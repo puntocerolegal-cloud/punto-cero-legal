@@ -554,12 +554,22 @@ def send_email(to_email: str, subject: str, body_html: str) -> dict:
             logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | TLS inicializado", email_trace_id)
 
             logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | Intentando login con usuario: %s", email_trace_id, user_masked)
+            # LOG TEMPORAL (diagnóstico SMTP) — eliminar tras validar
+            _local, _, _domain = (user or "").partition("@")
+            _user_dbg = (_local[:2] + "****@" + _domain) if _domain else "***"
+            logger.info(
+                "[EMAIL_TRACE:%s] QA_TEMP_DEBUG | SMTP_USER=%s | len(SMTP_PASS)=%s | SMTP_FROM=%s | desde_os_environ: SMTP_USER=%s SMTP_PASS=%s SMTP_FROM=%s",
+                email_trace_id, _user_dbg, (len(password) if password else 0), sender,
+                ("SMTP_USER" in os.environ), ("SMTP_PASS" in os.environ), ("SMTP_FROM" in os.environ),
+            )
             server.login(user, password)
             logger.info("[EMAIL_TRACE:%s] QA_PHASE2 | Autenticación SMTP exitosa", email_trace_id)
 
             # FASE 3: Logging antes de envío
             logger.info("[EMAIL_TRACE:%s] QA_PHASE3 | Iniciando sendmail() desde %s a %s", email_trace_id, sender, to_email)
-            server.sendmail(sender, [to_email], msg.as_string())
+            refused_recipients = server.sendmail(sender, [to_email], msg.as_string())
+            if refused_recipients:
+                raise smtplib.SMTPRecipientsRefused(refused_recipients)
             logger.info("[EMAIL_TRACE:%s] QA_PHASE3 | Correo enviado correctamente a %s", email_trace_id, to_email)
 
         # Resumen de éxito
@@ -583,7 +593,7 @@ def send_email(to_email: str, subject: str, body_html: str) -> dict:
             failure_phase = "TLS"
         elif "login" in error_message.lower() or "authentication" in error_message.lower() or "535" in str(smtp_code):
             failure_phase = "Login"
-        elif "sendmail" in error_message.lower() or "553" in str(smtp_code) or "550" in str(smtp_code):
+        elif "sendmail" in error_message.lower() or "recipient" in error_message.lower() or "553" in str(smtp_code) or "550" in str(smtp_code):
             failure_phase = "Sendmail"
         else:
             failure_phase = "Desconocida"
@@ -603,7 +613,8 @@ def send_email(to_email: str, subject: str, body_html: str) -> dict:
         logger.error("[EMAIL_TRACE:%s] FAILURE_SUMMARY | Estado: FAILURE | Fase: %s | Tipo: %s | Destinatario: %s",
                      email_trace_id, failure_phase, error_type, to_email)
 
-        return {"channel": "email", "sent": False, "reason": error_message, "email_trace_id": email_trace_id}
+        return {"channel": "email", "sent": False, "reason": error_message,
+                "failure_phase": failure_phase, "smtp_code": smtp_code, "email_trace_id": email_trace_id}
 
 
 def send_whatsapp(to_phone: str, body: str) -> dict:

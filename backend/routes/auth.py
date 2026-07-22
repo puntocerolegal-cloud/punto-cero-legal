@@ -204,9 +204,16 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
             )
             email_sent = email_result.get("sent", False)
             email_trace = email_result.get("email_trace_id", "unknown")
+            # DIAGNÓSTICO TEMPORAL SMTP — exponer causa exacta en la respuesta (revertir tras validar)
+            email_reason = email_result.get("reason")
+            email_failure_phase = email_result.get("failure_phase")
+            email_smtp_code = email_result.get("smtp_code")
         except Exception as e:
             email_sent = False
             email_trace = "error"
+            email_reason = repr(e)
+            email_failure_phase = "exception_send_welcome_email"
+            email_smtp_code = None
         
         # NO crear access token - usuario debe esperar aprobación y cambiar contraseña
         return {
@@ -225,7 +232,11 @@ async def register(user_data: UserCreate, db: AsyncIOMotorDatabase = Depends(get
                 "email_sent": email_sent,
                 "email_trace_id": email_trace,
                 "expires_at": expires_at.isoformat(),
-                "note": "Contraseña temporal enviada por email. Válida por 72 horas."
+                "note": "Contraseña temporal enviada por email. Válida por 72 horas.",
+                # DIAGNÓSTICO TEMPORAL SMTP (revertir tras validar)
+                "email_reason": email_reason,
+                "email_failure_phase": email_failure_phase,
+                "email_smtp_code": email_smtp_code
             }
         }
 
