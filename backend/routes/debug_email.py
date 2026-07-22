@@ -52,12 +52,11 @@ async def test_email_endpoint():
     logger.info(f"[DEBUG_EMAIL_TEST] Configuración: {config_status}")
     
     try:
-        # Enviar correo usando la función real
-        result = send_email_account_created(
+        # Enviar correo de admisión (PRIMER correo del flujo - sin credenciales)
+        from utils.notifier import send_email_admission_received
+        result = send_email_admission_received(
             to_email=test_data["to_email"],
             full_name=test_data["full_name"],
-            temp_password=test_data["temp_password"],
-            expires_at=test_data["expires_at"],
             firm_name=test_data["firm_name"]
         )
         
@@ -65,7 +64,7 @@ async def test_email_endpoint():
         
         return {
             "status": "success" if result.get("sent") else "failed",
-            "message": "Correo enviado exitosamente" if result.get("sent") else "Error en el envío",
+            "message": "Correo de admisión enviado exitosamente" if result.get("sent") else "Error en el envío",
             "test_data": test_data,
             "result": result,
             "config": config_status

@@ -2,9 +2,9 @@
 Centro de notificaciones multicanal — Punto Cero Legal.
 
 Envía notificaciones por tres canales de forma simultánea y tolerante a fallos:
-  1. In-app  → colección `notifications` (siempre funciona).
-  2. Email   → SMTP si está configurado (SMTP_HOST/USER/PASS), si no, se registra.
-  3. WhatsApp→ Twilio si está configurado (TWILIO_*), si no, se registra.
+   1. In-app  → colección `notifications` (siempre funciona).
+   2. Email   → SMTP si está configurado (SMTP_HOST/USER/PASS), si no, se registra.
+   3. WhatsApp→ Twilio si está configurado (TWILIO_*), si no, se registra.
 
 El diseño es "graceful degradation": si faltan credenciales externas, la
 notificación in-app SIEMPRE se crea y los canales externos quedan en cola/log,
@@ -152,6 +152,96 @@ def _get_header(title: str) -> str:
         </div>
 
         <div class="title">{title}</div>"""
+
+
+def send_email_admission_received(
+    to_email: str,
+    full_name: str,
+    firm_name: str = None,
+    contact_email: str = None,
+    contact_phone: str = None,
+    contact_country: str = None,
+    firm_size: str = None
+) -> dict:
+    """Envía correo de confirmación de solicitud de admisión recibida.
+    
+    PRIMER correo del flujo de admisión. El usuario NO tiene acceso al sistema.
+    Objetivo: confirmar recepción, presentar Punto Cero Legal, generar confianza,
+    explicar el proceso de evaluación y preparar al usuario para la decisión.
+    
+    NO incluye: credenciales, contraseña, enlace de acceso, confirmación de cuenta activa.
+    
+    Args:
+        to_email: Email del destinatario
+        full_name: Nombre del contacto
+        firm_name: Nombre de la firma (opcional)
+        contact_email: Email de contacto (opcional)
+        contact_phone: Teléfono de contacto (opcional)
+        contact_country: País (opcional)
+        firm_size: Tamaño de la firma (opcional)
+    
+    Returns:
+        Dict con resultado del envío
+    """
+    # Sección de datos registrados (si aplica)
+    data_section = ""
+    if firm_name:
+        data_items = []
+        if firm_name:
+            data_items.append(f"• Firma: {firm_name}")
+        if contact_email:
+            data_items.append(f"• Email: {contact_email}")
+        if contact_phone:
+            data_items.append(f"• Teléfono: {contact_phone}")
+        if contact_country:
+            data_items.append(f"• País: {contact_country}")
+        if firm_size:
+            data_items.append(f"• Tamaño: {firm_size}")
+        
+        if data_items:
+            data_section = f"""
+            <div class="credentials">
+                <p><strong>Datos registrados:</strong></p>
+                {chr(10).join([f'<p>{item}</p>' for item in data_items])}
+            </div>
+            """
+    
+    content = f"""{_get_header("Solicitud de Incorporación Recibida")}
+
+        <p>Hola <strong>{full_name}</strong>,</p>
+
+        <p>Gracias por tu interés en <strong>Punto Cero Legal</strong>. Hemos recibido tu solicitud de incorporación y queremos contarte qué sigue.</p>
+
+        <div class="section">
+            <p><strong>¿Qué ocurre ahora?</strong></p>
+            <p>1. Recibimos tu solicitud de incorporación.</p>
+            <p>2. Nuestro equipo revisará tu información.</p>
+            <p>3. Evaluaremos tu perfil profesional.</p>
+            <p>4. Recibirás una notificación con la decisión de acceso.</p>
+        </div>
+
+        {data_section}
+
+        <div class="section">
+            <p><strong>📋 Sobre Punto Cero Legal</strong></p>
+            <p>Somos una plataforma integral de gestión legal diseñada para potenciar la productividad de abogados y firmas jurídicas. Nuestro ecosistema combina tecnología avanzada con procesos optimizados para que puedas enfocarte en lo que realmente importa: tus clientes.</p>
+        </div>
+
+        <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+            <strong>¿Preguntas?</strong> Nuestro equipo está disponible en <strong>soporte@puntocerolegal.com</strong> para ayudarte en lo que necesites.
+        </p>
+
+        <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">
+            Un especialista de nuestro equipo se pondrá en contacto contigo pronto por WhatsApp para acompañarte en el proceso.
+        </p>"""
+
+    body_html = _get_base_template(content, "Solicitud de Incorporación Recibida - Punto Cero Legal")
+    
+    return send_email(
+        to_email=to_email,
+        subject=f"Solicitud de Incorporación Recibida - Punto Cero Legal",
+        body_html=body_html
+    )
 
 
 def send_email_request_received(
