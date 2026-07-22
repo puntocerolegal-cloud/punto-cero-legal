@@ -611,7 +611,16 @@ async def create_app_notification(db, *, target: str, type: str, title: str,
 def _send_email_resend(to_email: str, subject: str, body_html: str, email_trace_id: str, api_key: str) -> dict:
     """Envío vía API HTTP de Resend (https://api.resend.com/emails). Sale por 443."""
     import httpx
-    sender = os.environ.get("RESEND_FROM") or os.environ.get("SMTP_FROM") or "onboarding@resend.dev"
+    # Limpiar y normalizar el remitente
+    raw_sender = os.environ.get("RESEND_FROM") or os.environ.get("SMTP_FROM") or "onboarding@resend.dev"
+    # Eliminar saltos de línea y contenido adicional
+    sender = raw_sender.split('\n')[0].strip()
+    # Si tiene formato "Name <email@example.com>", extraer solo el email para Resend
+    if '<' in sender and '>' in sender:
+        import re
+        match = re.search(r'<([^>]+)>', sender)
+        if match:
+            sender = match.group(1)
     logger.info("[EMAIL_TRACE:%s] RESEND | Enviando vía API HTTP | from=%s | to=%s | subject=%s",
                 email_trace_id, sender, to_email, subject)
     try:
