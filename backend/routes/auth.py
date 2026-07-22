@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Header, status
 from typing import List, Optional
 from datetime import datetime
 import logging
+import os
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from models.user import UserCreate, User, UserLogin, UserResponse
 from utils.auth import get_password_hash, verify_password, create_access_token, decode_token
@@ -72,6 +73,38 @@ async def get_me(current = Depends(get_current_user)):
         "firm_name": current.get("firm_name"),
         "id_document": current.get("id_document"),
         "organizationId": current.get("organizationId"),
+    }
+
+
+@router.get("/_smtp_egress_diag")
+async def _smtp_egress_diag():
+    """DIAGNÓSTICO TEMPORAL (revertir tras validar).
+    Prueba egress TCP crudo (socket.create_connection, lo mismo que usa smtplib)
+    desde el entorno de Render hacia puertos SMTP y HTTPS de control.
+    Demuestra objetivamente si Render bloquea la salida SMTP (587/465/25)."""
+    import socket
+    targets = [
+        ("smtp.gmail.com", 587), ("smtp.gmail.com", 465), ("smtp.gmail.com", 25),
+        ("smtp.gmail.com", 443), ("google.com", 443), ("api.resend.com", 443),
+    ]
+    results = {}
+    for host, port in targets:
+        key = f"{host}:{port}"
+        try:
+            s = socket.create_connection((host, port), timeout=10)
+            s.close()
+            results[key] = "OPEN"
+        except Exception as e:  # noqa: BLE001
+            results[key] = f"{type(e).__name__}: {e}"
+    return {
+        "egress_test": results,
+        "smtp_env": {
+            "SMTP_HOST": os.environ.get("SMTP_HOST"),
+            "SMTP_PORT": os.environ.get("SMTP_PORT"),
+            "SMTP_USER_set": bool(os.environ.get("SMTP_USER")),
+            "SMTP_PASS_len": len(os.environ.get("SMTP_PASS") or ""),
+            "SMTP_FROM": os.environ.get("SMTP_FROM"),
+        },
     }
 
 
