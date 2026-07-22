@@ -518,10 +518,47 @@ async def create_app_notification(db, *, target: str, type: str, title: str,
     return str(res.inserted_id)
 
 
+def _send_email_resend(to_email: str, subject: str, body_html: str, email_trace_id: str, api_key: str) -> dict:
+    """Envío vía API HTTP de Resend (https://api.resend.com/emails). Sale por 443."""
+    import httpx
+    sender = os.environ.get("RESEND_FROM") or os.environ.get("SMTP_FROM") or "onboarding@resend.dev"
+    logger.info("[EMAIL_TRACE:%s] RESEND | Enviando vía API HTTP | from=%s | to=%s | subject=%s",
+                email_trace_id, sender, to_email, subject)
+    try:
+        r = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"from": sender, "to": [to_email], "subject": subject, "html": body_html},
+            timeout=20,
+        )
+        if r.status_code in (200, 201):
+            provider_id = (r.json() or {}).get("id")
+            logger.info("[EMAIL_TRACE:%s] RESEND | OK | status=%s | id=%s", email_trace_id, r.status_code, provider_id)
+            return {"channel": "email", "sent": True, "provider": "resend",
+                    "provider_id": provider_id, "email_trace_id": email_trace_id}
+        logger.error("[EMAIL_TRACE:%s] RESEND | Error | status=%s | body=%s",
+                     email_trace_id, r.status_code, r.text[:300])
+        return {"channel": "email", "sent": False, "provider": "resend",
+                "reason": f"resend_http_{r.status_code}: {r.text[:200]}",
+                "smtp_code": r.status_code, "failure_phase": "resend_api",
+                "email_trace_id": email_trace_id}
+    except Exception as e:  # noqa: BLE001
+        logger.error("[EMAIL_TRACE:%s] RESEND | Excepción: %s", email_trace_id, repr(e))
+        return {"channel": "email", "sent": False, "provider": "resend",
+                "reason": repr(e), "failure_phase": "resend_exception", "email_trace_id": email_trace_id}
+
+
 def send_email(to_email: str, subject: str, body_html: str) -> dict:
-    """Envía un email vía SMTP. Si no hay credenciales, registra y retorna pendiente."""
+    """Envía un email. Preferencia: API HTTP (Resend) si RESEND_API_KEY está definida
+    (Render bloquea SMTP saliente); en caso contrario, fallback a SMTP directo.
+    La firma y el dict de retorno no cambian: el flujo de activación no se altera."""
     # Generar identificador único de trazabilidad
     email_trace_id = secrets.token_hex(6)
+
+    # Vía preferida: Resend por HTTPS (443), único egress permitido en Render.
+    resend_key = os.environ.get("RESEND_API_KEY")
+    if resend_key:
+        return _send_email_resend(to_email, subject, body_html, email_trace_id, resend_key)
 
     host = os.environ.get("SMTP_HOST")
     user = os.environ.get("SMTP_USER")
